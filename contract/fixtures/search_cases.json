@@ -1,0 +1,59 @@
+{
+  "description": "Golden cases for search matching (docs/data-contract.md#search). Run by pytest (apps/api) and vitest (apps/web). `expect` is the full ordered list of matching ids. Error codes are not given; they are extracted from `body` (bold text at the start of a list item under a 'Quick help' heading).",
+  "fold_cases": [
+    ["ψυγείο", "ψυγειο"],
+    ["ΨΥΓΕΙΟ", "ψυγειο"],
+    ["Κουζίνας", "κουζινασ"],
+    ["ΚΟΥΖΙΝΑΣ", "κουζινασ"],
+    ["Ϊ", "ι"],
+    ["Café É", "cafe e"],
+    ["SMS4HVI33E", "sms4hvi33e"]
+  ],
+  "error_code_cases": [
+    { "body": "## Quick help\n- **E15**: water in the base\n- **OE** drain blocked\n- Not draining: rinse the filter\n\n## Notes\n- **NOT** a code", "codes": ["E15", "OE"] },
+    { "body": "### quick HELP\n* **U4:** units lost contact\n\n#### Sub heading\n- **F1**: still inside quick help\n\n## Other\n- **X9**: outside", "codes": ["U4", "F1"] },
+    { "body": "No headings\n- **E1**: not under quick help", "codes": [] }
+  ],
+  "items": [
+    { "id": "it_dish", "name": "Dishwasher", "brand": "Bosch", "model": "SMS4HVI33E", "serial": "FD 0412 00123", "type_label": "Dishwasher", "room": "Kitchen",
+      "body": "## Quick help\n- **E15**: water in the base. Unplug, tilt it back, dry it, check the hoses for leaks\n- Not draining: twist out the filter at the bottom and rinse it\n\n## Maintenance log\n- 2026-09-15 Technician replaced the drain pump (85 €)\n\n## Notes\nUses 3-in-1 tabs." },
+    { "id": "it_oven", "name": "Oven", "brand": "Bosch", "model": "HBA534BS0", "serial": "", "type_label": "Oven / hob", "room": "Kitchen",
+      "body": "## Quick help\n- Clock flashing after power cut: hold the clock button 3 s" },
+    { "id": "it_wash", "name": "Washing machine", "brand": "LG", "model": "F4WV310S6E", "serial": "", "type_label": "Washer", "room": "Utility",
+      "body": "## Quick help\n- **OE**: drain blocked. Open the small flap bottom right, clean the filter\n- **UE**: load unbalanced. Spread out the clothes" },
+    { "id": "it_fridge_gr", "name": "Ψυγείο κουζίνας", "brand": "Samsung", "model": "RB34T670ESA", "serial": "", "type_label": "Fridge", "room": "Κουζίνα",
+      "body": "Αν δεν ψύχει, άφησε 10 εκ. κενό πίσω." },
+    { "id": "it_freezer", "name": "Chest freezer", "brand": "Liebherr", "model": "GTP 2756", "serial": "", "type_label": "Fridge", "room": "Storage", "body": "" },
+    { "id": "it_ac", "name": "Living room AC", "brand": "Daikin", "model": "Perfera FTXM35R", "serial": "", "type_label": "Air con", "room": "Living room",
+      "body": "## Quick help\n- **U4**: indoor and outdoor units lost contact. Switch off at the breaker for 5 min" },
+    { "id": "it_heater", "name": "Water heater", "brand": "Thermogatz", "model": "80 L vertical", "serial": "", "type_label": "Water heater", "room": "Bathroom",
+      "body": "Ηλεκτρικός θερμοσίφωνας 80 λίτρων.\n\n## Quick help\n- No hot water: check breaker **B6** in the fuse box" },
+    { "id": "it_fuse", "name": "Fuse box", "brand": "", "model": "", "serial": "", "type_label": "Fuse box", "room": "Hallway",
+      "body": "## Circuits\n- B1 Lights\n- B6 Water heater" }
+  ],
+  "cases": [
+    { "q": "e15", "expect": ["it_dish"], "why": "error code, case-insensitive" },
+    { "q": "  E15  ", "expect": ["it_dish"], "why": "surrounding whitespace ignored" },
+    { "q": "sms4hv", "expect": ["it_dish"], "why": "model substring" },
+    { "q": "ftxm35", "expect": ["it_ac"], "why": "model substring after a space" },
+    { "q": "fd041200123", "expect": ["it_dish"], "why": "serial matches with separators removed" },
+    { "q": "0412 00123", "expect": ["it_dish"], "why": "two tokens, both in the serial" },
+    { "q": "ψυγειο", "expect": ["it_fridge_gr"], "why": "accent-insensitive" },
+    { "q": "ΨΥΓΕΙΟ", "expect": ["it_fridge_gr"], "why": "case-insensitive Greek" },
+    { "q": "ψυγείο", "expect": ["it_fridge_gr"], "why": "accented query" },
+    { "q": "ΚΟΥΖΙΝΑΣ", "expect": ["it_fridge_gr"], "why": "final sigma folds to sigma" },
+    { "q": "θερμοσιφωνας", "expect": ["it_heater"], "why": "body, Greek without accents" },
+    { "q": "u4", "expect": ["it_ac"], "why": "error code" },
+    { "q": "oe", "expect": ["it_wash"], "why": "error code beats nothing else matching" },
+    { "q": "bosch", "expect": ["it_dish", "it_oven"], "why": "same tier (brand): ordered by name" },
+    { "q": "kitchen", "expect": ["it_dish", "it_oven"], "why": "room name" },
+    { "q": "fridge", "expect": ["it_freezer", "it_fridge_gr"], "why": "type label, ordered by folded name" },
+    { "q": "wash", "expect": ["it_wash", "it_dish"], "why": "both names match; name starting with the query first" },
+    { "q": "water", "expect": ["it_heater", "it_dish", "it_fuse"], "why": "name tier first, then body ordered by name" },
+    { "q": "b6", "expect": ["it_fuse", "it_heater"], "why": "bold B6 is not at the start of a list item: body tier for both" },
+    { "q": "lg washer", "expect": ["it_wash"], "why": "every token must match (brand + type label)" },
+    { "q": "drain", "expect": ["it_dish", "it_wash"], "why": "body tier for both, ordered by name" },
+    { "q": "nothing-like-this", "expect": [] },
+    { "q": "", "expect": [], "why": "empty query matches nothing" }
+  ]
+}

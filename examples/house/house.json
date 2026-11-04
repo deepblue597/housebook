@@ -1,0 +1,411 @@
+{
+  "$schema": "../../contract/house.schema.json",
+  "schemaVersion": 1,
+  "grid": {
+    "tileSize": 1.0,
+    "width": 16,
+    "depth": 10
+  },
+  "rooms": [
+    {
+      "id": "rm_liv",
+      "name": "Living room",
+      "color": "#6BA7D6"
+    },
+    {
+      "id": "rm_kit",
+      "name": "Kitchen",
+      "color": "#E3A94B"
+    },
+    {
+      "id": "rm_bed",
+      "name": "Bedroom",
+      "color": "#9C8FD9"
+    },
+    {
+      "id": "rm_hal",
+      "name": "Hallway",
+      "color": "#B9B06A"
+    },
+    {
+      "id": "rm_off",
+      "name": "Office",
+      "color": "#8CC084"
+    },
+    {
+      "id": "rm_bat",
+      "name": "Bathroom",
+      "color": "#5FC1B5"
+    },
+    {
+      "id": "rm_utl",
+      "name": "Utility",
+      "color": "#D9785B"
+    },
+    {
+      "id": "rm_bal",
+      "name": "Balcony",
+      "color": "#D98BA6"
+    },
+    {
+      "id": "rm_sto",
+      "name": "Storage",
+      "color": "#7F9BB0"
+    }
+  ],
+  "floors": [
+    {
+      "id": "fl_0",
+      "name": "Apartment",
+      "level": 0,
+      "cells": {
+        "1,1": "rm_liv",
+        "2,1": "rm_liv",
+        "3,1": "rm_liv",
+        "4,1": "rm_liv",
+        "5,1": "rm_liv",
+        "6,1": "rm_liv",
+        "7,1": "rm_kit",
+        "8,1": "rm_kit",
+        "9,1": "rm_kit",
+        "10,1": "rm_kit",
+        "11,1": "rm_bed",
+        "12,1": "rm_bed",
+        "13,1": "rm_bed",
+        "14,1": "rm_bed",
+        "1,2": "rm_liv",
+        "2,2": "rm_liv",
+        "3,2": "rm_liv",
+        "4,2": "rm_liv",
+        "5,2": "rm_liv",
+        "6,2": "rm_liv",
+        "7,2": "rm_kit",
+        "8,2": "rm_kit",
+        "9,2": "rm_kit",
+        "10,2": "rm_kit",
+        "11,2": "rm_bed",
+        "12,2": "rm_bed",
+        "13,2": "rm_bed",
+        "14,2": "rm_bed",
+        "1,3": "rm_liv",
+        "2,3": "rm_liv",
+        "3,3": "rm_liv",
+        "4,3": "rm_liv",
+        "5,3": "rm_liv",
+        "6,3": "rm_liv",
+        "7,3": "rm_kit",
+        "8,3": "rm_kit",
+        "9,3": "rm_kit",
+        "10,3": "rm_kit",
+        "11,3": "rm_bed",
+        "12,3": "rm_bed",
+        "13,3": "rm_bed",
+        "14,3": "rm_bed",
+        "1,4": "rm_liv",
+        "2,4": "rm_liv",
+        "3,4": "rm_liv",
+        "4,4": "rm_liv",
+        "5,4": "rm_liv",
+        "6,4": "rm_liv",
+        "7,4": "rm_kit",
+        "8,4": "rm_kit",
+        "9,4": "rm_kit",
+        "10,4": "rm_kit",
+        "11,4": "rm_bed",
+        "12,4": "rm_bed",
+        "13,4": "rm_bed",
+        "14,4": "rm_bed",
+        "1,5": "rm_liv",
+        "2,5": "rm_liv",
+        "3,5": "rm_liv",
+        "4,5": "rm_liv",
+        "5,5": "rm_liv",
+        "6,5": "rm_liv",
+        "7,5": "rm_hal",
+        "8,5": "rm_hal",
+        "9,5": "rm_hal",
+        "10,5": "rm_hal",
+        "11,5": "rm_hal",
+        "12,5": "rm_hal",
+        "13,5": "rm_hal",
+        "14,5": "rm_hal",
+        "1,6": "rm_liv",
+        "2,6": "rm_liv",
+        "3,6": "rm_liv",
+        "4,6": "rm_liv",
+        "5,6": "rm_liv",
+        "6,6": "rm_liv",
+        "7,6": "rm_off",
+        "8,6": "rm_off",
+        "9,6": "rm_off",
+        "10,6": "rm_off",
+        "11,6": "rm_bat",
+        "12,6": "rm_bat",
+        "13,6": "rm_bat",
+        "14,6": "rm_utl",
+        "1,7": "rm_bal",
+        "2,7": "rm_bal",
+        "3,7": "rm_bal",
+        "4,7": "rm_bal",
+        "5,7": "rm_bal",
+        "6,7": "rm_bal",
+        "7,7": "rm_off",
+        "8,7": "rm_off",
+        "9,7": "rm_off",
+        "10,7": "rm_off",
+        "11,7": "rm_bat",
+        "12,7": "rm_bat",
+        "13,7": "rm_bat",
+        "14,7": "rm_utl",
+        "1,8": "rm_bal",
+        "2,8": "rm_bal",
+        "3,8": "rm_bal",
+        "4,8": "rm_bal",
+        "5,8": "rm_bal",
+        "6,8": "rm_bal",
+        "7,8": "rm_off",
+        "8,8": "rm_off",
+        "9,8": "rm_off",
+        "10,8": "rm_off",
+        "11,8": "rm_bat",
+        "12,8": "rm_bat",
+        "13,8": "rm_bat",
+        "14,8": "rm_utl"
+      }
+    },
+    {
+      "id": "fl_b1",
+      "name": "Basement",
+      "level": -1,
+      "cells": {
+        "2,2": "rm_sto",
+        "3,2": "rm_sto",
+        "4,2": "rm_sto",
+        "5,2": "rm_sto",
+        "6,2": "rm_sto",
+        "2,3": "rm_sto",
+        "3,3": "rm_sto",
+        "4,3": "rm_sto",
+        "5,3": "rm_sto",
+        "6,3": "rm_sto",
+        "2,4": "rm_sto",
+        "3,4": "rm_sto",
+        "4,4": "rm_sto",
+        "5,4": "rm_sto",
+        "6,4": "rm_sto",
+        "2,5": "rm_sto",
+        "3,5": "rm_sto",
+        "4,5": "rm_sto",
+        "5,5": "rm_sto",
+        "6,5": "rm_sto"
+      }
+    }
+  ],
+  "placements": [
+    {
+      "itemId": "it_4f8k2q",
+      "floorId": "fl_0",
+      "x": 8,
+      "y": 1,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_9b3m7x",
+      "floorId": "fl_0",
+      "x": 9,
+      "y": 1,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_7f3k2a",
+      "floorId": "fl_0",
+      "x": 10,
+      "y": 2,
+      "rotation": 90
+    },
+    {
+      "itemId": "it_2c6p1d",
+      "floorId": "fl_0",
+      "x": 7,
+      "y": 2,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_5t1v8n",
+      "floorId": "fl_0",
+      "x": 1,
+      "y": 3,
+      "rotation": 270
+    },
+    {
+      "itemId": "it_3a9c4l",
+      "floorId": "fl_0",
+      "x": 3,
+      "y": 1,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_8r2w6z",
+      "floorId": "fl_0",
+      "x": 6,
+      "y": 6,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_6h4j9b",
+      "floorId": "fl_0",
+      "x": 14,
+      "y": 1,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_1w7e3h",
+      "floorId": "fl_0",
+      "x": 13,
+      "y": 6,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_0k5s2m",
+      "floorId": "fl_0",
+      "x": 14,
+      "y": 7,
+      "rotation": 90
+    },
+    {
+      "itemId": "it_2v9q6t",
+      "floorId": "fl_0",
+      "x": 14,
+      "y": 8,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_7n3d8f",
+      "floorId": "fl_0",
+      "x": 7,
+      "y": 5,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_4g6y1r",
+      "floorId": "fl_0",
+      "x": 12,
+      "y": 5,
+      "rotation": 0
+    },
+    {
+      "itemId": "it_9p2x5c",
+      "floorId": "fl_b1",
+      "x": 3,
+      "y": 3,
+      "rotation": 0
+    }
+  ],
+  "openings": [
+    {
+      "floorId": "fl_0",
+      "x": 8,
+      "y": 5,
+      "side": "n",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 12,
+      "y": 5,
+      "side": "n",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 8,
+      "y": 6,
+      "side": "n",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 12,
+      "y": 6,
+      "side": "n",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 14,
+      "y": 6,
+      "side": "n",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 7,
+      "y": 5,
+      "side": "w",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 3,
+      "y": 7,
+      "side": "n",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 15,
+      "y": 5,
+      "side": "w",
+      "kind": "door"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 2,
+      "y": 1,
+      "side": "n",
+      "kind": "window"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 5,
+      "y": 1,
+      "side": "n",
+      "kind": "window"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 9,
+      "y": 1,
+      "side": "n",
+      "kind": "window"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 12,
+      "y": 1,
+      "side": "n",
+      "kind": "window"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 8,
+      "y": 9,
+      "side": "n",
+      "kind": "window"
+    },
+    {
+      "floorId": "fl_0",
+      "x": 15,
+      "y": 2,
+      "side": "w",
+      "kind": "window"
+    },
+    {
+      "floorId": "fl_b1",
+      "x": 4,
+      "y": 6,
+      "side": "n",
+      "kind": "door"
+    }
+  ]
+}

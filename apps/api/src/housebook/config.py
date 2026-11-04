@@ -1,0 +1,127 @@
+"""Settings from environment variables (see README for the table)."""
+
+import ipaddress
+import os
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from housebook.domain.paths import is_ignored_name
+
+Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
+class ConfigError(ValueError):
+    pass
+
+
+def _default_contract_dir() -> Path:
+    # Repo checkout: apps/api/src/housebook/config.py -> <repo>/contract
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "contract" / "catalog.json").is_file():
+            return parent / "contract"
+    return Path("/app/contract")
+
+
+@dataclass(frozen=True)
+class Settings:
+    data_dir: Path = Path("/data")
+    notes_dir: str = "House"
+    obsidian_vault: str | None = None
+    obsidian_vault_subpath: str = ""
+    tz: str = "UTC"
+    auth_mode: Literal["none", "proxy"] = "none"
+    anon_role: Literal["viewer", "editor"] = "viewer"
+    trusted_proxies: tuple[Network, ...] = ()
+    editor_group: str = "housebook-editors"
+    watch: Literal["inotify", "poll", "off"] = "inotify"  # accepted now, used in milestone 4
+    rescan_interval: float = 600.0  # seconds; 0 disables
+    static_dir: Path | None = None
+    contract_dir: Path = field(default_factory=_default_contract_dir)
+    host: str = "0.0.0.0"
+    port: int = 8000
+    log_level: str = "INFO"
+
+    @property
+    def catalog_path(self) -> Path:
+        return self.contract_dir / "catalog.json"
+
+    @classmethod
+    def from_env(cls, env: dict[str, str] | None = None) -> "Settings":
+        e = dict(os.environ if env is None else env)
+
+        def get(name: str, default: str = "") -> str:
+            return e.get(f"HOUSEBOOK_{name}", "").strip() or default  # empty = unset
+
+        def choice[T: str](name: str, default: T, allowed: tuple[T, ...]) -> T:
+            v = get(name, default).lower()
+            if v not in allowed:
+                raise ConfigError(f"HOUSEBOOK_{name} must be one of {', '.join(allowed)} (got '{v}')")
+            return v  # type: ignore[return-value]
+
+        # The notes folder must be a real subfolder: "." (the data root itself) is rejected, since
+        # adoption and scanning are deliberately scoped to one folder, not the whole vault.
+        raw_notes = get("NOTES_DIR", "House")
+        parts = [p for p in raw_notes.replace("\\", "/").split("/") if p not in ("", ".")]
+        if not parts or any(p == ".." for p in parts):
+            raise ConfigError(
+                f"HOUSEBOOK_NOTES_DIR must name a subfolder of the data dir, e.g. 'House' (got '{raw_notes}'); "
+                "the data dir itself ('.') is not supported"
+            )
+        if any(is_ignored_name(p) for p in parts):
+            raise ConfigError(
+                f"HOUSEBOOK_NOTES_DIR '{raw_notes}' is a hidden or temporary folder name (dot-folders, '*~', "
+                "'*.tmp', ...), which the scanner always skips; use a normal folder name such as 'House'"
+            )
+        notes_dir = "/".join(parts)
+
+        tz = get("TZ") or e.get("TZ", "").strip() or "UTC"
+        try:
+            ZoneInfo(tz)
+        except (ZoneInfoNotFoundError, ValueError):
+            raise ConfigError(f"HOUSEBOOK_TZ: unknown time zone '{tz}'") from None
+
+        auth_mode = get("AUTH_MODE", "none").lower()
+        if auth_mode == "oidc":
+            raise ConfigError("HOUSEBOOK_AUTH_MODE=oidc is not implemented yet; use proxy (oauth2-proxy) or none")
+        auth_mode = choice("AUTH_MODE", "none", ("none", "proxy"))
+
+        proxies: list[Network] = []
+        for part in filter(None, (p.strip() for p in get("TRUSTED_PROXIES").split(","))):
+            try:
+                proxies.append(ipaddress.ip_network(part, strict=False))
+            except ValueError:
+                raise ConfigError(f"HOUSEBOOK_TRUSTED_PROXIES: '{part}' is not an IP or CIDR") from None
+        if auth_mode == "proxy" and not proxies:
+            raise ConfigError(
+                "HOUSEBOOK_AUTH_MODE=proxy needs HOUSEBOOK_TRUSTED_PROXIES (IPs/CIDRs of the auth proxy); "
+                "identity headers from anyone else would be spoofable"
+            )
+
+        try:
+            rescan = float(get("RESCAN_INTERVAL", "600"))
+            port = int(get("PORT", "8000"))
+        except ValueError as ex:
+            raise ConfigError(f"invalid number: {ex}") from None
+
+        static = get("STATIC_DIR")
+        contract = get("CONTRACT_DIR")
+        return cls(
+            data_dir=Path(get("DATA_DIR", "/data")),
+            notes_dir=notes_dir,
+            obsidian_vault=get("OBSIDIAN_VAULT") or None,
+            obsidian_vault_subpath=get("OBSIDIAN_VAULT_SUBPATH").strip("/"),
+            tz=tz,
+            auth_mode=auth_mode,
+            anon_role=choice("ANON_ROLE", "viewer", ("viewer", "editor")),
+            trusted_proxies=tuple(proxies),
+            editor_group=get("EDITOR_GROUP", "housebook-editors"),
+            watch=choice("WATCH", "inotify", ("inotify", "poll", "off")),
+            rescan_interval=max(rescan, 0.0),
+            static_dir=Path(static) if static else None,
+            contract_dir=Path(contract) if contract else _default_contract_dir(),
+            host=get("HOST", "0.0.0.0"),
+            port=port,
+            log_level=get("LOG_LEVEL", "INFO").upper(),
+        )

@@ -1,0 +1,48 @@
+[project]
+name = "housebook-api"
+version = "0.1.0"
+description = "Housebook backend: a thin read API over a folder of Markdown notes and house.json"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.162.0",
+    "pyyaml>=6.0.3",
+    "tzdata>=2026.6",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+housebook = "housebook.__main__:main"
+
+[build-system]
+requires = ["uv_build>=0.9.5,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "housebook"
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "jsonschema>=4.26.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.3",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+    "blackbox: opt-in black-box tests against a real server process (HOUSEBOOK_BLACKBOX=1)",
+    "docker: opt-in tests of the Docker image (HOUSEBOOK_BLACKBOX=1 HOUSEBOOK_DOCKER=1)",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["housebook", "conftest", "nasty_vault", "vault_builders"]

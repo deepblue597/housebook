@@ -1,0 +1,33 @@
+# Demo: serves examples/house on http://127.0.0.1:8000
+#   HB_UID=$(id -u) HB_GID=$(id -g) docker compose up --build
+# (not UID/GID: bash makes UID read-only, so `UID=... docker compose` silently does nothing)
+# For real use, point the volume at your data folder (or a folder inside your Obsidian vault)
+# and put the service behind your reverse proxy instead of publishing the port.
+services:
+  housebook:
+    build:
+      context: .
+      args:
+        UID: ${HB_UID:-1000}
+        GID: ${HB_GID:-1000}
+    image: housebook:dev
+    # Run as the host user so files stay editable by Obsidian on the host (DESIGN 15.14).
+    user: "${HB_UID:-1000}:${HB_GID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      HOUSEBOOK_TZ: Europe/Athens
+      HOUSEBOOK_AUTH_MODE: none
+      HOUSEBOOK_ANON_ROLE: viewer
+      # HOUSEBOOK_OBSIDIAN_VAULT: homepage
+      # HOUSEBOOK_OBSIDIAN_VAULT_SUBPATH: Housebook
+    volumes:
+      # Mount a directory, never a single file (a bind-mounted house.json can't be replaced by rename).
+      - ./examples/house:/data
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    # One process per data root: never scale this service.

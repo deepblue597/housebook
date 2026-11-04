@@ -1,0 +1,287 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://housebook.local/contract/house.schema.json",
+  "title": "Housebook house.json",
+  "description": "Layout of one home (schemaVersion 1). Semantic rules (unique ids, cells inside the grid, references to existing rooms/floors, one placement per item) are checked by the server.",
+  "$defs": {
+    "Floor": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "level": {
+          "default": 0,
+          "maximum": 200,
+          "minimum": -20,
+          "title": "Level",
+          "type": "integer"
+        },
+        "cells": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Map of \"x,y\" -> room id. Keys are non-negative integers without padding.",
+          "propertyNames": {
+            "pattern": "^(0|[1-9][0-9]*),(0|[1-9][0-9]*)$"
+          },
+          "title": "Cells",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ],
+      "title": "Floor",
+      "type": "object"
+    },
+    "Grid": {
+      "additionalProperties": false,
+      "properties": {
+        "tileSize": {
+          "default": 1.0,
+          "description": "Metres per tile",
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Tilesize",
+          "type": "number"
+        },
+        "width": {
+          "description": "Tiles along x (east)",
+          "maximum": 512,
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "depth": {
+          "description": "Tiles along y (south)",
+          "maximum": 512,
+          "minimum": 1,
+          "title": "Depth",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "depth"
+      ],
+      "title": "Grid",
+      "type": "object"
+    },
+    "Opening": {
+      "additionalProperties": false,
+      "properties": {
+        "floorId": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Floorid",
+          "type": "string"
+        },
+        "x": {
+          "minimum": 0,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "minimum": 0,
+          "title": "Y",
+          "type": "integer"
+        },
+        "side": {
+          "description": "Edge of tile (x,y): n = north (towards y-1), w = west (towards x-1)",
+          "enum": [
+            "n",
+            "w"
+          ],
+          "title": "Side",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "door",
+            "window"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "floorId",
+        "x",
+        "y",
+        "side",
+        "kind"
+      ],
+      "title": "Opening",
+      "type": "object"
+    },
+    "Placement": {
+      "additionalProperties": false,
+      "properties": {
+        "itemId": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Itemid",
+          "type": "string"
+        },
+        "floorId": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Floorid",
+          "type": "string"
+        },
+        "x": {
+          "description": "Minimum x of the occupied rectangle after rotation",
+          "minimum": 0,
+          "title": "X",
+          "type": "integer"
+        },
+        "y": {
+          "description": "Minimum y of the occupied rectangle after rotation",
+          "minimum": 0,
+          "title": "Y",
+          "type": "integer"
+        },
+        "rotation": {
+          "default": 0,
+          "description": "Degrees clockwise seen from above; 0 = front faces +y",
+          "enum": [
+            0,
+            90,
+            180,
+            270
+          ],
+          "title": "Rotation",
+          "type": "integer"
+        },
+        "footprint": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "maximum": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "maximum": 512,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "[w, d] override of the catalogue footprint, before rotation",
+          "title": "Footprint"
+        }
+      },
+      "required": [
+        "itemId",
+        "floorId",
+        "x",
+        "y"
+      ],
+      "title": "Placement",
+      "type": "object"
+    },
+    "Room": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "color": {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "title": "Color",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "color"
+      ],
+      "title": "Room",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "$Schema"
+    },
+    "schemaVersion": {
+      "const": 1,
+      "title": "Schemaversion",
+      "type": "integer"
+    },
+    "grid": {
+      "$ref": "#/$defs/Grid"
+    },
+    "rooms": {
+      "items": {
+        "$ref": "#/$defs/Room"
+      },
+      "title": "Rooms",
+      "type": "array"
+    },
+    "floors": {
+      "items": {
+        "$ref": "#/$defs/Floor"
+      },
+      "minItems": 1,
+      "title": "Floors",
+      "type": "array"
+    },
+    "placements": {
+      "items": {
+        "$ref": "#/$defs/Placement"
+      },
+      "title": "Placements",
+      "type": "array"
+    },
+    "openings": {
+      "items": {
+        "$ref": "#/$defs/Opening"
+      },
+      "title": "Openings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "grid",
+    "floors"
+  ],
+  "type": "object"
+}

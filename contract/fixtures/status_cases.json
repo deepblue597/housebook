@@ -1,0 +1,77 @@
+{
+  "description": "Golden cases for item status (docs/data-contract.md#status). Run by pytest (apps/api) and vitest (apps/web). Dates are YYYY-MM-DD; `days` = date - today. `item.last_service` is the latest dated entry under '## Maintenance log' (the extraction itself is covered by body_cases in search_cases.json-style unit tests, not here).",
+  "rules": {
+    "dueSoonDays": 30,
+    "warrantyEndingDays": 60,
+    "levelPrecedence": ["overdue", "due_soon", "warranty_ending"]
+  },
+  "today_cases": [
+    { "name": "Athens, late evening UTC is already tomorrow", "now": "2026-11-04T22:30:00Z", "tz": "Europe/Athens", "today": "2026-11-05" },
+    { "name": "Athens, one second before local midnight", "now": "2026-11-04T21:59:59Z", "tz": "Europe/Athens", "today": "2026-11-04" },
+    { "name": "New York, early UTC is still yesterday", "now": "2026-11-04T03:00:00Z", "tz": "America/New_York", "today": "2026-11-03" },
+    { "name": "UTC", "now": "2026-11-04T23:59:59Z", "tz": "UTC", "today": "2026-11-04" }
+  ],
+  "cases": [
+    { "name": "no dates", "today": "2026-11-04", "item": {},
+      "expect": { "level": null, "check": null, "warranty": null } },
+
+    { "name": "check overdue by one day", "today": "2026-11-04", "item": { "next_check": "2026-11-03" },
+      "expect": { "level": "overdue", "check": { "state": "overdue", "date": "2026-11-03", "days": -1, "derived": false }, "warranty": null } },
+    { "name": "check due today", "today": "2026-11-04", "item": { "next_check": "2026-11-04" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2026-11-04", "days": 0, "derived": false }, "warranty": null } },
+    { "name": "check in 30 days is due soon", "today": "2026-11-04", "item": { "next_check": "2026-12-04" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2026-12-04", "days": 30, "derived": false }, "warranty": null } },
+    { "name": "check in 31 days is only scheduled", "today": "2026-11-04", "item": { "next_check": "2026-12-05" },
+      "expect": { "level": null, "check": { "state": "scheduled", "date": "2026-12-05", "days": 31, "derived": false }, "warranty": null } },
+    { "name": "check long overdue", "today": "2026-11-04", "item": { "next_check": "2025-09-30" },
+      "expect": { "level": "overdue", "check": { "state": "overdue", "date": "2025-09-30", "days": -400, "derived": false }, "warranty": null } },
+
+    { "name": "warranty ends in 60 days", "today": "2026-11-04", "item": { "warranty_until": "2027-01-03" },
+      "expect": { "level": "warranty_ending", "check": null, "warranty": { "state": "ending", "date": "2027-01-03", "days": 60 } } },
+    { "name": "warranty ends in 61 days is active", "today": "2026-11-04", "item": { "warranty_until": "2027-01-04" },
+      "expect": { "level": null, "check": null, "warranty": { "state": "active", "date": "2027-01-04", "days": 61 } } },
+    { "name": "warranty ends today", "today": "2026-11-04", "item": { "warranty_until": "2026-11-04" },
+      "expect": { "level": "warranty_ending", "check": null, "warranty": { "state": "ending", "date": "2026-11-04", "days": 0 } } },
+    { "name": "warranty expired yesterday: neutral, no badge", "today": "2026-11-04", "item": { "warranty_until": "2026-11-03" },
+      "expect": { "level": null, "check": null, "warranty": { "state": "expired", "date": "2026-11-03", "days": -1 } } },
+
+    { "name": "overdue beats warranty ending", "today": "2026-11-04", "item": { "next_check": "2026-10-01", "warranty_until": "2026-12-01" },
+      "expect": { "level": "overdue", "check": { "state": "overdue", "date": "2026-10-01", "days": -34, "derived": false }, "warranty": { "state": "ending", "date": "2026-12-01", "days": 27 } } },
+    { "name": "due soon beats warranty ending", "today": "2026-11-04", "item": { "next_check": "2026-11-20", "warranty_until": "2026-12-01" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2026-11-20", "days": 16, "derived": false }, "warranty": { "state": "ending", "date": "2026-12-01", "days": 27 } } },
+    { "name": "scheduled check, warranty ending", "today": "2026-11-04", "item": { "next_check": "2027-04-01", "warranty_until": "2026-12-01" },
+      "expect": { "level": "warranty_ending", "check": { "state": "scheduled", "date": "2027-04-01", "days": 148, "derived": false }, "warranty": { "state": "ending", "date": "2026-12-01", "days": 27 } } },
+
+    { "name": "check_every from last service", "today": "2026-11-04", "item": { "check_every": "6m", "last_service": "2026-05-10" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2026-11-10", "days": 6, "derived": true }, "warranty": null } },
+    { "name": "check_every from purchase when there is no log entry", "today": "2026-11-04", "item": { "check_every": "1y", "purchased": "2024-01-15" },
+      "expect": { "level": "overdue", "check": { "state": "overdue", "date": "2025-01-15", "days": -658, "derived": true }, "warranty": null } },
+    { "name": "last service wins over purchase", "today": "2026-11-04", "item": { "check_every": "1y", "purchased": "2020-01-01", "last_service": "2026-09-15" },
+      "expect": { "level": null, "check": { "state": "scheduled", "date": "2027-09-15", "days": 315, "derived": true }, "warranty": null } },
+    { "name": "explicit next_check wins over check_every", "today": "2026-11-04", "item": { "next_check": "2027-03-01", "check_every": "1m", "last_service": "2020-01-01" },
+      "expect": { "level": null, "check": { "state": "scheduled", "date": "2027-03-01", "days": 117, "derived": false }, "warranty": null } },
+    { "name": "check_every without any base date", "today": "2026-11-04", "item": { "check_every": "6m" },
+      "expect": { "level": null, "check": null, "warranty": null } },
+    { "name": "month arithmetic clamps to month end", "today": "2026-11-04", "item": { "check_every": "6m", "last_service": "2026-08-31" },
+      "expect": { "level": null, "check": { "state": "scheduled", "date": "2027-02-28", "days": 116, "derived": true }, "warranty": null } },
+    { "name": "29 Feb plus one year", "today": "2025-02-01", "item": { "check_every": "1y", "last_service": "2024-02-29" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2025-02-28", "days": 27, "derived": true }, "warranty": null } },
+    { "name": "weeks", "today": "2026-11-04", "item": { "check_every": "2w", "last_service": "2026-10-20" },
+      "expect": { "level": "overdue", "check": { "state": "overdue", "date": "2026-11-03", "days": -1, "derived": true }, "warranty": null } },
+    { "name": "days, upper-case unit", "today": "2026-11-04", "item": { "check_every": "10D", "last_service": "2026-11-01" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2026-11-11", "days": 7, "derived": true }, "warranty": null } },
+    { "name": "leap day counts", "today": "2028-02-28", "item": { "next_check": "2028-03-01" },
+      "expect": { "level": "due_soon", "check": { "state": "due_soon", "date": "2028-03-01", "days": 2, "derived": false }, "warranty": null } }
+  ],
+  "interval_cases": [
+    { "input": "6m", "valid": true },
+    { "input": " 1y ", "valid": true },
+    { "input": "2W", "valid": true },
+    { "input": "10d", "valid": true },
+    { "input": "0m", "valid": false },
+    { "input": "6 months", "valid": false },
+    { "input": "m6", "valid": false },
+    { "input": "1.5y", "valid": false },
+    { "input": "", "valid": false }
+  ]
+}

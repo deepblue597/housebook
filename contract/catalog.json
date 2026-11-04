@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "types": [
+    { "key": "fridge", "label": "Fridge", "defaultName": "Fridge", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": ["refrigerator", "freezer"] },
+    { "key": "oven", "label": "Oven / hob", "defaultName": "Oven", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": ["hob", "cooker", "stove"] },
+    { "key": "dishwasher", "label": "Dishwasher", "defaultName": "Dishwasher", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": [] },
+    { "key": "washer", "label": "Washer", "defaultName": "Washing machine", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": ["washing_machine"] },
+    { "key": "dryer", "label": "Dryer", "defaultName": "Dryer", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": ["tumble_dryer"] },
+    { "key": "microwave", "label": "Microwave", "defaultName": "Microwave", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": [] },
+    { "key": "ac", "label": "Air con", "defaultName": "Air conditioner", "footprint": [1, 1], "mount": "wall", "critical": false, "aliases": ["air_conditioner", "aircon"] },
+    { "key": "heater", "label": "Water heater", "defaultName": "Water heater", "footprint": [1, 1], "mount": "wall", "critical": false, "aliases": ["water_heater"] },
+    { "key": "boiler", "label": "Boiler", "defaultName": "Boiler", "footprint": [1, 1], "mount": "wall", "critical": true, "aliases": [] },
+    { "key": "radiator", "label": "Radiator", "defaultName": "Radiator", "footprint": [1, 1], "mount": "wall", "critical": false, "aliases": [] },
+    { "key": "tv", "label": "TV", "defaultName": "TV", "footprint": [1, 1], "mount": "wall", "critical": false, "aliases": ["television"] },
+    { "key": "router", "label": "Router", "defaultName": "Router", "footprint": [1, 1], "mount": "floor", "critical": true, "aliases": ["modem"] },
+    { "key": "valve", "label": "Water valve", "defaultName": "Main water valve", "footprint": [1, 1], "mount": "floor", "critical": true, "aliases": ["water_valve"] },
+    { "key": "gas_valve", "label": "Gas valve", "defaultName": "Main gas valve", "footprint": [1, 1], "mount": "wall", "critical": true, "aliases": [] },
+    { "key": "fuse", "label": "Fuse box", "defaultName": "Fuse box", "footprint": [1, 1], "mount": "wall", "critical": true, "aliases": ["fuse_box", "breaker_panel"] },
+    { "key": "smoke", "label": "Smoke alarm", "defaultName": "Smoke detector", "footprint": [1, 1], "mount": "ceiling", "critical": false, "aliases": ["smoke_alarm", "smoke_detector"] },
+    { "key": "other", "label": "Other", "defaultName": "Item", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": [] }
+  ]
+}
