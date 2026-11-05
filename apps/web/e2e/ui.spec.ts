@@ -209,6 +209,22 @@ test.describe('visual @visual', () => {
     await expect(page).toHaveScreenshot('item-panel.png');
   });
 
+  test('3D view', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('housebook.planStyle', '3d'));
+    await page.goto(`/i/${DISHWASHER}`);
+    await expect(page.locator('.scene3d')).toHaveAttribute('data-ready', 'true');
+    await expect(panel(page).getByRole('heading', { level: 3, name: 'Quick help' })).toBeVisible();
+    await expect(panel(page).locator('.attachments img')).toHaveJSProperty('complete', true);
+    await page.waitForFunction(() => {
+      const s = (window as { __housebook?: { scene: { moving: () => boolean } | null } })
+        .__housebook?.scene;
+      return !!s && !s.moving();
+    });
+    await page.evaluate(() => document.fonts.ready);
+    await page.locator(':focus').evaluate((el: HTMLElement) => el.blur());
+    await expect(page).toHaveScreenshot('scene3d.png');
+  });
+
   test('dark list', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await gotoPlan(page);

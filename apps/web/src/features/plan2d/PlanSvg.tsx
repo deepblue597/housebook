@@ -9,7 +9,7 @@ import { typeIconPaths } from '../../catalog/icons';
 import { PALETTE } from '../../app/theme';
 import { LEVEL_TEXT, currentStatus } from '../../components/status';
 import { bestTextColor, blend, parseHex } from '../../domain/color';
-import { cellKey, openingSegment, type Segment } from '../../domain/coords';
+import { type Rect, cellKey, openingSegment, type Segment } from '../../domain/coords';
 import type { Level } from '../../domain/status';
 import {
   doorSwingsIntoKeyedTile,
@@ -18,7 +18,7 @@ import {
   roomTiles,
   walls,
 } from '../../domain/plan';
-import type { FloorModel, Model } from '../../store/model';
+import { type FloorModel, type Model, itemRect, occupiedTiles } from '../../store/model';
 import { FOOTER, MARGIN, S } from './geometry';
 
 interface Props {
@@ -102,9 +102,7 @@ function PlanSvgImpl({
   const { width: W, depth: H } = model.grid;
   const geometry = useMemo(() => {
     const tiles = roomTiles(floor.cells);
-    const occupied = new Set(
-      floor.items.flatMap((i) => (i.location ? [cellKey(i.location.x, i.location.y)] : [])),
-    );
+    const occupied = occupiedTiles(model, floor);
     const labels = [...tiles].map(([roomId, cells]) => ({
       roomId,
       cells,
@@ -113,8 +111,16 @@ function PlanSvgImpl({
     let grid = '';
     for (let x = 0; x <= W; x++) grid += `M${x * S} 0V${H * S}`;
     for (let y = 0; y <= H; y++) grid += `M0 ${y * S}H${W * S}`;
-    return { labels, walls: walls(floor.cells), grid };
-  }, [floor, W, H]);
+    // Where each item is drawn: the centre of the tiles it occupies (data contract §2.2), as
+    // in the 3D view; a multi-tile footprint also gets its full outline.
+    const items = new Map(
+      floor.items.flatMap((i) => {
+        const r = itemRect(model, i);
+        return r ? [[i.id, r] as const] : [];
+      }),
+    );
+    return { labels, walls: walls(floor.cells), grid, items };
+  }, [model, floor, W, H]);
 
   const palette = PALETTE[theme];
   const labelInk = (color: string) => {
@@ -221,6 +227,7 @@ function PlanSvgImpl({
         <ItemBadge
           key={item.id}
           item={item}
+          rect={geometry.items.get(item.id)!}
           model={model}
           selected={item.id === selectedItemId}
           match={matches ? matches.has(item.id) : null}
@@ -231,16 +238,19 @@ function PlanSvgImpl({
       {/* Name tags sit outside the buttons: they may be truncated, and the buttons' accessible
           names carry the full name (WCAG 2.5.3 label in name). */}
       <g className="inames" aria-hidden="true">
-        {floor.items.map((item) => (
-          <text
-            key={item.id}
-            className={`iname${matches && !matches.has(item.id) ? ' dim' : ''}`}
-            x={item.location!.x * S + S / 2}
-            y={item.location!.y * S + S / 2 + 25}
-          >
-            {item.name.length > 14 ? `${item.name.slice(0, 13)}…` : item.name}
-          </text>
-        ))}
+        {floor.items.map((item) => {
+          const r = geometry.items.get(item.id)!;
+          return (
+            <text
+              key={item.id}
+              className={`iname${matches && !matches.has(item.id) ? ' dim' : ''}`}
+              x={(r.x + r.w / 2) * S}
+              y={(r.y + r.h / 2) * S + 25}
+            >
+              {item.name.length > 14 ? `${item.name.slice(0, 13)}…` : item.name}
+            </text>
+          );
+        })}
       </g>
 
       <g className="scale" aria-hidden="true">
@@ -272,18 +282,20 @@ function PlanSvgImpl({
 
 function ItemBadge({
   item,
+  rect,
   model,
   selected,
   match,
   onItem,
 }: {
   item: Item;
+  /** Tiles the item occupies. */
+  rect: Rect;
   model: Model;
   selected: boolean;
   match: boolean | null;
   onItem: (id: string) => void;
 }) {
-  const loc = item.location!;
   const level = currentStatus(item, model.snapshot).level;
   const room = item.location?.roomId ? model.rooms.get(item.location.roomId)?.name : undefined;
   const label = [item.name, room, level ? LEVEL_TEXT[level] : null].filter(Boolean).join(', ');
@@ -291,7 +303,7 @@ function ItemBadge({
   return (
     <g
       className={cls.filter(Boolean).join(' ')}
-      transform={`translate(${loc.x * S + S / 2},${loc.y * S + S / 2})`}
+      transform={`translate(${(rect.x + rect.w / 2) * S},${(rect.y + rect.h / 2) * S})`}
       role="button"
       tabIndex={0}
       aria-label={label}
@@ -301,8 +313,14 @@ function ItemBadge({
       onKeyDown={activate(() => onItem(item.id))}
     >
       <title>{`${item.name} (${typeLabel(item.type)})`}</title>
-      {/* The hit area is the whole tile, larger than the badge (DESIGN 15.12). */}
-      <rect className="hit" x={-S / 2} y={-S / 2} width={S} height={S} />
+      {/* The hit area is every tile the item occupies, larger than the badge (DESIGN 15.12). */}
+      <rect
+        className={rect.w * rect.h > 1 ? 'hit fp' : 'hit'}
+        x={(-rect.w * S) / 2}
+        y={(-rect.h * S) / 2}
+        width={rect.w * S}
+        height={rect.h * S}
+      />
       {selected && <circle className="ring" r="22" />}
       <rect className="bg" x="-15" y="-15" width="30" height="30" rx="7" />
       <g className="ico" transform="translate(-10,-10) scale(.8333)">

@@ -26,6 +26,7 @@ from housebook.domain.frontmatter import FrontmatterError, is_housebook_tagged, 
 from housebook.domain.house import CURRENT_SCHEMA_VERSION, House, HouseIssue, house_issues, normalise_cells, room_at
 from housebook.domain.item import ItemFields, error_codes, last_log_date, parse_fields
 from housebook.domain.paths import is_conflict_copy
+from housebook.domain.problems import HouseProblemReason as Why
 from housebook.domain.problems import Problem, ProblemKind, Severity
 from housebook.domain.search import SearchDoc
 from housebook.domain.text import nfc
@@ -188,7 +189,7 @@ class _Scan:
         try:
             raw = self.ix.house_repo.read()
         except (UnsafePath, OSError) as e:
-            return self._house_failed(prev, f"house.json can't be read: {e.__class__.__name__}")
+            return self._house_failed(prev, Why.unreadable, f"house.json can't be read: {e.__class__.__name__}")
         if raw is None:
             self.problem(ProblemKind.house_missing, Severity.error, "house.json does not exist", path="house.json")
             return HouseState(None, None, None)
@@ -196,21 +197,21 @@ class _Scan:
         if prev and prev.etag == etag and not prev.stale and prev.house:
             self._house_issues(prev)
             return prev
+        if len(raw) > MAX_HOUSE_BYTES:  # refused before parsing: too large to read
+            limit = f"file is larger than {MAX_HOUSE_BYTES // (1024 * 1024)} MiB"
+            return self._house_failed(prev, Why.unreadable, f"house.json is invalid: {limit}", etag)
         try:
-            if len(raw) > MAX_HOUSE_BYTES:
-                raise ValueError(f"file is larger than {MAX_HOUSE_BYTES // (1024 * 1024)} MiB")
             data = json.loads(raw.decode("utf-8-sig"))
         except RecursionError:
-            return self._house_failed(prev, "house.json is invalid: nested too deeply", etag)
+            return self._house_failed(prev, Why.not_json, "house.json is invalid: nested too deeply", etag)
         except ValueError as e:  # UnicodeDecodeError and JSONDecodeError are ValueErrors
-            return self._house_failed(prev, f"house.json is invalid: {_short_error(e)}", etag)
+            return self._house_failed(prev, Why.not_json, f"house.json is invalid: {_short_error(e)}", etag)
 
         version = data.get("schemaVersion") if isinstance(data, dict) else None
         if not isinstance(version, int) or isinstance(version, bool) or version < 1:
             shown = "missing" if not isinstance(data, dict) or "schemaVersion" not in data else json.dumps(version)
-            return self._house_failed(
-                prev, f"house.json is invalid: schemaVersion must be an integer >= 1 (got {shown})", etag
-            )
+            message = f"house.json is invalid: schemaVersion must be an integer >= 1 (got {shown})"
+            return self._house_failed(prev, Why.bad_version, message, etag)
         if version > CURRENT_SCHEMA_VERSION:
             return self._newer_house(prev, data, etag, version)
 
@@ -219,9 +220,11 @@ class _Scan:
             m = migrate(data)
             house = House.model_validate(m.data, context={"tolerant": True})
         except RecursionError:
-            return self._house_failed(prev, "house.json is invalid: nested too deeply", etag, version)
-        except (MigrationError, ValidationError) as e:
-            return self._house_failed(prev, f"house.json is invalid: {_short_error(e)}", etag, version)
+            return self._house_failed(prev, Why.invalid, "house.json is invalid: nested too deeply", etag, version)
+        except MigrationError as e:  # an older schemaVersion this image has no migration for
+            return self._house_failed(prev, Why.bad_version, f"house.json is invalid: {_short_error(e)}", etag, version)
+        except ValidationError as e:
+            return self._house_failed(prev, Why.invalid, f"house.json is invalid: {_short_error(e)}", etag, version)
         state = HouseState(house, etag, m.original_version, migrated=m.migrated, cell_issues=tuple(cell_issues))
         self._house_issues(state)
         return state
@@ -235,6 +238,7 @@ class _Scan:
             f"house.json has schemaVersion {version}, newer than this image supports ({CURRENT_SCHEMA_VERSION}); "
             "the layout is read-only until the image is upgraded",
             path="house.json",
+            detail={"reason": Why.newer_version},
         )
         data, cell_issues = normalise_cells(data)
         try:
@@ -248,6 +252,8 @@ class _Scan:
                 f"house.json (schemaVersion {version}) can't be displayed by this image: {_short_error(e)}"
                 + ("; showing the last valid version" if kept else ""),
                 path="house.json",
+                # The cause is the newer version (upgrade the image), not a file to fix.
+                detail={"reason": Why.newer_version},
             )
             return HouseState(kept, etag, version, read_only=True, stale=kept is not None)
         state = HouseState(house, etag, version, read_only=True, cell_issues=tuple(cell_issues))
@@ -255,7 +261,7 @@ class _Scan:
         return state
 
     def _house_failed(
-        self, prev: HouseState | None, message: str, etag: str | None = None, version: int | None = None
+        self, prev: HouseState | None, why: Why, message: str, etag: str | None = None, version: int | None = None
     ) -> HouseState:
         kept = prev is not None and prev.house is not None
         self.problem(
@@ -263,6 +269,7 @@ class _Scan:
             Severity.error,
             message + ("; showing the last valid version" if kept else "") + "; read-only until fixed",
             path="house.json",
+            detail={"reason": why},
         )
         if kept:
             assert prev is not None

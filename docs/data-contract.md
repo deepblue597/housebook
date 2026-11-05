@@ -336,8 +336,8 @@ is an explicit user action; nothing is repaired silently.
 | kind | severity | meaning |
 |---|---|---|
 | `house_missing` | error | no `house.json` |
-| `house_invalid` | error | not JSON / fails structural validation (last valid kept) |
-| `house_newer_version` | warning | read-only, see §2.3 |
+| `house_invalid` | error | unusable `house.json`, read-only (last valid kept); `detail.reason` |
+| `house_newer_version` | warning | read-only, see §2.3; `detail.reason` |
 | `house_duplicate_id`, `house_bad_cell`, `house_outside_grid`, `house_unknown_room`, `house_unknown_floor`, `house_duplicate_placement` | warning | semantic rule broken (§2.1) |
 | `note_parse_error` | error | note that can't be parsed or breaks a limit (last good kept if known) |
 | `read_error` | error | note or folder that can't be read (last good kept) |
@@ -351,3 +351,24 @@ is an explicit user action; nothing is repaired silently.
 | `not_adopted`, `untagged_typed` | info | §3.3 |
 
 *Unplaced items* (note without placement) are a normal state, not a problem.
+
+### 7.1 Why `house.json` is unusable: `detail.reason`
+
+Every `house_invalid` and `house_newer_version` problem carries `detail.reason`, one value of
+a closed set (`HouseProblemReason` in the OpenAPI spec). Clients **must switch on
+`detail.reason`, never on `message`**: messages are prose for humans, change without notice,
+and embed user content (a validation message names the offending key, so an unknown key
+`unreadableNote` would make an `invalid` file read like an unreadable one).
+
+| `reason` | emitted when | the owner fixes it by |
+|---|---|---|
+| `unreadable` | the file can't be read: permissions, I/O error, a directory instead of a file, a symlink leaving the data root, larger than 16 MiB | fixing permissions / the file system |
+| `not_json` | not decodable as UTF-8 JSON (truncated, empty, bad encoding, nested too deeply to parse) | repairing the file |
+| `bad_version` | `schemaVersion` missing, not an integer ≥ 1 (`"1"`, `1.0`, `true`), the root isn't a JSON object, or an older version this image has no migration for | fixing `schemaVersion` |
+| `newer_version` | `schemaVersion` newer than this image supports: on `house_newer_version`, and on the `house_invalid` that accompanies it when the newer layout can't be displayed | upgrading the image |
+| `invalid` | JSON with a supported `schemaVersion` that fails structural validation (unknown key, wrong type, out-of-range value, …) | editing the file |
+
+Rules: `detail` may carry other keys besides `reason`, so read the key, don't compare the
+object. A client that meets a `reason` it doesn't know treats it as `invalid`; new values are
+added only with a contract update. When both kinds are present, `house_newer_version` is the
+primary cause.

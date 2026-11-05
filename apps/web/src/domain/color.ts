@@ -40,3 +40,12 @@ export function bestTextColor<T extends { rgb: Rgb }>(
     contrastRatio(c.rgb, background) > contrastRatio(best.rgb, background) ? c : best,
   );
 }
+
+export const toHex = (rgb: Rgb): string =>
+  `#${rgb
+    .map((c) =>
+      Math.max(0, Math.min(255, Math.round(c)))
+        .toString(16)
+        .padStart(2, '0'),
+    )
+    .join('')}`;

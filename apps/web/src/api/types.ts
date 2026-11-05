@@ -14,3 +14,4 @@ export type Attachment = Schemas['AttachmentOut'];
 export type ItemStatus = Schemas['Status'];
 export type Me = Schemas['MeOut'];
 export type Problem = Schemas['Problem'];
+export type HouseProblemReason = Schemas['HouseProblemReason'];

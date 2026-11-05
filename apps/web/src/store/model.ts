@@ -3,8 +3,8 @@
  * (rooms by id, items per floor, valid cells per floor, search documents).
  */
 import type { Floor, Item, Room, Snapshot } from '../api/types';
-import { typeLabel } from '../catalog/catalog';
-import { cellKey } from '../domain/coords';
+import { placementSpec, typeLabel } from '../catalog/catalog';
+import { type Rect, cellKey, occupiedRect } from '../domain/coords';
 import { type CellMap, area, floorCells, roomTiles } from '../domain/plan';
 import { type SearchDoc, toSearchDoc } from '../domain/search';
 
@@ -28,6 +28,8 @@ export interface Model {
   items: Map<string, Item>;
   /** Notes with no placement, or placed on a floor that no longer exists. */
   unplaced: Item[];
+  /** Footprint overrides from house.json placements (data contract §2), by item id. */
+  footprints: Map<string, readonly [number, number]>;
   searchDocs: SearchDoc[];
 }
 
@@ -74,7 +76,39 @@ export function buildModel(snapshot: Snapshot): Model {
     }),
   );
 
-  return { snapshot, tileSize, grid, rooms, floors, floorById, items, unplaced, searchDocs };
+  const footprints = new Map(
+    (house?.placements ?? []).flatMap((p) =>
+      p.footprint ? [[p.itemId, p.footprint as readonly [number, number]] as const] : [],
+    ),
+  );
+
+  return {
+    snapshot,
+    tileSize,
+    grid,
+    rooms,
+    floors,
+    floorById,
+    items,
+    unplaced,
+    footprints,
+    searchDocs,
+  };
+}
+
+/** The item's footprint in tiles before rotation: the placement's override or the catalogue's. */
+export const itemFootprint = (
+  m: Pick<Model, 'footprints'>,
+  item: Item,
+): readonly [number, number] => m.footprints.get(item.id) ?? placementSpec(item.type).footprint;
+
+/**
+ * The tiles a placed item occupies (data contract §2.2: anchor = min corner after rotation,
+ * 90/270 swap width and depth). The 2D plan and the 3D view both draw this rectangle.
+ */
+export function itemRect(m: Pick<Model, 'footprints'>, item: Item): Rect | null {
+  const loc = item.location;
+  return loc ? occupiedRect(loc.x, loc.y, loc.rotation, itemFootprint(m, item)) : null;
 }
 
 /** The item's room, derived from the tile it stands on (never stored). */
@@ -87,3 +121,15 @@ export const floorOf = (m: Model, item: Item): FloorModel | undefined =>
 /** Items on a floor whose tile belongs to a room. */
 export const itemsInRoom = (f: FloorModel, roomId: string): Item[] =>
   f.items.filter((i) => i.location && f.cells.get(cellKey(i.location.x, i.location.y)) === roomId);
+
+/** Keys of every tile covered by an item on the floor (room labels avoid them). */
+export function occupiedTiles(m: Pick<Model, 'footprints'>, f: FloorModel): Set<string> {
+  const out = new Set<string>();
+  for (const item of f.items) {
+    const r = itemRect(m, item);
+    if (!r) continue;
+    for (let x = r.x; x < r.x + r.w; x++)
+      for (let y = r.y; y < r.y + r.h; y++) out.add(cellKey(x, y));
+  }
+  return out;
+}

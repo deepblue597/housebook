@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Start the real backend for Playwright: a private copy of examples/house (so the process lock
-// never clashes with a dev server on the same folder), serving the freshly built dist/.
+// never clashes with a dev server on the same folder), serving the freshly built dist-e2e/
+// (`vite build --mode e2e`: a production build plus the window.__housebook test hook).
 import { spawn } from 'node:child_process';
 import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -23,7 +24,7 @@ const server = spawn(
     env: {
       ...process.env,
       HOUSEBOOK_DATA_DIR: data,
-      HOUSEBOOK_STATIC_DIR: join(web, 'dist'),
+      HOUSEBOOK_STATIC_DIR: join(web, 'dist-e2e'),
       HOUSEBOOK_PORT: process.env.E2E_PORT ?? '8766',
       HOUSEBOOK_HOST: '127.0.0.1',
       HOUSEBOOK_TZ: 'Europe/Athens',

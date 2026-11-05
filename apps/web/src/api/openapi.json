@@ -555,6 +555,18 @@
         ],
         "title": "House"
       },
+      "HouseProblemReason": {
+        "type": "string",
+        "enum": [
+          "unreadable",
+          "not_json",
+          "bad_version",
+          "newer_version",
+          "invalid"
+        ],
+        "title": "HouseProblemReason",
+        "description": "Why house.json is unusable: `detail.reason` on every `house_invalid` and\n`house_newer_version` problem. A closed set: clients switch on it, never on `message`."
+      },
       "ItemDetailOut": {
         "properties": {
           "id": {
@@ -1287,16 +1299,13 @@
           "detail": {
             "anyOf": [
               {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
+                "$ref": "#/components/schemas/ProblemDetail"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Detail"
+            "description": "Extra string fields per kind: `reason` on house_invalid / house_newer_version, `key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy"
           }
         },
         "type": "object",
@@ -1306,6 +1315,19 @@
           "message"
         ],
         "title": "Problem"
+      },
+      "ProblemDetail": {
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/HouseProblemReason"
+          }
+        },
+        "additionalProperties": {
+          "type": "string"
+        },
+        "type": "object",
+        "title": "ProblemDetail",
+        "description": "Machine-readable extras; which keys appear depends on `kind` (data contract §7)."
       },
       "ProblemKind": {
         "type": "string",

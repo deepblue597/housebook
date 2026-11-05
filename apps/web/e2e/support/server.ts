@@ -1,7 +1,7 @@
 /**
  * Private Housebook backends for tests that need their own data (crafted notes, a broken
  * house.json, an empty root, files edited during the test). Each one gets a fresh temp data
- * root and a free port, serves the built `dist/`, and is stopped and deleted afterwards.
+ * root and a free port, serves the e2e build (`dist-e2e/`, with the test hook), and is stopped and deleted afterwards.
  */
 import { type ChildProcess, spawn } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -84,7 +84,7 @@ export async function startBackend(dataDir: string, env: Record<string, string> 
         ...process.env,
         ...BASE_ENV,
         HOUSEBOOK_DATA_DIR: dataDir,
-        HOUSEBOOK_STATIC_DIR: join(WEB, 'dist'),
+        HOUSEBOOK_STATIC_DIR: join(WEB, 'dist-e2e'),
         HOUSEBOOK_PORT: String(port),
         ...env,
       },

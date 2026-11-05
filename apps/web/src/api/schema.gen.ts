@@ -295,6 +295,13 @@ export interface components {
             /** Openings */
             openings?: components["schemas"]["Opening"][];
         };
+        /**
+         * HouseProblemReason
+         * @description Why house.json is unusable: `detail.reason` on every `house_invalid` and
+         *     `house_newer_version` problem. A closed set: clients switch on it, never on `message`.
+         * @enum {string}
+         */
+        HouseProblemReason: "unreadable" | "not_json" | "bad_version" | "newer_version" | "invalid";
         /** ItemDetailOut */
         ItemDetailOut: {
             /** Id */
@@ -576,10 +583,17 @@ export interface components {
             path?: string | null;
             /** Itemid */
             itemId?: string | null;
-            /** Detail */
-            detail?: {
-                [key: string]: string;
-            } | null;
+            /** @description Extra string fields per kind: `reason` on house_invalid / house_newer_version, `key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy */
+            detail?: components["schemas"]["ProblemDetail"] | null;
+        };
+        /**
+         * ProblemDetail
+         * @description Machine-readable extras; which keys appear depends on `kind` (data contract §7).
+         */
+        ProblemDetail: {
+            reason?: components["schemas"]["HouseProblemReason"];
+        } & {
+            [key: string]: string;
         };
         /**
          * ProblemKind

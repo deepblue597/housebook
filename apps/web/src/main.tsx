@@ -10,9 +10,11 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { startRouter } from './app/router';
+import { installTestHook } from './app/testHook';
 import { preloadMarkdown } from './features/details/markdownLoader';
 import { revalidateOnFocus, useData } from './store/data';
 
+installTestHook();
 startRouter();
 void useData.getState().load();
 revalidateOnFocus();

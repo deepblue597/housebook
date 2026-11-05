@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DetailsPanel } from '../features/details/DetailsPanel';
 import { ListView } from '../features/list/ListView';
 import { PlanView } from '../features/plan2d/PlanView';
@@ -6,8 +6,11 @@ import { SearchBox } from '../features/search/SearchBox';
 import { readOnlyNotice } from '../components/houseNotice';
 import { useData } from '../store/data';
 import { useHouseProblems } from '../store/problems';
-import { type View, useUi } from '../store/ui';
+import { type PlanStyle, type Selection, type View, useUi } from '../store/ui';
+import { choose3d, useShows3d } from './scene3d';
+import { Scene3dSlot } from './Scene3dSlot';
 import { NEXT_THEME, useApplyTheme } from './theme';
+import { webglAvailable } from './webgl';
 
 function ViewToggle() {
   const view = useUi((s) => s.view);
@@ -29,6 +32,49 @@ function ViewToggle() {
           {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+const NO_WEBGL =
+  '3D needs WebGL, which this browser has turned off or doesn’t support. The 2D plan and the list show the same house.';
+
+function PlanStyleToggle({ onUnsupported }: { onUnsupported: () => void }) {
+  const view = useUi((s) => s.view);
+  const setPlanStyle = useUi((s) => s.setPlanStyle);
+  const shows3d = useShows3d();
+  const supported = webglAvailable();
+  const current: PlanStyle = shows3d ? '3d' : '2d';
+  return (
+    <div className="seg" role="group" aria-label="Plan style">
+      <button
+        type="button"
+        className={view === 'plan' && current === '2d' ? 'on' : undefined}
+        aria-pressed={view === 'plan' && current === '2d'}
+        onClick={() => setPlanStyle('2d')}
+      >
+        2D
+      </button>
+      <button
+        type="button"
+        className={view === 'plan' && current === '3d' ? 'on' : undefined}
+        aria-pressed={view === 'plan' && current === '3d'}
+        aria-disabled={supported ? undefined : true}
+        aria-describedby={supported ? undefined : 'no-webgl'}
+        title={supported ? '3D view' : NO_WEBGL}
+        onClick={() => {
+          // Touch users never see `title`: a tap on the disabled button says why in the page.
+          if (supported) choose3d();
+          else onUnsupported();
+        }}
+      >
+        3D
+      </button>
+      {!supported && (
+        <span id="no-webgl" className="sr-only">
+          {NO_WEBGL}
+        </span>
+      )}
     </div>
   );
 }
@@ -103,7 +149,34 @@ function ReadOnlyBanner({
   );
 }
 
-function Banners() {
+function Scene3dBanner() {
+  const view = useUi((s) => s.view);
+  const style = useUi((s) => s.planStyle);
+  const issue = useUi((s) => s.scene3dIssue);
+  const takeFocus = useUi((s) => s.scene3dFocus);
+  const clearFocus = useUi((s) => s.clearScene3dFocus);
+  const retry = useRef<HTMLButtonElement>(null);
+  const shown = view === 'plan' && style === '3d' && !!issue;
+  // The 3D view had focus and is gone: keep the keyboard user's place on the way back to 3D.
+  useEffect(() => {
+    if (!shown || !takeFocus) return;
+    retry.current?.focus();
+    clearFocus();
+  }, [shown, takeFocus, clearFocus]);
+  if (!shown) return null;
+  return (
+    <p className="banner warn" role="status" data-reason={issue}>
+      {issue === 'context_lost'
+        ? 'The 3D view stopped because the browser dropped its graphics context. Showing the 2D plan.'
+        : 'Couldn’t load the 3D view. Showing the 2D plan.'}{' '}
+      <button ref={retry} type="button" className="link" onClick={choose3d}>
+        {issue === 'context_lost' ? 'Reload 3D' : 'Try 3D again'}
+      </button>
+    </p>
+  );
+}
+
+function Banners({ why3d }: { why3d: boolean }) {
   const model = useData((s) => s.model);
   const error = useData((s) => s.error);
   const loadedAt = useData((s) => s.loadedAt);
@@ -124,6 +197,12 @@ function Banners() {
           </button>
         </p>
       )}
+      <Scene3dBanner />
+      {why3d && (
+        <p className="banner" role="status" data-reason="no_webgl">
+          {NO_WEBGL}
+        </p>
+      )}
     </>
   );
 }
@@ -135,6 +214,7 @@ function Main() {
   const load = useData((s) => s.load);
   const view = useUi((s) => s.view);
   const floorId = useUi((s) => s.floorId);
+  const shows3d = useShows3d();
 
   if (!model) {
     return state === 'error' ? (
@@ -165,7 +245,7 @@ function Main() {
       </section>
     );
   }
-  return <PlanView floor={floor} />;
+  return shows3d ? <Scene3dSlot floor={floor} /> : <PlanView floor={floor} />;
 }
 
 export function App() {
@@ -173,12 +253,18 @@ export function App() {
   const model = useData((s) => s.model);
   const selection = useUi((s) => s.selection);
   const setFloor = useUi((s) => s.setFloor);
+  const [why3d, setWhy3d] = useState(false);
 
-  // Opening an item (deep link, search, list) shows the floor it is on.
+  // Opening an item (deep link, search, list) shows the floor it is on: once per selection,
+  // when the model has it. A background refresh must not pull someone browsing another floor
+  // back to the selected item's floor.
+  const floorShownFor = useRef<Selection>(null);
   useEffect(() => {
-    if (selection?.kind !== 'item' || !model) return;
+    if (selection?.kind !== 'item' || !model || floorShownFor.current === selection) return;
     const floorId = model.items.get(selection.id)?.location?.floorId;
-    if (floorId && model.floorById.has(floorId)) setFloor(floorId);
+    if (!floorId || !model.floorById.has(floorId)) return;
+    floorShownFor.current = selection;
+    setFloor(floorId);
   }, [selection, model, setFloor]);
 
   return (
@@ -192,12 +278,13 @@ export function App() {
           {model && <span>{model.snapshot.timezone}</span>}
         </div>
         <ViewToggle />
+        <PlanStyleToggle onUnsupported={() => setWhy3d(true)} />
         <SearchBox />
         <ProblemsIndicator count={model?.snapshot.problemCount ?? 0} />
         <ThemeToggle />
       </header>
       <main id="main" className="main">
-        <Banners />
+        <Banners why3d={why3d} />
         <Main />
       </main>
       <DetailsPanel />

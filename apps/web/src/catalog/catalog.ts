@@ -6,11 +6,15 @@ export interface ItemType {
   key: string;
   label: string;
   defaultName: string;
-  mount: 'floor' | 'wall' | 'ceiling';
+  /** `[w, d]` in tiles at rotation 0 (data contract §2.2). */
+  footprint: readonly [number, number];
+  mount: Mount;
   critical: boolean;
 }
 
-const types = catalogJson.types as readonly (ItemType & { aliases: string[] })[];
+export type Mount = 'floor' | 'wall' | 'ceiling';
+
+const types = catalogJson.types as unknown as readonly (ItemType & { aliases: string[] })[];
 const byKey = new Map<string, ItemType>();
 for (const t of types) {
   byKey.set(t.key, t);
@@ -24,3 +28,12 @@ export const itemType = (key: string | null | undefined): ItemType | undefined =
 /** Label for any item type; unknown types show their raw key (they render as "Other"). */
 export const typeLabel = (key: string | null | undefined): string =>
   itemType(key)?.label ?? (key || 'Other');
+
+/** Footprint and mount for any type; unknown and missing types use "other" (a 1×1 floor box). */
+export function placementSpec(key: string | null | undefined): {
+  footprint: readonly [number, number];
+  mount: Mount;
+} {
+  const t = itemType(key) ?? byKey.get('other');
+  return { footprint: t?.footprint ?? [1, 1], mount: t?.mount ?? 'floor' };
+}

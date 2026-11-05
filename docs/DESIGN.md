@@ -221,7 +221,7 @@ Rules: `domain` imports nothing; `features` never import each other's internals;
 ### 7.4 3D scene
 - **Camera:** orthographic, ~45° tilt. Pan, zoom, rotate in 90° steps only.
 - **Floors:** one merged mesh per room per floor, tinted with the room colour.
-- **Walls:** boxes generated from wall edges; cut-away height (~1 m) by default, "walls up" toggle for full height. Walls facing the camera fade.
+- **Walls:** boxes generated from wall edges; low cut-away height (~0.3 m) by default so no tile is hidden at the 45° tilt; "walls up" toggle for full height (2.5 m), where walls facing the camera fade (D18).
 - **Items:** GLB models from the catalogue, placed at tile centre, rotated in 90° steps. `mount` decides height: floor (0), wall (~1.8 m, snapped to the nearest wall edge), ceiling.
 - **Picking:** raycast against items first, then the floor plane → grid cell.
 - **Feedback:** hover outline, selection ring, status badge (HTML overlay) above items.
@@ -587,7 +587,7 @@ The original order builds the 3D editor before the backend, but the editor's sav
 | 2 | 3D viewer | Lazy-loaded scene, floors, merged walls, box models, click → details | 1–2 days |
 | 3 | Real models | Kenney models, catalogue with footprint/mount/rotation, wall-item heights | 1 day |
 | 4 | Writes and sync | `PUT /api/house` with ETag + validation + history, item create/patch/delete/log, single-writer rule, watcher (`watchfiles`), SSE + polling fallback, problems panel | 3–4 days |
-| 5 | Editor | Paint/erase/place/move/rotate in 2D and 3D, undo/redo, replay on 412, Unplaced tray | 4–5 days |
+| 5 | Editor | Paint/erase/place/move/rotate in 2D and 3D, rectangle paint/erase (drag), resize house grid (D17), undo/redo, replay on 412, Unplaced tray | 5–6 days |
 | 6 | Notes and files | CodeMirror editor + preview, templates, uploads (sniffing, HEIC), first run, auth modes | 3 days |
 | 7 | Offline and emergency | Emergency print page, PWA snapshot cache, ICS feed | 2 days |
 | 8 | Polish | Attention list, doors/windows, wall fading, phone UX, a11y pass | ongoing |
@@ -607,3 +607,5 @@ The original milestones 1–5 add up to 7–10 days; this plan is about 17–21 
 | D14 | Printable emergency sheet + read-only PWA offline snapshot; no offline editing | The main emergency happens when the server is down; read-only offline needs no sync logic |
 | D15 | 2D plan + list view are the baseline (phones, accessibility); 3D is lazy-loaded with `frameloop="demand"` | Bundle size and battery on phones; the canvas isn't accessible |
 | D16 | QR stickers point to authenticated deep links `/i/<id>` in v1 | Item ids aren't secrets; stable URLs outlive redesigns; public sharing can be added later with real tokens |
+| D17 | Editor adds (a) rectangle paint/erase: drag from one tile to another to paint or erase the whole rectangle as one undo step; (b) resize house: grow or shrink the grid on any side. Growing north or west shifts every cell, placement and opening so nothing moves visually. Shrinking that would cut painted tiles, placements or openings shows what would be lost and needs confirmation; it is one undo step. `tileSize` changes stay out of the editor | Painting rooms tile by tile and hand-editing `grid.width`/`depth` is the main pain in hand-made layouts (user request, 2026-11-05) |
+| D18 | Default cut-away walls are ~0.3 m instead of ~1 m, and camera-facing wall fading moves from milestone 8 to milestone 2 | At a 45° tilt a 1 m wall hides the 1 m tile row behind it; the main water valve was invisible in tester run M2-03 (user decision, 2026-11-05) |

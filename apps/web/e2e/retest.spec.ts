@@ -289,8 +289,8 @@ const HOUSE_CASES: { name: string; house: string; text: RegExp; reason: string }
   {
     name: 'JSON syntax error',
     house: '{ "schemaVersion": 1, ',
-    text: /house\.json is not valid/,
-    reason: 'invalid',
+    text: /house\.json is not valid JSON/,
+    reason: 'not_json',
   },
   {
     name: 'missing schemaVersion',
@@ -338,7 +338,7 @@ test('FE-06 probe: a house.json that breaks after loading keeps the plan and say
       { timeout: 10_000 },
     )
     .toBe(1);
-  await expect(banner(page)).toHaveAttribute('data-reason', 'invalid');
+  await expect(banner(page)).toHaveAttribute('data-reason', 'not_json');
   await expect(banner(page)).toContainText('last valid version');
   await expect(page.locator('.plan [data-item-id]')).toHaveCount(13);
 });
@@ -347,7 +347,6 @@ test('FE-09: an unreadable house.json is reported as unreadable, not as invalid'
   page,
   backend,
 }) => {
-  test.fail(true, 'FE-09: "can\'t be read" problems are worded as "house.json is not valid"');
   const { url, dataDir } = await backend({}, { HOUSEBOOK_RESCAN_INTERVAL: '0.2' });
   await gotoPlan(page, `${url}/`);
   const file = join(dataDir, 'house.json');
@@ -362,6 +361,7 @@ test('FE-09: an unreadable house.json is reported as unreadable, not as invalid'
         { timeout: 10_000 },
       )
       .toBe(1);
+    await expect(banner(page)).toHaveAttribute('data-reason', 'unreadable');
     await expect(banner(page)).toContainText(
       /can.t be read|cannot be read|unreadable|permission/i,
       {

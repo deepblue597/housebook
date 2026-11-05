@@ -1,8 +1,8 @@
 # housebook-web
 
-The Housebook SPA (milestone 1, read-only): the 2D floor plan, a Floor → Room → Item list,
-item and room details, and client-side search. React + TypeScript + Vite, Zustand for state.
-The 3D view (milestone 2) will be a lazy chunk next to `features/plan2d`.
+The Housebook SPA (read-only): the 2D floor plan, a lazy-loaded 3D view (milestone 2), a
+Floor → Room → Item list, item and room details, and client-side search. React + TypeScript +
+Vite, Zustand for state; three.js via react-three-fiber (+ drei) for 3D.
 
 ## Run
 
@@ -23,34 +23,37 @@ image does this; see the root `Dockerfile`).
 
 ## Scripts
 
-| Script                               | What                                                                                                                                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm test`                          | Unit and component tests (vitest + Testing Library, jsdom)                                                                                                                                                                     |
-| `pnpm e2e`                           | Builds, starts the real backend on a temp copy of `examples/house` (port 8766, `E2E_PORT` to change) and runs Playwright (desktop + phone projects, axe, visual baseline). First time: `pnpm exec playwright install chromium` |
-| `pnpm e2e:docker`                    | Opt-in: builds the image from the repo root (or uses `HOUSEBOOK_IMAGE`), runs it hardened on a temp copy of `examples/house` (port 8767) and runs the `@smoke` tests against it. Removes the container and copy afterwards     |
-| `pnpm size`                          | After a build: initial JS must be ≤ 200 KB gzipped (DESIGN 15.10). Lazy chunks are listed but don't count. `ANALYZE=1 pnpm build` adds `dist/stats.html`                                                                       |
-| `pnpm gen:api`                       | Regenerates `src/api/openapi.json` and `src/api/schema.gen.ts` from the FastAPI app object (no server needed)                                                                                                                  |
-| `pnpm check:api`                     | Fails if the committed client differs from the backend's spec (CI contract check, DESIGN 15.15)                                                                                                                                |
-| `pnpm typecheck` / `lint` / `format` | `tsc -b` (strict), ESLint (typescript-eslint, react-hooks, jsx-a11y), Prettier                                                                                                                                                 |
-| `pnpm check`                         | All of the static checks plus unit tests                                                                                                                                                                                       |
+| Script                               | What                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `pnpm test`                          | Unit and component tests (vitest + Testing Library, jsdom)                                                                                                                                                                                                                                                                     |
+| `pnpm e2e`                           | Builds `dist-e2e/` (`vite build --mode e2e`: production build plus the `window.__housebook` test hook), starts the real backend on a temp copy of `examples/house` (port 8766, `E2E_PORT` to change) and runs Playwright (desktop + phone projects, axe, visual baseline). First time: `pnpm exec playwright install chromium` |
+| `pnpm e2e:docker`                    | Opt-in: builds the image from the repo root (or uses `HOUSEBOOK_IMAGE`), runs it hardened on a temp copy of `examples/house` (port 8767) and runs the `@smoke` tests against it. Removes the container and copy afterwards                                                                                                     |
+| `pnpm size`                          | After `pnpm build`: initial JS must be ≤ 200 KB gzipped (DESIGN 15.10). Lazy chunks (3D, Markdown, PDF.js) are listed but don't count. `ANALYZE=1 pnpm build` adds `dist/stats.html`                                                                                                                                           |
+| `pnpm gen:api`                       | Regenerates `src/api/openapi.json` and `src/api/schema.gen.ts` from the FastAPI app object (no server needed)                                                                                                                                                                                                                  |
+| `pnpm check:api`                     | Fails if the committed client differs from the backend's spec (CI contract check, DESIGN 15.15)                                                                                                                                                                                                                                |
+| `pnpm typecheck` / `lint` / `format` | `tsc -b` (strict), ESLint (typescript-eslint, react-hooks, jsx-a11y), Prettier                                                                                                                                                                                                                                                 |
+| `pnpm check`                         | All of the static checks plus unit tests                                                                                                                                                                                                                                                                                       |
 
 ## Layout (DESIGN §7.2)
 
 ```
 src/
   domain/      pure TS, no React: text folding, search, status rules, dates, notes conventions
-               (error codes, maintenance log), coordinates, walls/areas/labels, colour contrast,
-               URL allowlist, wikilinks. ESLint forbids UI imports here.
-  catalog/     item types from contract/catalog.json, type icons
+               (error codes, maintenance log), coordinates, walls/areas/labels, 3D geometry
+               (item transforms, wall boxes with door/window cuts, merged mesh buffers, picking),
+               colour contrast, URL allowlist, wikilinks. ESLint forbids UI imports here.
+  catalog/     item types from contract/catalog.json, type icons, type → 3D model (box sizes)
   api/         generated OpenAPI types + a small typed fetch client
   store/       Zustand: data (snapshot + ETag), ui (view, floor, selection, query, theme),
                the derived read model, search results
   features/
     plan2d/    SVG plan, pan/zoom (mouse, wheel, touch pinch)
+    scene3d/   lazy chunk: R3F scene, camera math (camera.ts, pure), layout, DOM overlays
     list/      list view with arrow-key navigation
     details/   item and room panel, Markdown notes (lazy), attachments, PDF.js viewer (lazy)
     search/    search combobox
-  app/         shell, router (/i/<id>), theme
+  app/         shell, router (/i/<id>), theme, 2D/3D toggle + lazy 3D loader, WebGL probe,
+               test hook (non-production builds only)
   components/  shared UI bits (dialog, status wording)
 ```
 
@@ -65,6 +68,30 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   time zone; after midnight the client recomputes with the same rules (golden fixtures).
 - **Search** runs on the client over the snapshot (D9) with the contract's folding and ranking;
   matches are highlighted on the plan, others dimmed, with per-floor counts.
+- **3D view:** 2D/3D toggle next to Plan/List; 2D is the default and the only choice without
+  WebGL (3D is then `aria-disabled`; tapping it shows why as page text). The choice is
+  remembered per browser (`housebook.planStyle`), not in the URL; `/i/<id>` works in both. three.js and friends load
+  with a dynamic import the first time 3D opens. Orthographic camera at 45°, pan (drag, arrow
+  keys), zoom (wheel, pinch, + / −, 0 fits), rotate in 90° steps ([ / ] and buttons; a camera
+  the user hasn't moved stays fitted), eased unless `prefers-reduced-motion`,
+  `frameloop="demand"`. Floors are one mesh per room, walls one merged mesh per floor from the
+  same wall edges as 2D, cut away low (0.3 m, so nothing hides behind a wall at 45°) with a
+  "Walls up" toggle (2.5 m) in which the walls facing the camera keep a low solid base and fade
+  above it (a second, translucent mesh; recomputed per 90° heading); doors cut gaps (lintel
+  with walls up), windows leave a sill/head and a pane (a dip with the pane when cut away).
+  Items are boxes (catalogue footprint × per-type height, placement footprint overrides
+  honoured, the same occupied rectangle as the 2D plan; wall items against their back edge
+  with their top at 1.8 m and ceiling items at the ceiling, whatever the wall height shown);
+  `ItemModel.tsx` is the seam for milestone 3 models. Zoom limits and clipping planes come
+  from the grid size, so the largest contract grid (512 × 512 tiles of 10 m) fits. Room
+  labels, status badges (same status rules) and the hovered/selected name are DOM overlays
+  placed with the camera's projection. Click an item → details; click a floor → room;
+  search, list, 2D and deep-link selections centre the camera. A lost WebGL context falls
+  back to 2D with a "Reload 3D" button (focus moves there if it was in the 3D view); a failed
+  chunk load falls back with "Try 3D again" and is retried only on that action. three.js is
+  pinned to 0.182: react-three-fiber 9.8 (latest stable) still creates a `THREE.Clock`,
+  which logs a deprecation warning from three 0.183 on. The canvas is labelled as a picture
+  and points to the 2D plan and the list as the accessible alternatives.
 - **Routing:** `/i/<id>` opens that item (QR stickers, D16); the URL follows the selection and
   back/forward work.
 - **Safety:** links in notes and in `manual`/`support` only for http, https, mailto, tel and
@@ -79,6 +106,13 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 
 - `src/domain/status.test.ts` and `search.test.ts` run `contract/fixtures/status_cases.json` and
   `search_cases.json`, the same files pytest runs, so the TS and Python rules can't drift.
+  `src/domain/scene.test.ts` runs `contract/fixtures/placement_cases.json` (placement → 3D
+  transform, the coordinate contract) plus wall/opening geometry on `examples/house`.
+- 3D: `features/scene3d/camera.test.ts` (projection checked against three's own camera, pointer
+  ↔ floor, pan/zoom anchors, 90° rotation, fit, focus, easing), `layout.test.ts`,
+  `SceneContent.test.tsx` (scene graph with `@react-three/test-renderer`: one merged wall mesh,
+  one floor mesh per room, item positions/rotations, selection ring, click → select, search dim,
+  floor switch), `SceneOverlays.test.tsx`; `app/App.test.tsx` (toggle, no WebGL, context loss).
 - Component tests: search box, item details (chips, link allowlist, Obsidian link), Markdown
   (raw HTML, `javascript:`, wikilinks), list keyboard navigation, snapshot loading (304, errors).
 - E2E (`e2e/`, Playwright, Chromium). Known bugs are reproduced as `test.fail()` tests named
@@ -97,12 +131,18 @@ The shared contract is imported as `@contract/…` (`../../contract`).
     wikilinks, embeds), snapshot ETag / If-None-Match / 304 and refetch on focus, failed loads,
     newer `schemaVersion` (read-only), problems count, stale and unplaced notes, empty root.
   - `ui.spec.ts`: theme toggle and dark mode (axe), reduced motion, 360 px (no horizontal
-    scroll, 44 px targets), the after-midnight status recompute, and three screenshots
+    scroll, 44 px targets), the after-midnight status recompute, and four screenshots (incl. 3D)
     (`ui.spec.ts-snapshots/`, fixed clock and viewport, animations off). Update them with
     `pnpm exec playwright test --grep @visual --update-snapshots` and review the diff.
+  - `scene3d.spec.ts`: the 3D view in Chromium/SwiftShader through the test hook: toggle and lazy
+    chunk (requested once), persistence, demand rendering, click → details, click floor → room,
+    drag pans without selecting, search and deep link centre the camera, floor switch, rotate
+    (buttons, keys), zoom/fit/walls up, reduced motion, no WebGL, context loss → 2D → reload,
+    keyboard and axe; fails on any uncaught page error. Its `@smoke` test runs on the Docker
+    image too and checks that the hook isn't there.
   - `gaps.spec.ts`: Find manual online, Copy path (with the select fallback), heading wikilinks,
     protocol-relative links, match counts only where there are matches, two-finger pan.
-  - `retest.spec.ts`: regression probes for the FE-01…FE-08 fixes: keyboard-only and backdrop
+  - `retest.spec.ts`: regression probes for the FE-01…FE-09 fixes: keyboard-only and backdrop
     dialog closing, a refresh landing mid-drag or mid-pinch, every read-only house.json cause,
     Esc with an empty query, refused clipboard, link tricks (`//host`, `/\\host`, entity- and
     control-character `javascript:`), one finger lifting mid-pinch, PDFs under `CSP sandbox`.

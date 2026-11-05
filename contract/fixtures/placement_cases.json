@@ -1,0 +1,293 @@
+{
+  "description": "Placement → 3D transform golden cases (data contract §2.2). house x → three x, house y → three z; tile centre = ((x+0.5)·tileSize, 0, (y+0.5)·tileSize); rotation clockwise from above, 0 faces +y (south); three rotation.y = −rotation·π/180; (x, y) is the min corner of the occupied rectangle after rotation, 90/270 swap w and d. backDirection is the unit vector (three x, z) from the item towards the edge its back is against (wall-mounted items hang there).",
+  "cases": [
+    {
+      "name": "1x1, rotation 0: front south, back on the north edge",
+      "tileSize": 1,
+      "placement": {
+        "x": 3,
+        "y": 2,
+        "rotation": 0
+      },
+      "footprint": [
+        1,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 3,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        "centre": {
+          "x": 3.5,
+          "z": 2.5
+        },
+        "threeRotationYDeg": 0,
+        "faces": "south",
+        "backEdge": "n",
+        "backDirection": {
+          "x": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "name": "1x1, rotation 90: front west, back on the east edge",
+      "tileSize": 1,
+      "placement": {
+        "x": 3,
+        "y": 2,
+        "rotation": 90
+      },
+      "footprint": [
+        1,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 3,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        "centre": {
+          "x": 3.5,
+          "z": 2.5
+        },
+        "threeRotationYDeg": -90,
+        "faces": "west",
+        "backEdge": "e",
+        "backDirection": {
+          "x": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "name": "1x1, rotation 180: front north, back on the south edge",
+      "tileSize": 1,
+      "placement": {
+        "x": 3,
+        "y": 2,
+        "rotation": 180
+      },
+      "footprint": [
+        1,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 3,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        "centre": {
+          "x": 3.5,
+          "z": 2.5
+        },
+        "threeRotationYDeg": -180,
+        "faces": "north",
+        "backEdge": "s",
+        "backDirection": {
+          "x": 0,
+          "z": 1
+        }
+      }
+    },
+    {
+      "name": "1x1, rotation 270: front east, back on the west edge",
+      "tileSize": 1,
+      "placement": {
+        "x": 3,
+        "y": 2,
+        "rotation": 270
+      },
+      "footprint": [
+        1,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 3,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        "centre": {
+          "x": 3.5,
+          "z": 2.5
+        },
+        "threeRotationYDeg": -270,
+        "faces": "east",
+        "backEdge": "w",
+        "backDirection": {
+          "x": -1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "name": "2x1 at rotation 0 spans two tiles east",
+      "tileSize": 1,
+      "placement": {
+        "x": 4,
+        "y": 1,
+        "rotation": 0
+      },
+      "footprint": [
+        2,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 4,
+          "y": 1,
+          "w": 2,
+          "h": 1
+        },
+        "centre": {
+          "x": 5,
+          "z": 1.5
+        },
+        "threeRotationYDeg": 0,
+        "faces": "south",
+        "backEdge": "n",
+        "backDirection": {
+          "x": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "name": "2x1 at rotation 90 swaps w and d: spans two tiles south",
+      "tileSize": 1,
+      "placement": {
+        "x": 4,
+        "y": 1,
+        "rotation": 90
+      },
+      "footprint": [
+        2,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 4,
+          "y": 1,
+          "w": 1,
+          "h": 2
+        },
+        "centre": {
+          "x": 4.5,
+          "z": 2
+        },
+        "threeRotationYDeg": -90,
+        "faces": "west",
+        "backEdge": "e",
+        "backDirection": {
+          "x": 1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "name": "2x1 at rotation 270, anchor is still the min corner",
+      "tileSize": 1,
+      "placement": {
+        "x": 4,
+        "y": 1,
+        "rotation": 270
+      },
+      "footprint": [
+        2,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 4,
+          "y": 1,
+          "w": 1,
+          "h": 2
+        },
+        "centre": {
+          "x": 4.5,
+          "z": 2
+        },
+        "threeRotationYDeg": -270,
+        "faces": "east",
+        "backEdge": "w",
+        "backDirection": {
+          "x": -1,
+          "z": 0
+        }
+      }
+    },
+    {
+      "name": "tileSize 0.5 scales world positions, not tiles",
+      "tileSize": 0.5,
+      "placement": {
+        "x": 1,
+        "y": 2,
+        "rotation": 0
+      },
+      "footprint": [
+        1,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 1,
+          "y": 2,
+          "w": 1,
+          "h": 1
+        },
+        "centre": {
+          "x": 0.75,
+          "z": 1.25
+        },
+        "threeRotationYDeg": 0,
+        "faces": "south",
+        "backEdge": "n",
+        "backDirection": {
+          "x": 0,
+          "z": -1
+        }
+      }
+    },
+    {
+      "name": "origin tile: north-west corner of the grid",
+      "tileSize": 1,
+      "placement": {
+        "x": 0,
+        "y": 0,
+        "rotation": 0
+      },
+      "footprint": [
+        1,
+        1
+      ],
+      "expect": {
+        "occupied": {
+          "x": 0,
+          "y": 0,
+          "w": 1,
+          "h": 1
+        },
+        "centre": {
+          "x": 0.5,
+          "z": 0.5
+        },
+        "threeRotationYDeg": 0,
+        "faces": "south",
+        "backEdge": "n",
+        "backDirection": {
+          "x": 0,
+          "z": -1
+        }
+      }
+    }
+  ]
+}
