@@ -1,0 +1,1594 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Housebook",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "summary": "Healthz",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "summary": "Readyz",
+        "description": "Ready = first scan done and the data root writable (needed from milestone 4 on).",
+        "operationId": "readyz_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/house": {
+      "get": {
+        "summary": "Get House",
+        "operationId": "get_house_api_house_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/House"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/snapshot": {
+      "get": {
+        "summary": "Get Snapshot",
+        "description": "House + every item (with body and status) in one response, for first load, the\noffline cache and client-side search. Poll with If-None-Match.",
+        "operationId": "get_snapshot_api_snapshot_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotOut"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          }
+        }
+      }
+    },
+    "/api/items": {
+      "get": {
+        "summary": "List Items",
+        "operationId": "list_items_api_items_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Search query (DESIGN 15.9)",
+              "title": "Q"
+            },
+            "description": "Search query (DESIGN 15.9)"
+          },
+          {
+            "name": "due",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 3650,
+                  "minimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Check or warranty due within N days",
+              "title": "Due"
+            },
+            "description": "Check or warranty due within N days"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemListOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}": {
+      "get": {
+        "summary": "Get Item",
+        "operationId": "get_item_api_items__item_id__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}/attachments/{name}": {
+      "get": {
+        "summary": "Get Attachment",
+        "operationId": "get_attachment_api_items__item_id__attachments__name__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/problems": {
+      "get": {
+        "summary": "Get Problems",
+        "operationId": "get_problems_api_problems_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog": {
+      "get": {
+        "summary": "Get Catalog",
+        "operationId": "get_catalog_api_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "summary": "Get Me",
+        "operationId": "get_me_api_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AttachmentOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size"
+          },
+          "listed": {
+            "type": "boolean",
+            "title": "Listed",
+            "description": "Listed in frontmatter (vs. only found in the sibling folder)"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size",
+          "listed",
+          "url"
+        ],
+        "title": "AttachmentOut"
+      },
+      "Catalog": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version",
+            "default": 1
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/ItemType"
+            },
+            "type": "array",
+            "title": "Types"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "types"
+        ],
+        "title": "Catalog"
+      },
+      "CheckStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "overdue",
+              "due_soon",
+              "scheduled"
+            ],
+            "title": "State"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "derived": {
+            "type": "boolean",
+            "title": "Derived"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "date",
+          "days",
+          "derived"
+        ],
+        "title": "CheckStatus"
+      },
+      "Floor": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "level": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": -20.0,
+            "title": "Level",
+            "default": 0
+          },
+          "cells": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "pattern": "^(0|[1-9][0-9]*),(0|[1-9][0-9]*)$"
+            },
+            "type": "object",
+            "title": "Cells",
+            "description": "Map of \"x,y\" -> room id. Keys are non-negative integers without padding."
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Floor"
+      },
+      "Grid": {
+        "properties": {
+          "tileSize": {
+            "type": "number",
+            "maximum": 10.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Tilesize",
+            "description": "Metres per tile",
+            "default": 1.0
+          },
+          "width": {
+            "type": "integer",
+            "maximum": 512.0,
+            "minimum": 1.0,
+            "title": "Width",
+            "description": "Tiles along x (east)"
+          },
+          "depth": {
+            "type": "integer",
+            "maximum": 512.0,
+            "minimum": 1.0,
+            "title": "Depth",
+            "description": "Tiles along y (south)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "width",
+          "depth"
+        ],
+        "title": "Grid"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HealthOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "checks": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "type": "object",
+            "title": "Checks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "HealthOut"
+      },
+      "House": {
+        "properties": {
+          "$schema": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "$Schema"
+          },
+          "schemaVersion": {
+            "type": "integer",
+            "const": 1,
+            "title": "Schemaversion"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/Grid"
+          },
+          "rooms": {
+            "items": {
+              "$ref": "#/components/schemas/Room"
+            },
+            "type": "array",
+            "title": "Rooms"
+          },
+          "floors": {
+            "items": {
+              "$ref": "#/components/schemas/Floor"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Floors"
+          },
+          "placements": {
+            "items": {
+              "$ref": "#/components/schemas/Placement"
+            },
+            "type": "array",
+            "title": "Placements"
+          },
+          "openings": {
+            "items": {
+              "$ref": "#/components/schemas/Opening"
+            },
+            "type": "array",
+            "title": "Openings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "schemaVersion",
+          "grid",
+          "floors"
+        ],
+        "title": "House"
+      },
+      "ItemDetailOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Note path relative to the data root"
+          },
+          "etag": {
+            "type": "string",
+            "title": "Etag",
+            "description": "Content hash of the note file; send as If-Match on writes"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "`name`, or the file name when missing"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "Canonical catalogue key (aliases resolved), or the raw value if unknown"
+          },
+          "typeKnown": {
+            "type": "boolean",
+            "title": "Typeknown"
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical",
+            "description": "`critical` from frontmatter, else the catalogue default"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/ItemFieldsOut"
+          },
+          "frontmatter": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Frontmatter",
+            "description": "All frontmatter keys as read (strings), unknown keys included"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Placement and derived room; null when unplaced"
+          },
+          "errorCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errorcodes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentOut"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "description": "The file currently fails to parse; this is the last good version"
+          },
+          "parseError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parseerror"
+          },
+          "obsidianUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obsidianurl"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "etag",
+          "name",
+          "type",
+          "typeKnown",
+          "critical",
+          "fields",
+          "frontmatter",
+          "status",
+          "location",
+          "errorCodes",
+          "attachments",
+          "stale",
+          "body"
+        ],
+        "title": "ItemDetailOut"
+      },
+      "ItemFieldsOut": {
+        "properties": {
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "brand": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "serial": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Serial"
+          },
+          "purchased": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Purchased"
+          },
+          "warranty_until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warranty Until"
+          },
+          "next_check": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Check"
+          },
+          "check_every": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Check Every",
+            "description": "Interval like 6m or 1y"
+          },
+          "manual": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manual"
+          },
+          "support": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support"
+          },
+          "critical": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical"
+          },
+          "attachments": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Attachments"
+          }
+        },
+        "type": "object",
+        "title": "ItemFieldsOut",
+        "description": "Typed frontmatter. Invalid values are null here and listed in /api/problems."
+      },
+      "ItemListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "count"
+        ],
+        "title": "ItemListOut"
+      },
+      "ItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Note path relative to the data root"
+          },
+          "etag": {
+            "type": "string",
+            "title": "Etag",
+            "description": "Content hash of the note file; send as If-Match on writes"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "`name`, or the file name when missing"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type",
+            "description": "Canonical catalogue key (aliases resolved), or the raw value if unknown"
+          },
+          "typeKnown": {
+            "type": "boolean",
+            "title": "Typeknown"
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical",
+            "description": "`critical` from frontmatter, else the catalogue default"
+          },
+          "fields": {
+            "$ref": "#/components/schemas/ItemFieldsOut"
+          },
+          "frontmatter": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Frontmatter",
+            "description": "All frontmatter keys as read (strings), unknown keys included"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocationOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Placement and derived room; null when unplaced"
+          },
+          "errorCodes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errorcodes"
+          },
+          "attachments": {
+            "items": {
+              "$ref": "#/components/schemas/AttachmentOut"
+            },
+            "type": "array",
+            "title": "Attachments"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "description": "The file currently fails to parse; this is the last good version"
+          },
+          "parseError": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parseerror"
+          },
+          "obsidianUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obsidianurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "path",
+          "etag",
+          "name",
+          "type",
+          "typeKnown",
+          "critical",
+          "fields",
+          "frontmatter",
+          "status",
+          "location",
+          "errorCodes",
+          "attachments",
+          "stale"
+        ],
+        "title": "ItemOut"
+      },
+      "ItemType": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "defaultName": {
+            "type": "string",
+            "title": "Defaultname"
+          },
+          "footprint": {
+            "prefixItems": [
+              {
+                "type": "integer",
+                "maximum": 512.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "integer",
+                "maximum": 512.0,
+                "minimum": 1.0
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Footprint",
+            "default": [
+              1,
+              1
+            ]
+          },
+          "mount": {
+            "type": "string",
+            "enum": [
+              "floor",
+              "wall",
+              "ceiling"
+            ],
+            "title": "Mount"
+          },
+          "critical": {
+            "type": "boolean",
+            "title": "Critical",
+            "default": false
+          },
+          "aliases": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Aliases",
+            "default": []
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "defaultName",
+          "mount"
+        ],
+        "title": "ItemType"
+      },
+      "LocationOut": {
+        "properties": {
+          "floorId": {
+            "type": "string",
+            "title": "Floorid"
+          },
+          "roomId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roomid"
+          },
+          "x": {
+            "type": "integer",
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "title": "Y"
+          },
+          "rotation": {
+            "type": "integer",
+            "title": "Rotation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "floorId",
+          "roomId",
+          "x",
+          "y",
+          "rotation"
+        ],
+        "title": "LocationOut"
+      },
+      "MeOut": {
+        "properties": {
+          "user": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "viewer",
+              "editor"
+            ],
+            "title": "Role"
+          },
+          "authMode": {
+            "type": "string",
+            "enum": [
+              "none",
+              "proxy"
+            ],
+            "title": "Authmode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user",
+          "role",
+          "authMode"
+        ],
+        "title": "MeOut"
+      },
+      "Opening": {
+        "properties": {
+          "floorId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "title": "Floorid"
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "n",
+              "w"
+            ],
+            "title": "Side",
+            "description": "Edge of tile (x,y): n = north (towards y-1), w = west (towards x-1)"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "door",
+              "window"
+            ],
+            "title": "Kind"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "floorId",
+          "x",
+          "y",
+          "side",
+          "kind"
+        ],
+        "title": "Opening"
+      },
+      "Placement": {
+        "properties": {
+          "itemId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "title": "Itemid"
+          },
+          "floorId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "title": "Floorid"
+          },
+          "x": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "X",
+            "description": "Minimum x of the occupied rectangle after rotation"
+          },
+          "y": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Y",
+            "description": "Minimum y of the occupied rectangle after rotation"
+          },
+          "rotation": {
+            "type": "integer",
+            "enum": [
+              0,
+              90,
+              180,
+              270
+            ],
+            "title": "Rotation",
+            "description": "Degrees clockwise seen from above; 0 = front faces +y",
+            "default": 0
+          },
+          "footprint": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "maximum": 512.0,
+                    "minimum": 1.0
+                  },
+                  {
+                    "type": "integer",
+                    "maximum": 512.0,
+                    "minimum": 1.0
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Footprint",
+            "description": "[w, d] override of the catalogue footprint, before rotation"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "itemId",
+          "floorId",
+          "x",
+          "y"
+        ],
+        "title": "Placement"
+      },
+      "Problem": {
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/ProblemKind"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "itemId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Itemid"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "severity",
+          "message"
+        ],
+        "title": "Problem"
+      },
+      "ProblemKind": {
+        "type": "string",
+        "enum": [
+          "house_missing",
+          "house_invalid",
+          "house_newer_version",
+          "house_duplicate_id",
+          "house_bad_cell",
+          "house_unknown_room",
+          "house_unknown_floor",
+          "house_outside_grid",
+          "house_duplicate_placement",
+          "note_parse_error",
+          "read_error",
+          "note_invalid_field",
+          "note_invalid_id",
+          "duplicate_id",
+          "conflict_copy",
+          "not_adopted",
+          "untagged_typed",
+          "unknown_type",
+          "symlink_outside_root",
+          "missing_note",
+          "attachment_missing",
+          "attachment_unsafe",
+          "attachment_name_collision"
+        ],
+        "title": "ProblemKind"
+      },
+      "ProblemsOut": {
+        "properties": {
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "scannedAt": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Scannedat"
+          }
+        },
+        "type": "object",
+        "required": [
+          "problems",
+          "count",
+          "scannedAt"
+        ],
+        "title": "ProblemsOut"
+      },
+      "Room": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,64}$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9A-Fa-f]{6}$",
+            "title": "Color"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "color"
+        ],
+        "title": "Room"
+      },
+      "Severity": {
+        "type": "string",
+        "enum": [
+          "error",
+          "warning",
+          "info"
+        ],
+        "title": "Severity"
+      },
+      "SnapshotOut": {
+        "properties": {
+          "today": {
+            "type": "string",
+            "format": "date",
+            "title": "Today",
+            "description": "Today in HOUSEBOOK_TZ; statuses are computed against it"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          },
+          "house": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/House"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "houseEtag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Houseetag"
+          },
+          "houseReadOnly": {
+            "type": "boolean",
+            "title": "Housereadonly"
+          },
+          "houseSchemaVersion": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Houseschemaversion"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ItemDetailOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "problemCount": {
+            "type": "integer",
+            "title": "Problemcount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "today",
+          "timezone",
+          "house",
+          "houseEtag",
+          "houseReadOnly",
+          "houseSchemaVersion",
+          "items",
+          "problemCount"
+        ],
+        "title": "SnapshotOut"
+      },
+      "Status": {
+        "properties": {
+          "level": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "overdue",
+                  "due_soon",
+                  "warranty_ending"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CheckStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warranty": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WarrantyStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "level",
+          "check",
+          "warranty"
+        ],
+        "title": "Status"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WarrantyStatus": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "expired",
+              "ending",
+              "active"
+            ],
+            "title": "State"
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "date",
+          "days"
+        ],
+        "title": "WarrantyStatus"
+      }
+    }
+  }
+}

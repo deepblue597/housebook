@@ -5,16 +5,16 @@ warranty, quick fixes and maintenance log. Item info is plain Markdown with YAML
 (Obsidian-compatible, Obsidian optional); the layout is `house.json`. One Docker container,
 one household.
 
-Status: **milestone 0** (data contract) and the **backend half of milestone 1** (read-only API).
-No writes, file watcher or SSE yet (milestone 4); the web UI comes next.
+Status: **milestone 0** (data contract) and **milestone 1** (read-only API and web UI: 2D plan,
+list, details, search). No writes, file watcher or SSE yet (milestone 4).
 
 ```
 contract/           shared by backend and frontend
   house.schema.json   generated from the Pydantic model
   catalog.json        item types
-  fixtures/           golden status and search cases (run by pytest and, later, vitest)
+  fixtures/           golden status and search cases (run by pytest and vitest)
 apps/api/           FastAPI backend (uv project)
-apps/web/           frontend (placeholder)
+apps/web/           React SPA (pnpm project; see apps/web/README.md)
 examples/house/     example data root: house.json + House/<Room>/<Item>.md
 docs/DESIGN.md      design and architecture review
 docs/data-contract.md   house.json v1, frontmatter, status, search, problems
@@ -103,7 +103,7 @@ the rest of `/api`.
 | GET | `/api/snapshot` | House + all items (fields, status, body, attachments); `ETag`/304. Poll this |
 | GET | `/api/items?q=&due=` | Search (contract §5) and/or "due within N days" |
 | GET | `/api/items/{id}` | One item; `ETag` = note content hash (the future `If-Match`) |
-| GET | `/api/items/{id}/attachments/{name}` | File download; Range, `nosniff`, sandbox CSP for non-PDF |
+| GET | `/api/items/{id}/attachments/{name}` | File download; Range, `nosniff`, sandbox CSP (PDFs too: the web app renders them with PDF.js) |
 | GET | `/api/problems` | Integrity report |
 | GET | `/api/catalog` | Item types |
 | GET | `/api/me` | Current user and role |

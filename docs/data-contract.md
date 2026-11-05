@@ -257,10 +257,11 @@ folder, the first wins and `attachment_name_collision` is reported.
 Serving: the content type comes from the file's **first bytes**, never its extension. Sniffed
 PDF, PNG, JPEG, GIF and WebP are shown inline; HEIC/HEIF and everything else is a download
 (`application/octet-stream` unless sniffed, `text/plain` for `.txt`/`.md`). All responses carry
-`X-Content-Type-Options: nosniff`; everything except PDFs also gets
-`Content-Security-Policy: default-src 'none'; sandbox`. PDFs are exempt because Chrome's built-in
-viewer refuses to render a sandboxed document; once the web app renders PDFs itself with PDF.js,
-PDFs can be sandboxed too.
+`X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`,
+PDFs included. The web app renders PDFs itself with PDF.js (it fetches the bytes, with Range
+requests), so it doesn't depend on the browser's built-in viewer, which refuses sandboxed
+documents. Opening an attachment URL directly in a browser tab may therefore show nothing;
+download it instead. Attachments are never gzip-compressed and keep a strong ETag for `If-Range`.
 
 ### 3.5 Body conventions
 

@@ -5,15 +5,18 @@
 
 ARG PYTHON_VERSION=3.13
 
-# ---- web: the SPA (milestone 1 frontend). Enable once apps/web has a build. -------------
-# FROM node:24-slim AS web
-# WORKDIR /web
-# RUN corepack enable
-# COPY apps/web/package.json apps/web/pnpm-lock.yaml ./
-# RUN pnpm install --frozen-lockfile
-# COPY apps/web/ ./
-# COPY contract/ /contract/
-# RUN pnpm build
+# ---- web: the SPA (apps/web) -> /repo/apps/web/dist ---------------------------------------
+FROM node:24-slim AS web
+ARG PNPM_VERSION=12.6.0
+RUN npm install --global --no-fund --no-audit pnpm@${PNPM_VERSION}
+WORKDIR /repo/apps/web
+COPY apps/web/package.json apps/web/pnpm-lock.yaml ./
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm-store \
+    pnpm install --frozen-lockfile --store-dir /pnpm-store
+# The web app imports the shared contract (catalog, fixtures) from the repo root.
+COPY contract/ /repo/contract/
+COPY apps/web/ ./
+RUN pnpm build && node scripts/check-size.mjs
 
 # ---- api: resolve and install Python deps into /app/.venv -------------------------------
 FROM ghcr.io/astral-sh/uv:0.9.5 AS uv
@@ -38,7 +41,7 @@ RUN groupadd --gid "${GID}" housebook \
  && mkdir -p /data && chown "${UID}:${GID}" /data
 COPY --from=api /app/.venv /app/.venv
 COPY contract/ /app/contract/
-# COPY --from=web /web/dist /app/web
+COPY --from=web /repo/apps/web/dist /app/web
 ENV PATH=/app/.venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

@@ -434,7 +434,6 @@ def test_notes_dir_ignored_or_escaping_names_rejected(value: str):
         Settings.from_env({"HOUSEBOOK_NOTES_DIR": value})
 
 
-@pytest.mark.xfail(strict=True, reason="HB-16: SPA files send an ETag but never answer If-None-Match with 304")
 def test_spa_index_revalidates(example_root: Path, make_client, tmp_path: Path):
     web = tmp_path / "web"
     web.mkdir()
@@ -442,3 +441,58 @@ def test_spa_index_revalidates(example_root: Path, make_client, tmp_path: Path):
     c = make_client(example_root, static_dir=web)
     etag = c.get("/", headers={"Accept-Encoding": "identity"}).headers["etag"]
     assert c.get("/", headers={"Accept-Encoding": "identity", "If-None-Match": etag}).status_code == 304
+
+
+# --- round 4: SPA 304s (HB-16) and PDF sandbox -----------------------------------------------------------
+
+
+@pytest.fixture
+def spa_client(example_root: Path, make_client, tmp_path: Path) -> TestClient:
+    web = tmp_path / "web"
+    (web / "assets").mkdir(parents=True)
+    (web / "index.html").write_text("<!doctype html>" + "x" * 3000)
+    (web / "assets/app-B4x9KqZ1.js").write_text("console.log(1);" * 500)
+    return make_client(example_root, static_dir=web)
+
+
+@pytest.mark.parametrize("path", ["/", "/i/it_7f3k2a", "/assets/app-B4x9KqZ1.js"])
+@pytest.mark.parametrize("ae", ["gzip", "identity"])
+def test_spa_conditional_get(spa_client: TestClient, path: str, ae: str):
+    r = spa_client.get(path, headers={"Accept-Encoding": ae})
+    etag, cc = r.headers["etag"], r.headers["cache-control"]
+    assert etag.startswith("W/") is (ae == "gzip")
+    strong = etag.removeprefix("W/")
+    for inm in (etag, strong, "W/" + strong, f'"x", {strong}'):
+        for method in ("GET", "HEAD"):
+            n = spa_client.request(method, path, headers={"Accept-Encoding": ae, "If-None-Match": inm})
+            assert n.status_code == 304 and n.content == b"", (method, inm)
+            assert n.headers["etag"] == etag and n.headers["cache-control"] == cc
+            assert "accept-encoding" in n.headers["vary"].lower()
+    assert spa_client.get(path, headers={"Accept-Encoding": ae, "If-None-Match": '"nope"'}).status_code == 200
+
+
+def test_every_attachment_is_sandboxed_json_is_not(client: TestClient):
+    csp = "default-src 'none'; sandbox"
+    for name in ["manual.pdf", "receipt.png"]:
+        for r in (
+            client.get(ATT + name, headers={"Accept-Encoding": "gzip"}),
+            client.get(ATT + name, headers={"Range": "bytes=0-9"}),
+            client.head(ATT + name),
+            client.head(ATT + name, headers={"Range": "bytes=0-9"}),
+        ):
+            assert r.headers["content-security-policy"] == csp, name
+            assert r.headers["x-content-type-options"] == "nosniff", name
+            assert "content-encoding" not in r.headers and not r.headers["etag"].startswith("W/"), name
+    for path in ["/api/snapshot", "/api/house", "/api/items/it_7f3k2a", "/api/problems", "/api/me"]:
+        assert "content-security-policy" not in client.get(path).headers, path
+
+
+def test_pdf_if_range(client: TestClient):
+    full = client.get(ATT + "manual.pdf")
+    etag = full.headers["etag"]
+    fresh = client.get(ATT + "manual.pdf", headers={"Range": "bytes=0-9", "If-Range": etag})
+    assert fresh.status_code == 206 and fresh.content == full.content[:10]
+    for stale in ('"stale"', "W/" + etag):  # a weak validator never satisfies If-Range
+        r = client.get(ATT + "manual.pdf", headers={"Range": "bytes=0-9", "If-Range": stale})
+        assert r.status_code == 200 and r.content == full.content
+        assert r.headers["content-security-policy"] == "default-src 'none'; sandbox"

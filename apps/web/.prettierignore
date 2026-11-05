@@ -1,0 +1,7 @@
+dist
+coverage
+playwright-report
+test-results
+pnpm-lock.yaml
+src/api/schema.gen.ts
+src/api/openapi.json

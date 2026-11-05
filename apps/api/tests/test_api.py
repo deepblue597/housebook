@@ -176,7 +176,7 @@ def test_attachment_pdf_inline_with_range(client: TestClient):
     assert r.headers["content-type"] == "application/pdf"
     assert r.headers["content-disposition"] == 'inline; filename="manual.pdf"'
     assert r.headers["x-content-type-options"] == "nosniff"
-    assert "content-security-policy" not in r.headers
+    assert r.headers["content-security-policy"] == "default-src 'none'; sandbox"  # PDF.js renders in-app
     part = client.get(url, headers={"Range": "bytes=0-3"})
     assert part.status_code == 206 and part.content == b"%PDF"
 

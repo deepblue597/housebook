@@ -168,12 +168,10 @@ def get_attachment(item_id: str, name: str, ctx: Ctx) -> FileResponse:
     else:
         ext = posixpath.splitext(att.name)[1].lower()
         media_type, disposition = sniffed or DOWNLOAD_TYPES.get(ext, "application/octet-stream"), "attachment"
-    if media_type != "application/pdf":
-        headers["Content-Security-Policy"] = SANDBOX_CSP
-    # PDFs get no `sandbox`: Chrome's built-in viewer refuses to render a sandboxed document
-    # (Firefox's pdf.js copes). They rely on the sniffed type + nosniff instead. Once the web
-    # app renders PDFs itself with PDF.js (fetching bytes, not navigating), PDFs can be served
-    # sandboxed like everything else.
+    # Every attachment, PDFs included, is sandboxed: the web app renders PDFs itself with PDF.js
+    # (it fetches the bytes; CSP of a fetched resource doesn't apply to the page that fetches
+    # it), so nothing relies on the browser's built-in viewer, which refuses sandboxed documents.
+    headers["Content-Security-Policy"] = SANDBOX_CSP
     return FileResponse(
         path,
         media_type=media_type,

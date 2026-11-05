@@ -145,7 +145,8 @@ def test_attachment_type_comes_from_bytes(tmp_path: Path, make_client: ClientFac
     r = c.get(base + "photo.bin")
     assert r.headers["content-type"] == "image/png" and r.headers["content-disposition"].startswith("inline")
     r = c.get(base + "scan.jpg")
-    assert r.headers["content-type"] == "application/pdf" and "content-security-policy" not in r.headers
+    assert r.headers["content-type"] == "application/pdf"
+    assert r.headers["content-security-policy"] == "default-src 'none'; sandbox"
     r = c.get(base + "iphone.heic")
     assert r.headers["content-type"] == "image/heic" and r.headers["content-disposition"].startswith("attachment")
 
@@ -370,3 +371,46 @@ def test_unreadable_attachment_is_a_problem(example_root: Path, make_client: Cli
 def test_notes_dir_hidden_or_temp_names_rejected(value: str):
     with pytest.raises(ConfigError, match="hidden or temporary"):
         Settings.from_env({"HOUSEBOOK_NOTES_DIR": value})
+
+
+# --- HB-16: SPA conditional GET; PDFs sandboxed ------------------------------------------
+
+
+@pytest.fixture
+def spa_client(example_root: Path, make_client: ClientFactory, tmp_path: Path) -> TestClient:
+    web = tmp_path / "web"
+    (web / "assets").mkdir(parents=True)
+    (web / "index.html").write_text("<!doctype html><title>Housebook</title>" + "<!-- pad -->" * 200)
+    (web / "assets" / "index-B4x9KqZ1.js").write_text("console.log(1);" * 200)
+    return make_client(example_root, static_dir=web)
+
+
+@pytest.mark.parametrize(
+    "path, cache",
+    [
+        ("/", "no-cache"),
+        ("/i/it_7f3k2a", "no-cache"),
+        ("/assets/index-B4x9KqZ1.js", "public, max-age=31536000, immutable"),
+    ],
+)
+@pytest.mark.parametrize("encoding", ["identity", "gzip"])
+def test_spa_files_answer_304(spa_client: TestClient, path: str, cache: str, encoding: str):
+    first = spa_client.get(path, headers={"Accept-Encoding": encoding})
+    etag = first.headers["etag"]
+    assert etag.startswith("W/") is (encoding == "gzip")
+    r = spa_client.get(path, headers={"Accept-Encoding": encoding, "If-None-Match": etag})
+    assert r.status_code == 304 and r.content == b""
+    assert r.headers["etag"] == etag and r.headers["cache-control"] == cache
+    assert "accept-encoding" in r.headers["vary"].lower()
+    assert spa_client.get(path, headers={"If-None-Match": '"other"'}).status_code == 200
+
+
+def test_pdf_is_sandboxed_and_range_still_works(client: TestClient):
+    url = "/api/items/it_7f3k2a/attachments/manual.pdf"
+    r = client.get(url, headers={"Accept-Encoding": "gzip"})
+    assert r.headers["content-security-policy"] == "default-src 'none'; sandbox"
+    assert r.headers["x-content-type-options"] == "nosniff" and "content-encoding" not in r.headers
+    assert r.headers["accept-ranges"] == "bytes" and not r.headers["etag"].startswith("W/")
+    part = client.get(url, headers={"Range": "bytes=0-4", "Accept-Encoding": "gzip", "If-Range": r.headers["etag"]})
+    assert part.status_code == 206 and part.content == b"%PDF-"
+    assert part.headers["content-security-policy"] == "default-src 'none'; sandbox"
