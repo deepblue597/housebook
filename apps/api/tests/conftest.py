@@ -38,7 +38,9 @@ def example_root(tmp_path: Path) -> Path:
 
 
 def make_settings(root: Path, **overrides: object) -> Settings:
-    base = Settings(data_dir=root, tz="Europe/Athens", contract_dir=CONTRACT, rescan_interval=0)
+    # The watcher is off unless a test opts in (tests/test_watcher.py): API writes rescan by
+    # themselves, and an inotify thread per client would only slow the suite down.
+    base = Settings(data_dir=root, tz="Europe/Athens", contract_dir=CONTRACT, rescan_interval=0, watch="off")
     return replace(base, **overrides)
 
 

@@ -7,8 +7,9 @@ Two layers of validation:
   Loading from disk passes `context={"tolerant": True}`; the issues then become problems.
 """
 
+import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, Self
 
 from pydantic import (
@@ -178,6 +179,7 @@ def normalise_cells(data: Any) -> tuple[Any, list["HouseIssue"]]:
 class HouseIssue:
     code: str  # maps onto a ProblemKind
     message: str
+    loc: tuple[str | int, ...] = field(default=())  # JSON path of the offending value
 
 
 def house_issues(house: House) -> list[HouseIssue]:
@@ -187,9 +189,9 @@ def house_issues(house: House) -> list[HouseIssue]:
 
     def dupes(kind: str, ids: list[str]) -> None:
         seen: set[str] = set()
-        for i in ids:
+        for n, i in enumerate(ids):
             if i in seen:
-                out.append(HouseIssue("house_duplicate_id", f"duplicate {kind} id '{i}'"))
+                out.append(HouseIssue("house_duplicate_id", f"duplicate {kind} id '{i}'", (f"{kind}s", n, "id")))
             seen.add(i)
 
     dupes("room", [r.id for r in house.rooms])
@@ -197,46 +199,67 @@ def house_issues(house: House) -> list[HouseIssue]:
 
     room_ids = {r.id for r in house.rooms}
     floor_ids = {f.id for f in house.floors}
-    for floor in house.floors:
+    for fi, floor in enumerate(house.floors):
         for key, room_id in floor.cells.items():
+            loc = ("floors", fi, "cells", key)
             xy = parse_cell_key(key)
             if xy is None:
-                out.append(HouseIssue("house_bad_cell", f"floor '{floor.id}': bad cell key '{key}'"))
+                out.append(HouseIssue("house_bad_cell", f"floor '{floor.id}': bad cell key '{key}'", loc))
                 continue
             if not (xy[0] < w and xy[1] < d):
-                out.append(HouseIssue("house_outside_grid", f"floor '{floor.id}': cell {key} is outside the grid"))
+                out.append(HouseIssue("house_outside_grid", f"floor '{floor.id}': cell {key} is outside the grid", loc))
             if room_id not in room_ids:
                 out.append(
                     HouseIssue(
-                        "house_unknown_room", f"floor '{floor.id}': cell {key} points to unknown room '{room_id}'"
+                        "house_unknown_room", f"floor '{floor.id}': cell {key} points to unknown room '{room_id}'", loc
                     )
                 )
 
     placed: set[str] = set()
-    for p in house.placements:
+    for pi, p in enumerate(house.placements):
+        loc = ("placements", pi)
         if p.item_id in placed:
-            out.append(HouseIssue("house_duplicate_placement", f"item '{p.item_id}' is placed more than once"))
+            out.append(
+                HouseIssue(
+                    "house_duplicate_placement", f"item '{p.item_id}' is placed more than once", (*loc, "itemId")
+                )
+            )
         placed.add(p.item_id)
         if p.floor_id not in floor_ids:
             out.append(
-                HouseIssue("house_unknown_floor", f"placement of '{p.item_id}' references unknown floor '{p.floor_id}'")
+                HouseIssue(
+                    "house_unknown_floor",
+                    f"placement of '{p.item_id}' references unknown floor '{p.floor_id}'",
+                    (*loc, "floorId"),
+                )
             )
         _, _, x1, y1 = p.occupied()
         if x1 > w or y1 > d:
             out.append(
-                HouseIssue("house_outside_grid", f"placement of '{p.item_id}' at {p.x},{p.y} is outside the grid")
+                HouseIssue("house_outside_grid", f"placement of '{p.item_id}' at {p.x},{p.y} is outside the grid", loc)
             )
 
-    for o in house.openings:
+    for oi, o in enumerate(house.openings):
+        loc = ("openings", oi)
         if o.floor_id not in floor_ids:
             out.append(
-                HouseIssue("house_unknown_floor", f"opening at {o.x},{o.y} references unknown floor '{o.floor_id}'")
+                HouseIssue(
+                    "house_unknown_floor",
+                    f"opening at {o.x},{o.y} references unknown floor '{o.floor_id}'",
+                    (*loc, "floorId"),
+                )
             )
         # The east/south boundary edges are addressed from x == width / y == depth.
         ok = (o.x < w and o.y <= d) if o.side == "n" else (o.x <= w and o.y < d)
         if not ok:
-            out.append(HouseIssue("house_outside_grid", f"opening {o.side} at {o.x},{o.y} is outside the grid"))
+            out.append(HouseIssue("house_outside_grid", f"opening {o.side} at {o.x},{o.y} is outside the grid", loc))
     return out
+
+
+def serialize(house: House) -> bytes:
+    """Deterministic file form (DESIGN 15.2): 2-space indent, cell keys sorted by y then x,
+    nulls omitted, UTF-8, trailing newline. Diffs in git and restic stay readable."""
+    return (json.dumps(house.dump(), indent=2, ensure_ascii=False) + "\n").encode("utf-8")
 
 
 def room_at(house: House, floor_id: str, x: int, y: int) -> str | None:

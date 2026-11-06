@@ -1,0 +1,205 @@
+{
+  "description": "How the backend writes one frontmatter value (contract §3.1, DESIGN 15.4). Strings are plain only when every YAML reader (PyYAML's YAML 1.1 resolver, Obsidian's YAML 1.2) reads them back as the same string; otherwise they are double-quoted. Dates under purchased/warranty_until/next_check and true/false under critical are plain on purpose (Obsidian property types). JSON booleans and numbers are written plain; the string-only reader then sees `readsAs`.",
+  "cases": [
+    {
+      "id": "plain",
+      "key": "brand",
+      "value": "Bosch",
+      "line": "brand: Bosch"
+    },
+    {
+      "id": "serial-leading-zero",
+      "key": "serial",
+      "value": "0123",
+      "line": "serial: \"0123\""
+    },
+    {
+      "id": "serial-digits",
+      "key": "serial",
+      "value": "123456",
+      "line": "serial: \"123456\""
+    },
+    {
+      "id": "serial-spaces",
+      "key": "serial",
+      "value": "FD 0412 00123",
+      "line": "serial: FD 0412 00123"
+    },
+    {
+      "id": "model-no",
+      "key": "model",
+      "value": "no",
+      "line": "model: \"no\""
+    },
+    {
+      "id": "model-yes",
+      "key": "model",
+      "value": "Yes",
+      "line": "model: \"Yes\""
+    },
+    {
+      "id": "on",
+      "key": "name",
+      "value": "on",
+      "line": "name: \"on\""
+    },
+    {
+      "id": "off-upper",
+      "key": "name",
+      "value": "OFF",
+      "line": "name: \"OFF\""
+    },
+    {
+      "id": "y",
+      "key": "name",
+      "value": "y",
+      "line": "name: \"y\""
+    },
+    {
+      "id": "null-word",
+      "key": "brand",
+      "value": "null",
+      "line": "brand: \"null\""
+    },
+    {
+      "id": "tilde",
+      "key": "brand",
+      "value": "~",
+      "line": "brand: \"~\""
+    },
+    {
+      "id": "float",
+      "key": "model",
+      "value": "1.5",
+      "line": "model: \"1.5\""
+    },
+    {
+      "id": "exponent",
+      "key": "brand",
+      "value": "1e3",
+      "line": "brand: \"1e3\""
+    },
+    {
+      "id": "hex",
+      "key": "name",
+      "value": "0x1F",
+      "line": "name: \"0x1F\""
+    },
+    {
+      "id": "octal-0o",
+      "key": "serial",
+      "value": "0o17",
+      "line": "serial: \"0o17\""
+    },
+    {
+      "id": "sexagesimal",
+      "key": "name",
+      "value": "1:30",
+      "line": "name: \"1:30\""
+    },
+    {
+      "id": "inf",
+      "key": "name",
+      "value": ".inf",
+      "line": "name: \".inf\""
+    },
+    {
+      "id": "date-under-date-key",
+      "key": "next_check",
+      "value": "2027-03-01",
+      "line": "next_check: 2027-03-01"
+    },
+    {
+      "id": "date-under-other-key",
+      "key": "name",
+      "value": "2027-03-01",
+      "line": "name: \"2027-03-01\""
+    },
+    {
+      "id": "bool-under-critical",
+      "key": "critical",
+      "value": "true",
+      "line": "critical: true"
+    },
+    {
+      "id": "json-bool",
+      "key": "critical",
+      "value": true,
+      "line": "critical: true",
+      "readsAs": "true"
+    },
+    {
+      "id": "json-number",
+      "key": "rating",
+      "value": 5,
+      "line": "rating: 5",
+      "readsAs": "5"
+    },
+    {
+      "id": "colon-space",
+      "key": "name",
+      "value": "Note: big",
+      "line": "name: \"Note: big\""
+    },
+    {
+      "id": "hash-comment",
+      "key": "name",
+      "value": "A #1",
+      "line": "name: \"A #1\""
+    },
+    {
+      "id": "leading-dash",
+      "key": "name",
+      "value": "- x",
+      "line": "name: \"- x\""
+    },
+    {
+      "id": "wikilink",
+      "key": "manual",
+      "value": "[[Dishwasher/manual.pdf]]",
+      "line": "manual: \"[[Dishwasher/manual.pdf]]\""
+    },
+    {
+      "id": "hashtag",
+      "key": "tags",
+      "value": "#housebook",
+      "line": "tags: \"#housebook\""
+    },
+    {
+      "id": "leading-space",
+      "key": "name",
+      "value": " x",
+      "line": "name: \" x\""
+    },
+    {
+      "id": "newline",
+      "key": "name",
+      "value": "a\nb",
+      "line": "name: \"a\\nb\""
+    },
+    {
+      "id": "quote-inside",
+      "key": "name",
+      "value": "He said \"hi\"",
+      "line": "name: He said \"hi\""
+    },
+    {
+      "id": "greek",
+      "key": "name",
+      "value": "Ψυγείο",
+      "line": "name: Ψυγείο"
+    },
+    {
+      "id": "url",
+      "key": "manual",
+      "value": "https://example.com/a?b=c#d",
+      "line": "manual: https://example.com/a?b=c#d"
+    },
+    {
+      "id": "empty",
+      "key": "brand",
+      "value": "",
+      "line": "brand:"
+    }
+  ]
+}

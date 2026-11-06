@@ -5,7 +5,7 @@ import pytest
 
 from housebook.config import ConfigError, Settings
 from housebook.domain.catalog import Catalog
-from housebook.lock import LockHeld, ProcessLock
+from housebook.lock import LockHeld, ProcessLock, network_fs_type
 
 PROTOTYPE_TYPES = {
     "fridge", "oven", "dishwasher", "washer", "dryer", "microwave", "ac", "heater",
@@ -77,3 +77,26 @@ def test_process_lock_is_exclusive(tmp_path: Path):
     a.release()
     b.acquire()
     b.release()
+
+
+def test_poll_interval_env():
+    assert Settings.from_env({"HOUSEBOOK_POLL_INTERVAL": "2.5"}).poll_interval == 2.5
+    assert Settings.from_env({}).poll_interval == 5.0
+    for bad in ("0", "abc", "99999"):
+        with pytest.raises(ConfigError):
+            Settings.from_env({"HOUSEBOOK_POLL_INTERVAL": bad})
+
+
+def test_network_fs_detection(tmp_path: Path):
+    mounts = tmp_path / "mounts"
+    mounts.write_text(
+        "/dev/sda1 / ext4 rw 0 0\n"
+        "nas:/vol /mnt/nas nfs4 rw 0 0\n"
+        "//srv/share /mnt/my\\040share cifs rw 0 0\n"
+        "/dev/sdb1 /mnt/nas/local ext4 rw 0 0\n"
+    )
+    assert network_fs_type(Path("/mnt/nas/vault"), str(mounts)) == "nfs4"
+    assert network_fs_type(Path("/mnt/my share/x"), str(mounts)) == "cifs"
+    assert network_fs_type(Path("/mnt/nas/local/x"), str(mounts)) is None  # most specific mount wins
+    assert network_fs_type(Path("/home"), str(mounts)) is None
+    assert network_fs_type(Path("/x"), str(tmp_path / "missing")) is None

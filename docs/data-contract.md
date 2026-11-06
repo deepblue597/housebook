@@ -9,6 +9,8 @@ parts live in [`/contract`](../contract):
 | `contract/catalog.json` | Item type catalogue |
 | `contract/fixtures/status_cases.json` | Golden cases for status rules, "today" and `check_every` parsing |
 | `contract/fixtures/search_cases.json` | Golden cases for folding, error-code extraction and search ranking |
+| `contract/fixtures/house_validation_cases.json` | Layouts `PUT /api/house` rejects (with the expected error `type`/`loc`) or accepts (§2.1, §8.1) |
+| `contract/fixtures/frontmatter_write_cases.json` | How the server writes one frontmatter value: plain vs. quoted (§3.6) |
 
 Backend (pytest) and frontend (vitest) both run the fixtures. If a rule changes, change the
 fixture first.
@@ -17,7 +19,7 @@ fixture first.
 
 ```
 <data root>/                 HOUSEBOOK_DATA_DIR
-  house.json                 layout (written only by PUT /api/house, from milestone 4)
+  house.json                 layout (written only by PUT /api/house)
   House/                     notes folder (HOUSEBOOK_NOTES_DIR); only *.md files here are items
     Kitchen/
       Dishwasher.md          one item
@@ -25,6 +27,8 @@ fixture first.
         manual.pdf
   .housebook/                app state, never synced as content
     lock                     single-process flock
+    history/                 previous house.json versions: house-<UTC stamp>.json, last 50 kept
+    trash/                   deleted notes: <UTC stamp>-<id>/, purged after 90 days (at startup)
 ```
 
 Ignored everywhere: dot-files and dot-dirs (`.housebook`, `.obsidian`, `.trash`, `.stversions`,
@@ -78,7 +82,7 @@ served as `"1,0"`; keys that aren't two non-negative integers are dropped; a loo
 collides with an existing canonical one is dropped. Each case is a `house_bad_cell` problem, so
 the API never serves a key its own schema rejects.
 
-`PUT /api/house` (milestone 4) rejects a layout that breaks any rule with `422`. A hand-edited
+`PUT /api/house` rejects a layout that breaks any rule with `422` (§8.1). A hand-edited
 file that breaks semantic rules still loads; each issue becomes a problem
 (`house_duplicate_id`, `house_bad_cell`, `house_outside_grid`, `house_unknown_room`,
 `house_unknown_floor`, `house_duplicate_placement`). A file that fails structural validation
@@ -119,7 +123,7 @@ Serialisation when the server writes: 2-space indent, trailing newline, cell key
 
 ### 2.3 Versions and migrations
 
-**Writable only when current and valid.** `house.json` may be written (by `PUT`, milestone 4)
+**Writable only when current and valid.** `house.json` may be written (by `PUT`)
 only when it parsed and validated as the current `schemaVersion` (an integer equal to the
 supported version). Everything else is served with `houseReadOnly: true` and the problem says
 why: a newer version (`house_newer_version`), a non-integer, boolean, missing or < 1
@@ -129,8 +133,8 @@ A missing `house.json` is not read-only (there is nothing to protect; first run 
 
 - Migrations are ordered pure functions `dict → dict` in
   `apps/api/src/housebook/migrations/house/`, registered as `from_version → function`. They run
-  when the file is read; the upgraded file is written on the next save (milestone 4, which
-  also copies the original to `.housebook/history/`).
+  when the file is read; the upgraded file is written on the next save, which first copies the
+  original to `.housebook/history/house.v<n>.<stamp>.json` (never rotated).
 - The frontend only ever sees the current version.
 - A file with a **newer** `schemaVersion` than the image supports (after a rollback) is
   **read-only**, decided from `schemaVersion` alone before any other validation. It is then
@@ -179,8 +183,7 @@ tags: [housebook]
 4. Known keys are then typed (below). **A bad value drops only that field** and reports
    `note_invalid_field`; the item stays on the plan.
 5. **Unknown keys are preserved** (`aliases`, `cssclasses`, anything else) and returned in
-   `frontmatter`. Writes (milestone 4) keep them and keep the original formatting
-   (minimal-diff writes).
+   `frontmatter`. Writes keep them and keep the original formatting (minimal-diff writes, §3.6).
 6. The body is everything after the closing line, verbatim (after newline normalisation).
 
 Limits (a note breaking one is a `note_parse_error`): file ≤ 4 MiB, frontmatter ≤ 64 KiB,
@@ -224,8 +227,8 @@ Empty values (`key:` with nothing) are "not set". For dates, intervals and boole
   `tags: [housebook]`, a block list, `#housebook`, comma- or space-separated strings, the
   singular `tag:` key, any case, and nested tags (`housebook/kitchen`).
 - A tagged note **without** `housebook_id` is *adoptable*. It is reported as `not_adopted`
-  (info). Milestone 4 writes the id when the user first opens or places it; there is never a
-  startup sweep that writes ids.
+  (info). The client adopts it (`POST /api/items/adopt`, §8.2) when the user first opens or
+  places it; there is never a startup sweep that writes ids.
 - A note with a catalogue `type` but no tag and no id is reported as `untagged_typed` (info) and
   otherwise ignored.
 - **Duplicate ids** (Obsidian "duplicate note", sync conflict copies): the canonical file is
@@ -271,6 +274,40 @@ download it instead. Attachments are never gzip-compressed and keep a strong ETa
   the line is not a code.
 - **Maintenance log:** list items starting with a date, `- YYYY-MM-DD text`, under a heading
   titled "Maintenance log". The latest date is the item's *last service*.
+
+### 3.6 How the server writes notes
+
+Only the item endpoints (§8.2) write notes; they never touch `house.json` (D8).
+
+- **Minimal diff.** Only the lines of keys whose value changed are rewritten, removed or appended
+  (new keys go after the last one). Comments, key order, blank lines, unknown keys and their
+  formatting stay byte-identical. A replaced value keeps its trailing `# comment`, its quote
+  style (`'…'` / `"…"`) and block-list style (`tags:\n  - a`). The BOM and CRLF line endings of
+  the file are kept. Duplicate keys collapse into the first. Every result is parsed again and must
+  read back exactly as intended; if line edits can't achieve that (e.g. a flow mapping as the
+  whole frontmatter) the frontmatter is rendered from scratch, and if even that fails the write
+  is refused (`422`).
+- **Quoting.** A string is written plain only if every YAML reader (PyYAML's YAML 1.1 resolver,
+  Obsidian's YAML 1.2) reads it back as the same string; otherwise it is double-quoted:
+  `serial: "0123"`, `model: "no"`, `name: "on"`, `brand: "1e3"`, `name: "Note: big"`,
+  `manual: "[[x.pdf]]"`. On purpose plain: `YYYY-MM-DD` under `purchased`, `warranty_until`,
+  `next_check`, and `true`/`false` under `critical` (how Obsidian types those properties). JSON
+  booleans and numbers sent by a client are written plain (`rating: 5`). Lists are written in flow
+  style (`[a, "b c"]`) unless the key already had a block list. See
+  `contract/fixtures/frontmatter_write_cases.json`.
+- **Atomic.** Write to a dot-prefixed temp file in the same folder, fsync, rename, fsync the
+  folder. The file's permission bits are kept; a symlink inside the data root is written through,
+  not replaced.
+- **New notes** go to `<notes>/<Room>/<Name>.md` (DESIGN 8.4). File names are NFC, without path
+  separators, control characters or `<>:"|?*`, without leading dots or trailing dots/spaces, at most
+  120 UTF-8 bytes, never a Windows device name (`CON`, `NUL`, …) or an ignored pattern (fallback
+  `Item`). On a collision (case-insensitive; an existing `<Name>/` folder counts too, so a new note
+  never inherits someone else's attachments) `-2`, `-3`, … is appended. `name` in the frontmatter
+  keeps the original text.
+- **Maintenance log.** `POST /api/items/{id}/log` inserts `- YYYY-MM-DD text` after the last
+  non-blank line of the first "Maintenance log" section (any heading level, case-insensitive, up
+  to the next heading of the same or a higher level), or appends `## Maintenance log` at the end of
+  the body. The text is one line (whitespace collapsed).
 
 ## 4. Status
 
@@ -373,3 +410,138 @@ Rules: `detail` may carry other keys besides `reason`, so read the key, don't co
 object. A client that meets a `reason` it doesn't know treats it as `invalid`; new values are
 added only with a contract update. When both kinds are present, `house_newer_version` is the
 primary cause.
+
+## 8. Write API
+
+All writes need the `editor` role (`403` otherwise, checked before the body is read) and, when they have a body,
+`Content-Type: application/json` (`application/merge-patch+json` is accepted too; anything else is
+`415`: a cross-site form or no-cors fetch can't send it, which is the CSRF guard). One write runs at
+a time (single process, D10). After every write the index is rescanned, so the response and the
+next `GET` already show the change, and other clients get an event (§9).
+
+**Preconditions.** `If-Match` carries the ETag the client last read (from the `ETag` header, or the
+`etag` / `houseEtag` field of the snapshot; quoted, unquoted and `W/` forms are all accepted). It is
+compared with the hash of the file **on disk**, not the index, so a save in Obsidian that the
+watcher hasn't seen yet still makes a stale ETag fail. `If-Match: *` means "overwrite whatever is
+there" (the UI's *overwrite* after a conflict).
+
+| Status | When | Body |
+|---|---|---|
+| `412` | ETag doesn't match the file on disk (the index is refreshed before answering, so a reload gets the new version) | `{"detail": "...", "currentEtag": "<etag or null>"}`, header `ETag` |
+| `428` | `If-Match` missing where required | `{"detail": "..."}` |
+| `409` | the target can't be written safely | `{"detail": "...", "reason": "..."}` (reasons below) |
+| `413` | request body over 17 MiB (`PUT /api/house`) or 25 MiB (other writes), refused before parsing (by `Content-Length`, or while streaming a chunked body); `house.json` > 16 MiB; a note would exceed 4 MiB of UTF-8 or its frontmatter 64 KiB | `{"detail": "..."}` |
+| `415` | body without a JSON content type | `{"detail": "..."}` |
+| `422` | validation | `{"detail": [{"type", "loc", "msg"}]}`, same shape as FastAPI's request validation; `loc` starts with `"body"`. `input` is included only when it is short (never a large body echoed back) |
+
+`409` reasons: `newer_version`, `invalid`, `unreadable`, `not_json`, `bad_version`, `too_large`
+(house.json is read-only, §2.3; the value is the `detail.reason` of the house problem),
+`unparseable` (the note's frontmatter can't be parsed: fix it in an editor first), `id_changed`,
+`exists`, `not_tagged`, `has_id`.
+
+### 8.1 `PUT /api/house`
+
+Body: the whole layout, as `GET /api/house` returns it. `If-Match` or `If-None-Match` is required
+(`428` without either), evaluated in RFC 9110 order: `If-Match` first, then `If-None-Match`, which
+fails (`412`) when it is `*` and the file exists, or lists the current ETag. To create a missing
+`house.json` send `If-None-Match: *`. Validation: structure (Pydantic) and every semantic rule
+of §2.1, each issue reported separately, e.g.
+`{"type": "house_unknown_room", "loc": ["body", "floors", 0, "cells", "1,0"], "msg": "..."}`
+(semantic `type`s are the `house_*` problem kinds). A read-only `house.json` (§2.3) is never written
+(`409`). If the body omits `$schema`, the current file's `$schema` is kept. Before writing, the
+previous file is copied to `.housebook/history/` (last 50 kept). Written in the deterministic form of
+§2.1. An identical layout is a no-op (no write, no history entry). Response: `200`, the layout as
+written, `ETag`.
+
+### 8.2 Items
+
+| Method | Path | Body | Precondition | Response |
+|---|---|---|---|---|
+| `POST` | `/api/items` | `{type, name?, roomId?, frontmatter?, body?}` | – | `201`, item detail, `ETag`, `Location` |
+| `PATCH` | `/api/items/{id}` | `{frontmatter?, body?}` | `If-Match` | `200`, item detail, `ETag` |
+| `POST` | `/api/items/{id}/log` | `{text, date?}` | none | `200`, item detail, `ETag` |
+| `DELETE` | `/api/items/{id}` | – | `If-Match` | `204` |
+| `POST` | `/api/items/adopt` | `{path}` | none | `200`, item detail, `ETag` |
+
+- **Create:** `type` is a catalogue key or alias (stored as the canonical key); `name` defaults to
+  the type's `defaultName`; `roomId` picks the folder (the room's name); `frontmatter` adds keys
+  (`housebook_id`, `type`, `name` are not allowed there; `tags` defaults to `[housebook]`); `body`
+  defaults to an empty template (Quick help / Maintenance log / Notes; real templates arrive in
+  milestone 6). The new id is `it_` + 6 base36 characters. The layout is not touched: the client
+  adds the placement with `PUT /api/house` afterwards (D8), so until then the item is unplaced.
+- **Patch:** `frontmatter` is a JSON Merge Patch (RFC 7396) on the frontmatter: `null` deletes a key,
+  objects merge, anything else replaces. `body` replaces the body verbatim when present (non-null).
+  `housebook_id` can't change (`422`, `type: "read_only"`). Known keys the patch sets must be valid
+  (`422` with `loc: ["body", "frontmatter", "<key>"]`); keys it doesn't touch are not checked.
+- **Log:** `date` defaults to today in `HOUSEBOOK_TZ`. No `If-Match`: an append merges with whatever
+  is on disk, so the most common household write never conflicts (D11).
+- **Delete:** moves the note, and its sibling attachment folder unless that folder contains notes,
+  to `.housebook/trash/<stamp>-<id>/`. Remove the placement first (D8); otherwise it becomes a
+  `missing_note`.
+- **Adopt:** `path` of a current `not_adopted` problem (anything else: `404`, or `422` outside the
+  notes folder), so files the scanner ignores are never written. Writes a new `housebook_id` as the
+  first frontmatter line (`409` `not_tagged` / `has_id` if the file changed since the scan).
+- **Create** rejects names with control characters (`422`). File names never look like a sync
+  conflict copy (`.sync-conflict-…`, `(conflicted copy …)` are neutralised), and an existing room
+  folder is reused whatever its Unicode normalisation or case (an NFD `Κουζίνα/` from macOS is not
+  shadowed by a second NFC one).
+- **Paths** in item responses, events and problems are NFC (the file on disk may be NFD).
+
+## 9. Events (`GET /api/events`)
+
+Server-sent events (`text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`, never
+compressed). Same auth as the rest of `/api`; viewers may listen. There is no event log and no
+`Last-Event-ID` replay: every (re)connect starts with `resync`, and the client refetches what
+differs. A `ping` event (`data: {}`) is sent after every 20 s of silence: it keeps proxies from
+timing out, and since `EventSource` hides comments, it is what a client watchdog listens for (no
+event of any kind for ~45 s: close and reconnect, or fall back to polling). On server shutdown
+every stream is ended at once; `EventSource` then reconnects by itself. A client that falls 64 events behind is
+dropped (it reconnects and resyncs).
+
+```
+retry: 5000
+
+event: resync
+data: {"houseEtag":"…","houseReadOnly":false,"itemsVersion":"…","problemCount":0}
+
+event: house.changed
+data: {"etag":"…","readOnly":false}
+
+event: item.changed
+data: {"id":"it_7f3k2a","etag":"…","path":"House/Kitchen/Dishwasher.md","stale":false,"attachmentsEtag":"…"}
+
+event: item.deleted
+data: {"id":"it_7f3k2a"}
+
+event: problems.changed
+data: {"count":3}
+
+event: ping
+data: {}
+```
+
+| Event | Meaning | Client action |
+|---|---|---|
+| `resync` | sent first on every connection | compare `houseEtag` with the held house ETag and `itemsVersion` with the snapshot's `itemsVersion`; refetch `/api/snapshot` (with `If-None-Match`) if either differs |
+| `house.changed` | `house.json` changed (`etag` null: missing/unreadable) | ignore if `etag` equals the held one; else `GET /api/house` |
+| `item.changed` | a note was created, edited, renamed/moved (`path` changes), became unparseable or parseable again (`stale` changes; while stale, `etag` is the last good version's), or its attachment set changed (`attachmentsEtag` changes; the note's `etag` doesn't) | ignore only if `etag`, `path`, `stale` **and** `attachmentsEtag` all equal what is held (every item in `/api/snapshot` and `GET /api/items/{id}` carries them); else `GET /api/items/{id}` |
+| `item.deleted` | the note is gone (after a 3 s grace period for external deletes, at once for `DELETE`) | drop it; a placement for it becomes a missing note |
+| `problems.changed` | the integrity report changed | refetch `/api/problems` if the panel is shown |
+| `ping` | nothing else happened for 20 s | reset the watchdog; nothing else |
+
+- **Writes from the app are announced too** (other tabs and devices need them). The writer
+  recognises its own change because the event's `etag` equals the one in its write response.
+- **Echo suppression:** when the watcher later sees the app's own write, the file's hash equals the
+  index's, so nothing is sent again.
+- **Renames** (delete + create, as Obsidian and Syncthing do them) become one `item.changed` with
+  the new `path`; `problems.changed` is held back during the grace period too, so a rename doesn't
+  flash a missing note.
+- **Half-written notes:** a note that just became unparseable is re-checked once after ~1 s before
+  its `item.changed` (`stale: true`) and `problems.changed` are sent.
+- `itemsVersion` is a hash over every item's id, etag, path, staleness and `attachmentsEtag`. It is
+  also in `GET /api/snapshot`.
+- `attachmentsEtag` is a 16-hex hash of the item's attachments (sorted name, size, mtime): it
+  changes when a file is added, removed, replaced or resized. It is not a precondition for writes.
+- **Errors:** `EventSource` can't see a `401` or a redirect to the login page. On `error`, call
+  `GET /api/me`; on `401`, reload the page. After repeated errors fall back to polling
+  `/api/snapshot` with `If-None-Match` (DESIGN 15.7).

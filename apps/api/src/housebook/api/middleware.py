@@ -1,10 +1,16 @@
 """Small ASGI middlewares."""
 
+import json
 import re
 
+from fastapi import HTTPException
 from starlette.datastructures import Headers, MutableHeaders
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
+from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
+
+from housebook.api.auth import identify
+from housebook.config import Settings
 
 
 class HeadAsGet:
@@ -28,11 +34,12 @@ class HeadAsGet:
                 message = {"type": "http.response.body", "body": b"", "more_body": False}
             await send(message)
 
-        await self.app({**scope, "method": "GET"}, receive, send_headers_only)
+        # `housebook.head` lets endless responses (the event stream) skip their body.
+        await self.app({**scope, "method": "GET", "housebook.head": True}, receive, send_headers_only)
 
 
 # Compress JSON (and the SPA's text assets), never files that are already compressed or are
-# served as downloads, and never event streams (SSE arrives in milestone 4). Starlette also
+# served as downloads, and never event streams (/api/events). Starlette also
 # leaves 206 partial responses alone.
 GZIP_EXCLUDED = (
     *DEFAULT_EXCLUDED_CONTENT_TYPES,
@@ -86,7 +93,11 @@ class Compression:
         self.gzip = GZipMiddleware(app, minimum_size=1024, compresslevel=6, exclude_content_types=GZIP_EXCLUDED)
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or _UNCOMPRESSED_PATHS.match(scope["path"]):
+        if (
+            scope["type"] != "http"
+            or scope["method"] not in ("GET", "HEAD")  # write responses: small, and their ETag stays strong
+            or _UNCOMPRESSED_PATHS.match(scope["path"])
+        ):
             await self.app(scope, receive, send)
             return
         gzip_ok = accepts_gzip(Headers(scope=scope).get("accept-encoding", ""))
@@ -103,3 +114,82 @@ class Compression:
             await send(message)
 
         await self.gzip(scope, receive, send_with_headers)
+
+
+# Request bodies are bounded before anything is parsed: a note is at most 4 MiB of UTF-8, which
+# JSON escaping (\uXXXX) can grow up to 6x; house.json is at most 16 MiB.
+HOUSE_BODY_LIMIT = 17 * 1024 * 1024
+WRITE_BODY_LIMIT = 25 * 1024 * 1024
+_SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+
+
+async def _send_json(send: Send, status: int, detail: str) -> None:
+    body = json.dumps({"detail": detail}).encode()
+    headers = [
+        (b"content-type", b"application/json"),
+        (b"content-length", str(len(body)).encode()),
+        (b"x-content-type-options", b"nosniff"),
+        (b"cache-control", b"no-store"),
+    ]
+    await send({"type": "http.response.start", "status": status, "headers": headers})
+    await send({"type": "http.response.body", "body": body})
+
+
+class WriteGuard:
+    """For every write under /api: authenticate and require the editor role, then bound the body
+    (Content-Length up front, the streamed byte count for chunked bodies), all before the route
+    reads or parses anything. A viewer's 150 MB upload is refused without being buffered."""
+
+    def __init__(self, app: ASGIApp, settings: Settings) -> None:
+        self.app = app
+        self.settings = settings
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope["method"] in _SAFE_METHODS or not scope["path"].startswith("/api/"):
+            await self.app(scope, receive, send)
+            return
+        try:
+            identity = identify(Request(scope), self.settings)
+        except HTTPException as e:
+            await _send_json(send, e.status_code, str(e.detail))
+            return
+        if identity.role != "editor":
+            await _send_json(send, 403, "Editor role required")
+            return
+        limit = HOUSE_BODY_LIMIT if scope["path"] == "/api/house" else WRITE_BODY_LIMIT
+        too_large = f"request body is larger than {limit // (1024 * 1024)} MiB"
+        length = Headers(scope=scope).get("content-length")
+        if length is not None and (not length.isdigit() or int(length) > limit):
+            await _send_json(send, 413 if length.isdigit() else 400, too_large if length.isdigit() else "bad length")
+            return
+
+        received = 0
+        over = False
+        answered = False
+
+        async def limited_receive() -> Message:
+            nonlocal received, over
+            message = await receive()
+            if message["type"] == "http.request":
+                received += len(message.get("body", b""))
+                if received > limit:
+                    over = True
+                    return {"type": "http.disconnect"}  # the route stops reading
+            return message
+
+        async def guarded_send(message: Message) -> None:
+            nonlocal answered
+            if over:  # whatever the route made of the cut-off body, the answer is 413
+                if not answered and message["type"] == "http.response.start":
+                    answered = True
+                    await _send_json(send, 413, too_large)
+                return
+            await send(message)
+
+        try:
+            await self.app(scope, limited_receive, guarded_send)
+        except Exception:
+            if not over:
+                raise
+        if over and not answered:
+            await _send_json(send, 413, too_large)

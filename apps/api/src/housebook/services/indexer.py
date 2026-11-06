@@ -48,6 +48,7 @@ class Attachment:
     rel: str  # actual path relative to the data root
     size: int
     listed: bool  # listed in frontmatter (vs. only found in the sibling folder)
+    mtime_ns: int = 0
 
 
 @dataclass(frozen=True)
@@ -132,8 +133,11 @@ class _Scan:
         self.parse_cache: dict[str, tuple[str, Any]] = {}
         self.prev_by_rel = {i.rel: i for i in previous.items.values()} if previous else {}
         self.unreadable_files: set[str] = set()
+        self.mtimes: dict[str, int] = {}
 
     def problem(self, kind: ProblemKind, severity: Severity, message: str, **kw: Any) -> None:
+        if kw.get("path"):
+            kw["path"] = nfc(kw["path"])  # reported in NFC, like attachment names (macOS writes NFD)
         self.problems.append(Problem(kind=kind, severity=severity, message=message, **kw))
 
     def run(self) -> IndexState:
@@ -153,6 +157,7 @@ class _Scan:
         candidates += self.unreadable_dirs(tree.unreadable_dirs, {f.rel for f in notes})
         items = self.pick_canonical(candidates)
         sizes = {f.rel: f.size for f in tree.files}
+        self.mtimes = {f.rel: f.mtime_ns for f in tree.files}
         self.unreadable_files = {f.rel for f in tree.files if not f.readable}
         items = {i: self.finish_item(item, house.house, files, sizes) for i, item in items.items()}
 
@@ -194,7 +199,9 @@ class _Scan:
             self.problem(ProblemKind.house_missing, Severity.error, "house.json does not exist", path="house.json")
             return HouseState(None, None, None)
         etag = content_hash(raw)
-        if prev and prev.etag == etag and not prev.stale and prev.house:
+        # Unchanged, valid, writable file: reuse it. Read-only states (newer schemaVersion) are
+        # re-evaluated, since their problem comes from the evaluation, not from _house_issues.
+        if prev and prev.etag == etag and not prev.stale and not prev.read_only and prev.house:
             self._house_issues(prev)
             return prev
         if len(raw) > MAX_HOUSE_BYTES:  # refused before parsing: too large to read
@@ -487,7 +494,9 @@ class _Scan:
                     item_id=item.id,
                 )
                 continue
-            out[name] = Attachment(name=name, rel=rel, size=sizes.get(rel, 0), listed=listed)
+            out[name] = Attachment(
+                name=name, rel=rel, size=sizes.get(rel, 0), listed=listed, mtime_ns=self.mtimes.get(rel, 0)
+            )
         return tuple(out.values())
 
     def search_doc(self, item: IndexedItem, house: House | None) -> SearchDoc:
@@ -506,6 +515,13 @@ class _Scan:
             room=room_name,
             body=item.body,
         )
+
+
+def attachments_etag(item: IndexedItem) -> str:
+    """Changes whenever the attachment set changes (a file added, removed, replaced or resized),
+    which the note's own etag doesn't reflect. Short hash of sorted name/size/mtime."""
+    parts = sorted(f"{a.name}\0{a.size}\0{a.mtime_ns}" for a in item.attachments)
+    return content_hash("\n".join(parts).encode())[:16]
 
 
 def display_name(item: IndexedItem) -> str:

@@ -4,14 +4,17 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from types import FrameType
 
 from housebook.config import ConfigError, Settings
+
+GRACEFUL_SHUTDOWN_S = 5  # backstop: requests still running after this are cancelled
 
 
 def _serve() -> int:
     import uvicorn
 
-    from housebook.api.app import create_app
+    from housebook.api.app import close_streams, create_app
     from housebook.log import setup_logging
 
     try:
@@ -20,15 +23,24 @@ def _serve() -> int:
         print(f"housebook: configuration error: {e}", file=sys.stderr)
         return 2
     setup_logging(settings.log_level)
-    uvicorn.run(
-        create_app(settings),
+    app = create_app(settings)
+    config = uvicorn.Config(
+        app,
         host=settings.host,
         port=settings.port,
         workers=1,  # one process per data root (DESIGN 15.5)
         proxy_headers=False,  # keep request.client = real peer for HOUSEBOOK_TRUSTED_PROXIES
         log_config=None,
         server_header=False,
+        timeout_graceful_shutdown=GRACEFUL_SHUTDOWN_S,
     )
+
+    class Server(uvicorn.Server):
+        def handle_exit(self, sig: int, frame: FrameType | None) -> None:
+            close_streams(app)  # open SSE streams would otherwise block the shutdown
+            super().handle_exit(sig, frame)
+
+    Server(config).run()
     return 0
 
 

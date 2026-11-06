@@ -1,5 +1,6 @@
 """Black-box tests against a real `housebook serve` process (uvicorn, one worker)."""
 
+import contextlib
 import gzip
 import json
 import socket
@@ -58,6 +59,7 @@ def test_every_endpoint_on_the_example(copy_examples: Path, serve: ServerFactory
         "houseEtag",
         "houseReadOnly",
         "houseSchemaVersion",
+        "itemsVersion",
         "items",
         "problemCount",
     }
@@ -404,3 +406,81 @@ def test_concurrent_reads_during_rescans(tmp_path: Path, serve: ServerFactory):
             time.sleep(0.05)
         codes = [c for f in futures for c in f.result()]
     assert codes and set(codes) == {200}, {c: codes.count(c) for c in set(codes)}
+
+
+# --- milestone 4: writes, watcher, SSE on a real server ---------------------------------------------
+
+
+def test_sse_writes_and_watcher_on_a_real_server(copy_examples: Path, serve: ServerFactory):
+    s = serve(copy_examples, HOUSEBOOK_ANON_ROLE="editor", HOUSEBOOK_WATCH="inotify")
+    events: list[tuple[str, dict]] = []
+
+    with httpx.stream("GET", s.base + "/api/events", timeout=30) as r:
+        assert r.headers["content-type"].startswith("text/event-stream")
+        assert r.headers["x-accel-buffering"] == "no" and r.headers["cache-control"] == "no-cache"
+        lines = r.iter_lines()
+
+        def next_event() -> tuple[str, dict]:
+            name = None
+            for line in lines:
+                if line.startswith("event: "):
+                    name = line.removeprefix("event: ")
+                elif line.startswith("data: ") and name:
+                    return name, json.loads(line.removeprefix("data: "))
+            raise AssertionError("stream ended")
+
+        assert next_event()[0] == "resync"
+
+        # An app write: announced once, carrying the ETag the writer got back; no watcher echo.
+        w = httpx.post(s.base + "/api/items/it_7f3k2a/log", json={"text": "Descaled"}, timeout=10)
+        assert w.status_code == 200
+        events.append(next_event())
+        assert events[-1] == (
+            "item.changed",
+            {
+                "id": "it_7f3k2a",
+                "etag": w.json()["etag"],
+                "path": "House/Kitchen/Dishwasher.md",
+                "stale": False,
+                "attachmentsEtag": w.json()["attachmentsEtag"],
+            },
+        )
+
+        # An external edit (Obsidian): the watcher picks it up.
+        path = copy_examples / "House" / "Kitchen" / "Fridge.md"
+        path.write_text(path.read_text().replace("name: Fridge", "name: Fridge freezer"))
+        events.append(next_event())
+        assert events[-1][0] == "item.changed" and events[-1][1]["path"] == "House/Kitchen/Fridge.md"
+    assert "rescan after file change failed" not in s.logs()
+
+
+def test_second_instance_on_the_same_data_root_exits(copy_examples: Path, serve: ServerFactory):
+    serve(copy_examples)
+    second = serve(copy_examples, wait=False)
+    assert second.proc.wait(20) != 0
+    assert "lock" in second.logs()
+
+
+def test_sigterm_with_an_open_event_stream_exits_promptly(copy_examples: Path, serve: ServerFactory):
+    """uvicorn waits for open connections on shutdown; an SSE stream must not keep it alive."""
+    import signal
+    import threading
+
+    s = serve(copy_examples)
+    opened = threading.Event()
+
+    def listen() -> None:
+        with contextlib.suppress(httpx.HTTPError), httpx.stream("GET", s.base + "/api/events", timeout=30) as r:
+            for line in r.iter_lines():
+                if line.startswith("event: resync"):
+                    opened.set()
+
+    t = threading.Thread(target=listen, daemon=True)
+    t.start()
+    assert opened.wait(10)
+    started = time.monotonic()
+    s.proc.send_signal(signal.SIGTERM)
+    s.proc.wait(10)
+    assert time.monotonic() - started < 2, s.logs()
+    t.join(5)
+    assert not t.is_alive()  # the client saw the stream end

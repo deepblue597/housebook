@@ -35,8 +35,10 @@ class Settings:
     anon_role: Literal["viewer", "editor"] = "viewer"
     trusted_proxies: tuple[Network, ...] = ()
     editor_group: str = "housebook-editors"
-    watch: Literal["inotify", "poll", "off"] = "inotify"  # accepted now, used in milestone 4
+    watch: Literal["inotify", "poll", "off"] = "inotify"
+    poll_interval: float = 5.0  # seconds between polls with watch=poll
     rescan_interval: float = 600.0  # seconds; 0 disables
+    sse_heartbeat: float = 20.0  # seconds between `: ping` comments on /api/events
     static_dir: Path | None = None
     contract_dir: Path = field(default_factory=_default_contract_dir)
     host: str = "0.0.0.0"
@@ -101,9 +103,13 @@ class Settings:
 
         try:
             rescan = float(get("RESCAN_INTERVAL", "600"))
+            poll = float(get("POLL_INTERVAL", "5"))
             port = int(get("PORT", "8000"))
         except ValueError as ex:
             raise ConfigError(f"invalid number: {ex}") from None
+
+        if not 0.1 <= poll <= 3600:
+            raise ConfigError(f"HOUSEBOOK_POLL_INTERVAL must be between 0.1 and 3600 seconds (got {poll:g})")
 
         static = get("STATIC_DIR")
         contract = get("CONTRACT_DIR")
@@ -118,6 +124,7 @@ class Settings:
             trusted_proxies=tuple(proxies),
             editor_group=get("EDITOR_GROUP", "housebook-editors"),
             watch=choice("WATCH", "inotify", ("inotify", "poll", "off")),
+            poll_interval=poll,
             rescan_interval=max(rescan, 0.0),
             static_dir=Path(static) if static else None,
             contract_dir=Path(contract) if contract else _default_contract_dir(),

@@ -146,9 +146,21 @@ def test_second_container_on_same_data_root_exits(run, data_dir: Path):
 
 
 def test_sigterm_stops_quickly_and_releases_lock(run, data_dir: Path):
+    import threading
+
     c = run(data_dir)
+    opened = threading.Event()
+
+    def listen() -> None:  # an open event stream must not delay the stop
+        with contextlib.suppress(httpx.HTTPError), httpx.stream("GET", c.base + "/api/events", timeout=30) as r:
+            for line in r.iter_lines():
+                if line.startswith("event: resync"):
+                    opened.set()
+
+    threading.Thread(target=listen, daemon=True).start()
+    assert opened.wait(10)
     t = time.monotonic()
     docker("stop", "-t", "10", c.name)
-    assert time.monotonic() - t < 8
+    assert time.monotonic() - t < 3, c.logs()
     assert c.inspect()["State"]["ExitCode"] == 0
     run(data_dir)  # lock released: a new instance starts

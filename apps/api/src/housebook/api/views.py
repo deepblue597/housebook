@@ -6,7 +6,8 @@ from urllib.parse import quote
 from housebook.api.schemas import AttachmentOut, ItemDetailOut, ItemFieldsOut, ItemOut, LocationOut
 from housebook.config import Settings
 from housebook.domain.status import Status, compute_status
-from housebook.services.indexer import IndexedItem, display_name
+from housebook.domain.text import nfc
+from housebook.services.indexer import IndexedItem, attachments_etag, display_name
 
 
 def item_status(item: IndexedItem, today: date) -> Status:
@@ -35,8 +36,9 @@ def item_out(item: IndexedItem, today: date, settings: Settings, *, body: bool =
     loc = item.location
     data = dict(
         id=item.id,
-        path=item.rel,
+        path=nfc(item.rel),  # NFC like problem paths; the file on disk may be NFD (macOS)
         etag=item.hash,
+        attachments_etag=attachments_etag(item),
         name=display_name(item),
         type=t.key if t else f.type,
         type_known=t is not None,

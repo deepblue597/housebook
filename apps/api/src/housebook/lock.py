@@ -38,3 +38,26 @@ class ProcessLock:
             fcntl.flock(self._fd, fcntl.LOCK_UN)
             os.close(self._fd)
             self._fd = None
+
+
+NETWORK_FS = frozenset(
+    {"nfs", "nfs4", "cifs", "smb3", "smbfs", "9p", "fuse.sshfs", "virtiofs", "fuse.grpcfuse", "ceph", "glusterfs"}
+)
+
+
+def network_fs_type(path: Path, mounts: str = "/proc/mounts") -> str | None:
+    """Filesystem type of `path` if it is a network/VM share (flock and inotify unreliable)."""
+    try:
+        target = os.path.realpath(path)
+        best, fstype = "", None
+        with open(mounts, encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 3:
+                    continue
+                mount = parts[1].replace("\\040", " ")
+                if (target == mount or target.startswith(mount.rstrip("/") + "/")) and len(mount) > len(best):
+                    best, fstype = mount, parts[2]
+    except OSError:
+        return None
+    return fstype if fstype in NETWORK_FS else None

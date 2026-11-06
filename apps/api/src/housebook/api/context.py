@@ -1,5 +1,6 @@
 """Wiring holder shared by the routes (one per app)."""
 
+import asyncio
 import hashlib
 import json
 from collections.abc import Callable
@@ -15,6 +16,8 @@ from housebook.domain.catalog import Catalog
 from housebook.domain.status import today_in
 from housebook.lock import ProcessLock
 from housebook.services.indexer import Indexer, IndexState
+from housebook.services.sync import Hub, Sync
+from housebook.services.writer import Writer
 
 
 def _utcnow() -> datetime:
@@ -28,7 +31,11 @@ class AppContext:
     indexer: Indexer
     attachments: FsAttachmentStore
     lock: ProcessLock
+    hub: Hub
+    sync: Sync
+    writer: Writer
     clock: Callable[[], datetime] = _utcnow
+    loop: asyncio.AbstractEventLoop | None = None  # set at startup; signal handlers post to it
     # (scan time, today) -> (body, etag); the snapshot is rebuilt only when either changes
     _snapshot: tuple[tuple[datetime, date], bytes, str] | None = field(default=None, repr=False)
 

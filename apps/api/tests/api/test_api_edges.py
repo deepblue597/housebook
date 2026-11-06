@@ -26,7 +26,7 @@ def client_at():
     clients: list[TestClient] = []
 
     def factory(root: Path, now: datetime) -> TestClient:
-        settings = Settings(data_dir=root, tz="Europe/Athens", contract_dir=CONTRACT, rescan_interval=0)
+        settings = Settings(data_dir=root, tz="Europe/Athens", contract_dir=CONTRACT, rescan_interval=0, watch="off")
         c = TestClient(create_app(settings, clock=lambda: now))
         c.__enter__()
         clients.append(c)
@@ -209,7 +209,7 @@ def test_snapshot_etag_changes_when_the_day_changes(root: Path):
     vb.write_house(root, vb.house())
     vb.item(root, "it_mid", "name: Midnight\nnext_check: 2026-11-04")
     now = {"t": datetime(2026, 11, 4, 21, 59, tzinfo=UTC)}
-    settings = Settings(data_dir=root, tz="Europe/Athens", contract_dir=CONTRACT, rescan_interval=0)
+    settings = Settings(data_dir=root, tz="Europe/Athens", contract_dir=CONTRACT, rescan_interval=0, watch="off")
     c = TestClient(create_app(settings, clock=lambda: now["t"]))
     with c:
         e1 = c.get("/api/snapshot").headers["etag"]
