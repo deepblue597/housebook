@@ -3,7 +3,7 @@
  * badges, scale bar and title block. Pure rendering of the read model; plan units are tiles × S.
  */
 import { type KeyboardEvent, memo, useMemo } from 'react';
-import type { Item, Opening } from '../../api/types';
+import type { Item, Opening, Placement } from '../../api/types';
 import { typeLabel } from '../../catalog/catalog';
 import { typeIconPaths } from '../../catalog/icons';
 import { PALETTE } from '../../app/theme';
@@ -18,7 +18,7 @@ import {
   roomTiles,
   walls,
 } from '../../domain/plan';
-import { type FloorModel, type Model, itemRect, occupiedTiles } from '../../store/model';
+import { type FloorModel, type Model, ghostRect, itemRect, occupiedTiles } from '../../store/model';
 import { FOOTER, MARGIN, S } from './geometry';
 
 interface Props {
@@ -223,6 +223,16 @@ function PlanSvgImpl({
         </text>
       )}
 
+      {floor.ghosts.map((p) => (
+        <GhostBadge
+          key={`ghost:${p.itemId}`}
+          placement={p}
+          model={model}
+          selected={p.itemId === selectedItemId}
+          onItem={onItem}
+        />
+      ))}
+
       {floor.items.map((item) => (
         <ItemBadge
           key={item.id}
@@ -298,8 +308,21 @@ function ItemBadge({
 }) {
   const level = currentStatus(item, model.snapshot).level;
   const room = item.location?.roomId ? model.rooms.get(item.location.roomId)?.name : undefined;
-  const label = [item.name, room, level ? LEVEL_TEXT[level] : null].filter(Boolean).join(', ');
-  const cls = ['badge', selected && 'sel', match === true && 'hit', match === false && 'dim'];
+  const label = [
+    item.name,
+    room,
+    level ? LEVEL_TEXT[level] : null,
+    item.stale ? 'note can’t be read, showing the last good version' : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const cls = [
+    'badge',
+    selected && 'sel',
+    match === true && 'hit',
+    match === false && 'dim',
+    item.stale && 'stale',
+  ];
   return (
     <g
       className={cls.filter(Boolean).join(' ')}
@@ -327,6 +350,66 @@ function ItemBadge({
         {typeIconPaths(item.type)}
       </g>
       {level && <StatusMark level={level} />}
+      {item.stale && <StaleMark />}
+    </g>
+  );
+}
+
+/** Bottom-left corner: the note can't be parsed (last good content still shown). */
+function StaleMark() {
+  return (
+    <g className="mark stale" transform="translate(-14,14)">
+      <path d="M0 -7 7 6 -7 6Z" />
+      <text y="4.5">?</text>
+    </g>
+  );
+}
+
+/** A placement whose note is missing (DESIGN 15.2): a dashed ghost with a "note missing" mark. */
+function GhostBadge({
+  placement,
+  model,
+  selected,
+  onItem,
+}: {
+  placement: Placement;
+  model: Model;
+  selected: boolean;
+  onItem: (id: string) => void;
+}) {
+  const rect = ghostRect(placement);
+  const floor = model.floorById.get(placement.floorId);
+  const roomId = floor?.cells.get(cellKey(placement.x, placement.y));
+  const room = roomId ? model.rooms.get(roomId)?.name : undefined;
+  const label = ['Note missing', room, placement.itemId].filter(Boolean).join(', ');
+  return (
+    <g
+      className={`badge ghost${selected ? ' sel' : ''}`}
+      transform={`translate(${(rect.x + rect.w / 2) * S},${(rect.y + rect.h / 2) * S})`}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      aria-pressed={selected}
+      data-ghost-id={placement.itemId}
+      onClick={() => onItem(placement.itemId)}
+      onKeyDown={activate(() => onItem(placement.itemId))}
+    >
+      <title>{`Note missing for ${placement.itemId}`}</title>
+      <rect
+        className="hit"
+        x={(-rect.w * S) / 2}
+        y={(-rect.h * S) / 2}
+        width={rect.w * S}
+        height={rect.h * S}
+      />
+      {selected && <circle className="ring" r="22" />}
+      <rect className="bg" x="-15" y="-15" width="30" height="30" rx="7" />
+      <text className="q" y="6">
+        ?
+      </text>
+      <text className="gtag" y="27">
+        note missing
+      </text>
     </g>
   );
 }

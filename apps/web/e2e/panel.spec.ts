@@ -329,7 +329,7 @@ Body.
   await expect(panel(page).getByRole('heading', { name: 'Ghost attachment' })).toBeVisible();
   await expect(panel(page).getByText('gone.pdf')).toHaveCount(0);
   // It shows up as a data problem instead.
-  await expect(page.getByRole('link', { name: /data problem/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /data problem/ })).toBeVisible();
 });
 
 test('"Open in Obsidian" only when a vault is configured', async ({ page, backend }) => {

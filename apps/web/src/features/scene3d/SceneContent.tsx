@@ -5,13 +5,13 @@
  */
 import type { ThreeEvent } from '@react-three/fiber';
 import { memo, useEffect, useMemo } from 'react';
-import { BufferAttribute, BufferGeometry, DoubleSide } from 'three';
+import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, EdgesGeometry } from 'three';
 import type { Snapshot } from '../../api/types';
 import { blend, parseHex, toHex } from '../../domain/color';
 import { type Heading, type MeshData, boxesMesh, roomAtPoint, tilesMesh } from '../../domain/scene';
 import type { CellMap } from '../../domain/plan';
 import { type Highlight, ItemModel } from './ItemModel';
-import { type SceneItem, type SceneLayout, wallMeshes } from './layout';
+import { type SceneGhost, type SceneItem, type SceneLayout, wallMeshes } from './layout';
 import type { ScenePalette } from './palette';
 
 /** Walls facing the camera, with walls up: enough to see the room shape, not to hide it. */
@@ -189,6 +189,57 @@ function ItemNode({
   );
 }
 
+/** A placement without a note: a translucent box, clickable like an item. */
+function GhostNode({
+  g,
+  selected,
+  accent,
+  color,
+  onItem,
+}: {
+  g: SceneGhost;
+  selected: boolean;
+  accent: string;
+  color: string;
+  onItem: (id: string) => void;
+}) {
+  const t = g.transform;
+  const box = useMemo(() => new BoxGeometry(t.size.x, t.size.y, t.size.z), [t.size]);
+  const edges = useMemo(() => new EdgesGeometry(box), [box]);
+  useEffect(
+    () => () => {
+      box.dispose();
+      edges.dispose();
+    },
+    [box, edges],
+  );
+  return (
+    <group
+      name={`ghost:${g.id}`}
+      userData={{ ghostId: g.id }}
+      position={[t.position.x, t.position.y, t.position.z]}
+      rotation={[0, t.rotationY, 0]}
+      onClick={(e) => {
+        if (e.delta > DRAG_PX) return;
+        e.stopPropagation();
+        onItem(g.id);
+      }}
+    >
+      <mesh geometry={box}>
+        <meshBasicMaterial
+          color={selected ? accent : color}
+          transparent
+          opacity={0.25}
+          depthWrite={false}
+        />
+      </mesh>
+      <lineSegments geometry={edges} raycast={() => null}>
+        <lineBasicMaterial color={selected ? accent : color} />
+      </lineSegments>
+    </group>
+  );
+}
+
 function SceneContentImpl({
   layout,
   cells,
@@ -283,6 +334,16 @@ function SceneContentImpl({
           />
         );
       })}
+      {layout.ghosts.map((g) => (
+        <GhostNode
+          key={g.id}
+          g={g}
+          selected={g.id === selectedItemId}
+          accent={palette.accent}
+          color={palette.wall}
+          onItem={onItem}
+        />
+      ))}
     </group>
   );
 }

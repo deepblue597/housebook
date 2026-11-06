@@ -8,7 +8,9 @@ import { formatDate } from '../../domain/dates';
 import { isWebUrl, safeExternalHref } from '../../domain/urls';
 import { type Model, floorOf, roomOf } from '../../store/model';
 import { useUi } from '../../store/ui';
+import { useData } from '../../store/data';
 import { Attachments } from './Attachments';
+import { LogEntryForm } from './LogEntryForm';
 import { manualSearchUrl, resolveWikilink } from './links';
 import { Notes } from './Notes';
 
@@ -101,6 +103,7 @@ interface Props {
 
 export function ItemDetails({ item, model, headingRef, onClose }: Props) {
   const select = useUi((s) => s.select);
+  const editor = useData((s) => s.me?.role === 'editor');
   const f = item.fields;
   const status = currentStatus(item, model.snapshot);
   const chips = statusChips(status);
@@ -196,6 +199,8 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
           onNavigate={(href) => select(selectionFromPath(href))}
         />
       </section>
+
+      {editor && <LogEntryForm key={item.id} item={item} />}
 
       <Attachments attachments={item.attachments} />
 

@@ -33,6 +33,12 @@ export interface SceneItem {
   transform: ItemTransform;
 }
 
+/** A placement whose note is missing: drawn as a ghost box (DESIGN 15.2). */
+export interface SceneGhost {
+  id: string;
+  transform: ItemTransform;
+}
+
 export interface SceneRoom {
   roomId: string;
   name: string;
@@ -54,6 +60,7 @@ export interface SceneLayout {
   walls: Box[];
   glass: Box[];
   items: SceneItem[];
+  ghosts: SceneGhost[];
   /** World box to fit the camera to. */
   bounds: { min: Vec3; max: Vec3 };
   /** Around the whole grid up to the ceiling: zoom limits and clipping planes come from it. */
@@ -98,6 +105,15 @@ export function sceneLayout(model: Model, floor: FloorModel, wallHeight: number)
     ];
   });
 
+  const ghosts: SceneGhost[] = floor.ghosts.map((p) => {
+    const spec = {
+      ...placementSpec(null),
+      footprint: p.footprint ?? placementSpec(null).footprint,
+    };
+    const loc = { floorId: p.floorId, roomId: null, x: p.x, y: p.y, rotation: p.rotation ?? 0 };
+    return { id: p.itemId, transform: itemTransform(loc, spec, modelSpec(null), ts) };
+  });
+
   const b = cellBounds(floor.cells, model.grid);
   return {
     floorId: floor.floor.id,
@@ -109,6 +125,7 @@ export function sceneLayout(model: Model, floor: FloorModel, wallHeight: number)
     walls: wg.walls,
     glass: wg.glass,
     items,
+    ghosts,
     bounds: {
       min: { x: b.x0 * ts, y: 0, z: b.y0 * ts },
       max: {

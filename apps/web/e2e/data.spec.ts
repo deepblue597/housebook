@@ -195,11 +195,13 @@ test('snapshot: ETag on first load, If-None-Match and 304 on focus and visibilit
   await expect(page.getByText(/Couldn’t refresh/)).toHaveCount(0);
 });
 
-test('snapshot: a changed file is picked up on focus with a new ETag', async ({
+test('snapshot: without live events, a changed file is picked up on focus with a new ETag', async ({
   page,
   backend,
 }) => {
   const { url, dataDir } = await backend({}, { HOUSEBOOK_RESCAN_INTERVAL: '0.2' });
+  // Only the focus path: with SSE the change would arrive as an event (live.spec.ts).
+  await page.route('**/api/events', (r) => r.abort());
   const log = snapshotLog(page);
   await gotoPlan(page, `${url}/`);
   await expect.poll(() => log.length).toBe(1);
@@ -264,10 +266,14 @@ test('a newer house.json schema is shown read-only with a banner and a problem c
     count: number;
   };
   expect(problems.count).toBeGreaterThanOrEqual(1);
-  const link = page.getByRole('link', { name: /data problems?, opens the integrity report/ });
-  await expect(link).toHaveAttribute('href', '/api/problems');
-  await expect(link).toHaveAttribute('target', '_blank');
-  await expect(link).toContainText(String(problems.count));
+  const button = page.getByRole('button', { name: /data problems?\. Show/ });
+  await expect(button).toContainText(String(problems.count));
+  await button.click();
+  await expect(
+    page.getByRole('dialog', { name: 'Data problems' }).getByRole('heading', {
+      name: /Layout from a newer Housebook/,
+    }),
+  ).toBeVisible();
 });
 
 test('a broken note is counted as a problem; the rest of the house loads', async ({
@@ -381,12 +387,11 @@ test('FE-06: an invalid house.json is not blamed on a newer Housebook version', 
   await expect(page.getByText(/newer Housebook version/)).toHaveCount(0, { timeout: 1_000 });
 });
 
-test('FE-07: the problems link has a clean accessible name', async ({ page, backend }) => {
+test('FE-07: the problems button has a clean accessible name', async ({ page, backend }) => {
   const { url } = await backend({ fromExample: false }); // one problem: house.json missing
   await page.goto(`${url}/`);
   await expect(page.locator('header .problems')).toBeVisible();
-  await expect(page.locator('header .problems')).toHaveAccessibleName(
-    '1 data problem, opens the integrity report',
-    { timeout: 1_000 },
-  );
+  await expect(page.locator('header .problems')).toHaveAccessibleName('1 data problem. Show', {
+    timeout: 1_000,
+  });
 });

@@ -1,7 +1,8 @@
 # housebook-web
 
-The Housebook SPA (read-only): the 2D floor plan, a lazy-loaded 3D view (milestone 2), a
-Floor → Room → Item list, item and room details, and client-side search. React + TypeScript +
+The Housebook SPA: the 2D floor plan, a lazy-loaded 3D view (milestone 2), a
+Floor → Room → Item list, item and room details, client-side search, live sync and a problems
+panel (milestone 4), and the first write: maintenance log entries for editors. React + TypeScript +
 Vite, Zustand for state; three.js via react-three-fiber (+ drei) for 3D.
 
 ## Run
@@ -44,14 +45,16 @@ src/
                colour contrast, URL allowlist, wikilinks. ESLint forbids UI imports here.
   catalog/     item types from contract/catalog.json, type icons, type → 3D model (box sizes)
   api/         generated OpenAPI types + a small typed fetch client
-  store/       Zustand: data (snapshot + ETag), ui (view, floor, selection, query, theme),
-               the derived read model, search results
+  store/       Zustand: data (snapshot + ETag, single-item updates, writes, one ordered queue),
+               sync (SSE client + polling fallback), ui (view, floor, selection, query, theme),
+               the derived read model (incl. missing-note ghosts), search results
   features/
     plan2d/    SVG plan, pan/zoom (mouse, wheel, touch pinch)
     scene3d/   lazy chunk: R3F scene, camera math (camera.ts, pure), layout, DOM overlays
     list/      list view with arrow-key navigation
     details/   item and room panel, Markdown notes (lazy), attachments, PDF.js viewer (lazy)
     search/    search combobox
+    problems/  ⚠ badge + lazy problems panel (GET /api/problems grouped by kind, Adopt)
   app/         shell, router (/i/<id>), theme, 2D/3D toggle + lazy 3D loader, WebGL probe,
                test hook (non-production builds only)
   components/  shared UI bits (dialog, status wording)
@@ -61,9 +64,37 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 
 ## Behaviour notes
 
-- **Data:** one `GET /api/snapshot`, revalidated with `If-None-Match` on window focus and tab
-  visibility. A failed refresh keeps the last data and shows a banner. `houseReadOnly` shows a
-  note; a non-zero `problemCount` shows a small ⚠ count linking to `/api/problems`.
+- **Data:** one `GET /api/snapshot` on load, then kept current by **live sync** (`store/sync.ts`,
+  data contract §9, DESIGN 15.7): an `EventSource` on `/api/events`. `resync` compares
+  `itemsVersion` and `houseEtag` with what is held and refetches the snapshot (If-None-Match)
+  or just `GET /api/house`; `item.changed` is ignored only when `etag`, `path`, `stale` and
+  `attachmentsEtag` all match, else `GET /api/items/{id}`; `item.deleted` drops the item;
+  `house.changed` fetches the layout and re-derives item locations; `problems.changed` updates
+  the badge (and an open panel). After single-item updates the held snapshot ETag and
+  `itemsVersion` are treated as unknown, so the next resync/poll can't skip a real change.
+  Loads, events and writes run through one ordered queue, so the event for the app's own write
+  is checked after the write's response is in and is ignored (no refetch).
+- **Fallback:** on an SSE error the stream closes and `GET /api/me` is called: 401 (or a
+  redirect to the login page) reloads the page, at most once a minute; otherwise reconnect after
+  5 s. A stream that opens without a `resync` within 15 s (buffering proxy) counts as an error.
+  After 3 errors in a row: polling `/api/snapshot` every 30 s, with an SSE retry every 60 s.
+  Focus and visibility revalidate the snapshot in every mode. Hidden tab: no polling, and the
+  stream is closed after 60 s (reconnect + resync on return). Status in the top bar: Live /
+  Polling / Offline / Connecting (text + shape, `role="status"`; dot only on phones). A failed
+  refresh keeps the last data and shows a banner. `houseReadOnly` shows a note. Timings can be
+  shortened in non-production builds via `window.__housebookSyncTimings` (e2e).
+- **Inconsistent states (DESIGN 15.2):** a placement whose note is missing is a dashed "note
+  missing" ghost (2D button with `data-ghost-id`; translucent box + label in 3D) that opens a
+  "Note missing" panel; a stale (unparseable) note keeps its last good content with a dashed
+  badge and a mark (2D), a `?` badge (3D) and a notice in the panel. Relink/remove, the
+  Unplaced tray and replay-on-412 are milestone 5.
+- **Problems panel:** the ⚠ count opens a dialog (lazy chunk, ~2 KB) listing `/api/problems`
+  grouped by kind with readable titles; entries link to their item. Editors can **Adopt** a
+  `not_adopted` note (`POST /api/items/adopt`); other fixes are read-only for now. Nothing is
+  fixed automatically.
+- **Writes:** the role comes from `/api/me`; viewers (and an unknown role) see no write UI.
+  Editors get "Add to maintenance log" in the item panel (`POST /api/items/{id}/log`, no
+  If-Match; disabled while the note is unreadable).
 - **Status:** the snapshot's status is used while its `today` is still today in the household
   time zone; after midnight the client recomputes with the same rules (golden fixtures).
 - **Search** runs on the client over the snapshot (D9) with the contract's folding and ranking;
@@ -113,6 +144,11 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   `SceneContent.test.tsx` (scene graph with `@react-three/test-renderer`: one merged wall mesh,
   one floor mesh per room, item positions/rotations, selection ring, click → select, search dim,
   floor switch), `SceneOverlays.test.tsx`; `app/App.test.tsx` (toggle, no WebGL, context loss).
+- Sync: `store/sync.test.ts` (state machine with a fake EventSource and fake timers: resync →
+  live, reconnect, 401 reload, offline, fallback to polling and back, resync timeout, hidden
+  tab, reload guard) and `store/data.test.ts` (resync diffing, the dedupe rule, own writes,
+  layout-only updates, ghosts after delete). `features/problems/ProblemsPanel.test.tsx`,
+  `features/details/LogEntryForm.test.tsx`, `features/plan2d/PlanSvg.test.tsx` (ghost, stale).
 - Component tests: search box, item details (chips, link allowlist, Obsidian link), Markdown
   (raw HTML, `javascript:`, wikilinks), list keyboard navigation, snapshot loading (304, errors).
 - E2E (`e2e/`, Playwright, Chromium). Known bugs are reproduced as `test.fail()` tests named
@@ -130,6 +166,11 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   - `data.spec.ts`: crafted data roots: Markdown safety (`javascript:`, raw HTML, remote images,
     wikilinks, embeds), snapshot ETag / If-None-Match / 304 and refetch on focus, failed loads,
     newer `schemaVersion` (read-only), problems count, stale and unplaced notes, empty root.
+  - `live.spec.ts`: notes and `house.json` edited on disk update the page over SSE (one item /
+    the layout fetched, not the snapshot), stale and deleted notes (ghost in 2D and 3D), new
+    notes, polling fallback with If-None-Match and the way back to live, offline, 401 → one
+    reload, the problems panel (axe, viewer read-only, editor adopt), the log entry (written to
+    disk, no refetch of the app's own write), viewers without write UI.
   - `ui.spec.ts`: theme toggle and dark mode (axe), reduced motion, 360 px (no horizontal
     scroll, 44 px targets), the after-midnight status recompute, and four screenshots (incl. 3D)
     (`ui.spec.ts-snapshots/`, fixed clock and viewport, animations off). Update them with

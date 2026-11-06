@@ -50,6 +50,7 @@ export function exampleSnapshot(): Snapshot {
     houseReadOnly: false,
     houseSchemaVersion: 1,
     problemCount: 0,
+    itemsVersion: 'v',
     house,
     items,
   };

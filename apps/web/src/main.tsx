@@ -12,12 +12,14 @@ import { App } from './app/App';
 import { startRouter } from './app/router';
 import { installTestHook } from './app/testHook';
 import { preloadMarkdown } from './features/details/markdownLoader';
-import { revalidateOnFocus, useData } from './store/data';
+import { useData } from './store/data';
+import { startSync } from './store/sync';
 
 installTestHook();
 startRouter();
 void useData.getState().load();
-revalidateOnFocus();
+void useData.getState().loadMe();
+startSync();
 // Notes are opened often; fetch the Markdown chunk once the shell is idle.
 (window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500)))(() => preloadMarkdown());
 

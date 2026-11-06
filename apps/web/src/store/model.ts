@@ -2,7 +2,7 @@
  * The read model the views render from: the snapshot plus lookups derived once per snapshot
  * (rooms by id, items per floor, valid cells per floor, search documents).
  */
-import type { Floor, Item, Room, Snapshot } from '../api/types';
+import type { Floor, Item, Placement, Room, Snapshot } from '../api/types';
 import { placementSpec, typeLabel } from '../catalog/catalog';
 import { type Rect, cellKey, occupiedRect } from '../domain/coords';
 import { type CellMap, area, floorCells, roomTiles } from '../domain/plan';
@@ -15,6 +15,8 @@ export interface FloorModel {
   roomAreas: Map<string, number>;
   /** Items placed on this floor, by name. */
   items: Item[];
+  /** Placements on this floor whose note is missing (DESIGN 15.2: drawn as ghosts). */
+  ghosts: Placement[];
 }
 
 export interface Model {
@@ -28,6 +30,8 @@ export interface Model {
   items: Map<string, Item>;
   /** Notes with no placement, or placed on a floor that no longer exists. */
   unplaced: Item[];
+  /** Placements by item id (first one wins, as on the server). */
+  placements: Map<string, Placement>;
   /** Footprint overrides from house.json placements (data contract §2), by item id. */
   footprints: Map<string, readonly [number, number]>;
   searchDocs: SearchDoc[];
@@ -51,7 +55,7 @@ export function buildModel(snapshot: Snapshot): Model {
       const roomAreas = new Map(
         [...roomTiles(cells)].map(([id, tiles]) => [id, area(tiles.length, tileSize)]),
       );
-      return { floor, cells, roomAreas, items: [] };
+      return { floor, cells, roomAreas, items: [], ghosts: [] };
     });
   const floorById = new Map(floors.map((f) => [f.floor.id, f]));
 
@@ -60,6 +64,13 @@ export function buildModel(snapshot: Snapshot): Model {
     const f = item.location ? floorById.get(item.location.floorId) : undefined;
     if (f) f.items.push(item);
     else unplaced.push(item);
+  }
+
+  const placements = new Map<string, Placement>();
+  for (const p of house?.placements ?? []) {
+    if (placements.has(p.itemId)) continue;
+    placements.set(p.itemId, p);
+    if (!items.has(p.itemId)) floorById.get(p.floorId)?.ghosts.push(p);
   }
 
   const searchDocs = snapshot.items.map((i) =>
@@ -91,6 +102,7 @@ export function buildModel(snapshot: Snapshot): Model {
     floorById,
     items,
     unplaced,
+    placements,
     footprints,
     searchDocs,
   };
@@ -132,4 +144,9 @@ export function occupiedTiles(m: Pick<Model, 'footprints'>, f: FloorModel): Set<
       for (let y = r.y; y < r.y + r.h; y++) out.add(cellKey(x, y));
   }
   return out;
+}
+
+/** The tiles a ghost (placement without a note) covers: its footprint override, else 1×1. */
+export function ghostRect(p: Placement): Rect {
+  return occupiedRect(p.x, p.y, p.rotation ?? 0, p.footprint ?? placementSpec(null).footprint);
 }

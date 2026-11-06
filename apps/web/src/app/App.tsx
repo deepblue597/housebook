@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DetailsPanel } from '../features/details/DetailsPanel';
+import { ProblemsButton } from '../features/problems/ProblemsButton';
 import { ListView } from '../features/list/ListView';
 import { PlanView } from '../features/plan2d/PlanView';
 import { SearchBox } from '../features/search/SearchBox';
@@ -9,6 +10,7 @@ import { useHouseProblems } from '../store/problems';
 import { type PlanStyle, type Selection, type View, useUi } from '../store/ui';
 import { choose3d, useShows3d } from './scene3d';
 import { Scene3dSlot } from './Scene3dSlot';
+import { SyncStatus } from './SyncStatus';
 import { NEXT_THEME, useApplyTheme } from './theme';
 import { webglAvailable } from './webgl';
 
@@ -111,24 +113,6 @@ function ThemeToggle() {
         {THEME_ICON[theme]}
       </svg>
     </button>
-  );
-}
-
-/** Small, unobtrusive: the full problems panel arrives with editing (milestone 4). */
-function ProblemsIndicator({ count }: { count: number }) {
-  if (count === 0) return null;
-  const text = `${count} data ${count === 1 ? 'problem' : 'problems'}`;
-  return (
-    <a
-      className="problems"
-      href="/api/problems"
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={`${text}, opens the integrity report`}
-      title={`${text} (opens the integrity report)`}
-    >
-      <span aria-hidden="true">⚠ {count}</span>
-    </a>
   );
 }
 
@@ -280,7 +264,8 @@ export function App() {
         <ViewToggle />
         <PlanStyleToggle onUnsupported={() => setWhy3d(true)} />
         <SearchBox />
-        <ProblemsIndicator count={model?.snapshot.problemCount ?? 0} />
+        <ProblemsButton />
+        <SyncStatus />
         <ThemeToggle />
       </header>
       <main id="main" className="main">

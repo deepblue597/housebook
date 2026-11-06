@@ -74,6 +74,131 @@
             "description": "Not Found"
           }
         }
+      },
+      "put": {
+        "summary": "Put House",
+        "description": "Replace the layout (the only writer of house.json, D8). Validated fully (422 lists every\nissue with its location); `If-Match` against the file on disk (428 without it, 412 on a\nmismatch); the previous file is kept in `.housebook/history/` (last 50); written atomically\nand deterministically. 409 when house.json is read-only (newer schemaVersion, invalid).",
+        "operationId": "put_house_api_house_put",
+        "parameters": [
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag from the last read (`*` overwrites whatever is there)",
+              "title": "If-Match"
+            },
+            "description": "ETag from the last read (`*` overwrites whatever is there)"
+          },
+          {
+            "name": "if-none-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`*` to create house.json when it doesn't exist yet",
+              "title": "If-None-Match"
+            },
+            "description": "`*` to create house.json when it doesn't exist yet"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/House"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Precondition Failed"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/House"
+              }
+            }
+          }
+        }
       }
     },
     "/api/snapshot": {
@@ -165,6 +290,73 @@
             }
           }
         }
+      },
+      "post": {
+        "summary": "Create Item",
+        "description": "Create a note from the type's template at `<notes>/<Room>/<Name>.md`. The layout is not\ntouched: add the placement with PUT /api/house afterwards (D8).",
+        "operationId": "create_item_api_items_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemCreateIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetailOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
       }
     },
     "/api/items/{item_id}": {
@@ -192,6 +384,211 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Patch Item",
+        "description": "Merge-patch the frontmatter (minimal diff: only changed keys' lines are rewritten;\ncomments, order and unknown keys stay) and/or replace the body.",
+        "operationId": "patch_item_api_items__item_id__patch",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag from the last read (`*` overwrites whatever is there)",
+              "title": "If-Match"
+            },
+            "description": "ETag from the last read (`*` overwrites whatever is there)"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemPatchIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetailOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Precondition Failed"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Precondition Required"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Item",
+        "description": "Move the note (and its attachment folder) to `.housebook/trash/`. Remove the placement\nwith PUT /api/house first (D8); otherwise it shows as a missing note.",
+        "operationId": "delete_item_api_items__item_id__delete",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "if-match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ETag from the last read (`*` overwrites whatever is there)",
+              "title": "If-Match"
+            },
+            "description": "ETag from the last read (`*` overwrites whatever is there)"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "412": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Precondition Failed"
+          },
+          "428": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Precondition Required"
           },
           "422": {
             "description": "Validation Error",
@@ -300,10 +697,201 @@
           }
         }
       }
+    },
+    "/api/items/adopt": {
+      "post": {
+        "summary": "Adopt Item",
+        "description": "Give a tagged note without `housebook_id` (a `not_adopted` problem) a new id.",
+        "operationId": "adopt_item_api_items_adopt_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetailOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}/log": {
+      "post": {
+        "summary": "Append Log",
+        "description": "Append `- YYYY-MM-DD text` under `## Maintenance log` (created if missing). No If-Match:\nappends merge with whatever is on disk.",
+        "operationId": "append_log_api_items__item_id__log_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LogEntryIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemDetailOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        }
+      }
+    },
+    "/api/events": {
+      "get": {
+        "summary": "Events",
+        "description": "Server-sent events. Starts with `resync`; then `house.changed`, `item.changed`,\n`item.deleted`, `problems.changed`; a `ping` event after 20 s of silence keeps proxies from\ntiming out and lets the client detect a dead stream.\nNo replay: refetch whatever `resync` says differs.",
+        "operationId": "events_api_events_get",
+        "responses": {
+          "200": {
+            "description": "Server-sent events",
+            "content": {
+              "text/event-stream": {}
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AdoptIn": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Path",
+            "description": "Note path from a `not_adopted` problem"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "AdoptIn"
+      },
       "AttachmentOut": {
         "properties": {
           "name": {
@@ -388,6 +976,43 @@
           "derived"
         ],
         "title": "CheckStatus"
+      },
+      "ErrorOut": {
+        "properties": {
+          "detail": {
+            "title": "Detail"
+          },
+          "currentEtag": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currentetag",
+            "description": "On 412: the file's current ETag"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "On 409: machine-readable cause"
+          }
+        },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorOut",
+        "description": "Error body. `detail` is a message, or for 422 a list of `{type, loc, msg}`."
       },
       "Floor": {
         "properties": {
@@ -568,6 +1193,69 @@
         "title": "HouseProblemReason",
         "description": "Why house.json is unusable: `detail.reason` on every `house_invalid` and\n`house_newer_version` problem. A closed set: clients switch on it, never on `message`."
       },
+      "ItemCreateIn": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Type",
+            "description": "Catalogue key or alias"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "Default: the catalogue's defaultName"
+          },
+          "roomId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]{1,64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roomid",
+            "description": "Room whose name becomes the note's folder (House/<Room>/<Name>.md)"
+          },
+          "frontmatter": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "type": "object",
+            "title": "Frontmatter",
+            "description": "Extra frontmatter (brand, model, ...); not housebook_id/type/name"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body",
+            "description": "Default: an empty note template (note limit 4 MiB: 413)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "title": "ItemCreateIn"
+      },
       "ItemDetailOut": {
         "properties": {
           "id": {
@@ -583,6 +1271,11 @@
             "type": "string",
             "title": "Etag",
             "description": "Content hash of the note file; send as If-Match on writes"
+          },
+          "attachmentsEtag": {
+            "type": "string",
+            "title": "Attachmentsetag",
+            "description": "Changes when the attachment set changes (names, sizes, mtimes)"
           },
           "name": {
             "type": "string",
@@ -684,6 +1377,7 @@
           "id",
           "path",
           "etag",
+          "attachmentsEtag",
           "name",
           "type",
           "typeKnown",
@@ -886,6 +1580,11 @@
             "title": "Etag",
             "description": "Content hash of the note file; send as If-Match on writes"
           },
+          "attachmentsEtag": {
+            "type": "string",
+            "title": "Attachmentsetag",
+            "description": "Changes when the attachment set changes (names, sizes, mtimes)"
+          },
           "name": {
             "type": "string",
             "title": "Name",
@@ -982,6 +1681,7 @@
           "id",
           "path",
           "etag",
+          "attachmentsEtag",
           "name",
           "type",
           "typeKnown",
@@ -995,6 +1695,41 @@
           "stale"
         ],
         "title": "ItemOut"
+      },
+      "ItemPatchIn": {
+        "properties": {
+          "frontmatter": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frontmatter",
+            "description": "JSON Merge Patch on the frontmatter"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body",
+            "description": "New body, verbatim (the note is limited to 4 MiB: 413)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ItemPatchIn",
+        "description": "PATCH /api/items/{id}. `frontmatter` is a JSON Merge Patch (RFC 7396) applied to the\nnote's frontmatter: `null` deletes a key, objects merge, other values replace. `body`\nreplaces the Markdown body only when present (non-null)."
       },
       "ItemType": {
         "properties": {
@@ -1066,6 +1801,7 @@
         ],
         "title": "ItemType"
       },
+      "JsonValue": {},
       "LocationOut": {
         "properties": {
           "floorId": {
@@ -1105,6 +1841,36 @@
           "rotation"
         ],
         "title": "LocationOut"
+      },
+      "LogEntryIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "description": "One line; whitespace is collapsed"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date",
+            "description": "YYYY-MM-DD; default: today in HOUSEBOOK_TZ"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "LogEntryIn"
       },
       "MeOut": {
         "properties": {
@@ -1471,6 +2237,11 @@
             ],
             "title": "Houseschemaversion"
           },
+          "itemsVersion": {
+            "type": "string",
+            "title": "Itemsversion",
+            "description": "Version of the item index; the SSE `resync` event carries the same value"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/ItemDetailOut"
@@ -1491,6 +2262,7 @@
           "houseEtag",
           "houseReadOnly",
           "houseSchemaVersion",
+          "itemsVersion",
           "items",
           "problemCount"
         ],

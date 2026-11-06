@@ -231,8 +231,152 @@ code {
   text-decoration: none;
   border-radius: 8px;
 }
+.problems {
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
 .problems:hover {
   background: var(--paper);
+}
+
+/* ---- live sync status (DESIGN 15.7) -------------------------------------------- */
+.sync {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.sync .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  box-sizing: border-box;
+}
+/* Shape differs per state, not only colour (DESIGN 15.12): filled (live), half (polling),
+   ring (connecting), crossed-out ring (offline), hollow square (signed out). */
+.sync.live .dot {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.sync.polling {
+  color: var(--warn);
+}
+.sync.polling .dot {
+  background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+}
+.sync.offline {
+  color: var(--bad);
+}
+.sync.offline .dot {
+  background: linear-gradient(
+    135deg,
+    transparent calc(50% - 1px),
+    currentColor calc(50% - 1px) calc(50% + 1px),
+    transparent calc(50% + 1px)
+  );
+}
+.sync.signed_out {
+  color: var(--warn);
+}
+.sync.signed_out .dot {
+  border-radius: 1px;
+}
+@media (max-width: 640px) {
+  .sync .label {
+    display: none;
+  }
+}
+
+/* ---- problems panel -------------------------------------------------------------- */
+.problems-dialog {
+  width: min(640px, calc(100vw - 32px));
+}
+.problems-dialog section + section {
+  margin-top: 16px;
+}
+.problems-dialog h3 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+.problems-dialog .help {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.problems-dialog ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.problems-dialog li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.problems-dialog .sev {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  margin-right: 6px;
+}
+.problems-dialog .sev.error {
+  color: var(--bad);
+}
+.problems-dialog .sev.warning {
+  color: var(--warn);
+}
+.problems-dialog .acts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+/* ---- maintenance log entry --------------------------------------------------------- */
+.log-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: end;
+  margin: 12px 0;
+}
+.log-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.log-form .text {
+  flex: 1 1 200px;
+}
+.log-form input {
+  min-height: var(--target);
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.log-form .msg {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
+.log-form .msg.err {
+  color: var(--bad);
 }
 
 /* ---- search ---------------------------------------------------------------------- */
@@ -582,6 +726,42 @@ code {
   stroke: none;
   font: 700 9px var(--body);
   text-anchor: middle;
+}
+.mark.stale path {
+  fill: var(--bad);
+}
+/* A note that can't be read: last good content, dashed outline. */
+.badge.stale .bg {
+  stroke-dasharray: 4 2;
+}
+/* A placement whose note is missing (DESIGN 15.2). */
+.badge.ghost .bg {
+  fill: none;
+  stroke: var(--muted);
+  stroke-dasharray: 4 3;
+}
+.badge.ghost .hit {
+  fill: var(--paper);
+  fill-opacity: 0.35;
+}
+.badge.ghost .q {
+  fill: var(--muted);
+  font: 700 16px var(--body);
+  text-anchor: middle;
+}
+.badge.ghost .gtag {
+  font-family: var(--mono);
+  font-size: 8px;
+  fill: var(--bad);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 3px;
+}
+.badge.ghost:hover .bg,
+.badge.ghost:focus-visible .bg,
+.badge.ghost.sel .bg {
+  stroke: var(--accent);
 }
 .empty {
   font-size: 13px;
@@ -1256,6 +1436,21 @@ code {
 .badge3d.warn {
   background: var(--warn);
   border-radius: 3px;
+}
+.badge3d.stale {
+  background: var(--bad);
+  border-radius: 2px;
+  margin-left: 22px;
+}
+.badge3d.ghost {
+  background: var(--paper);
+  color: var(--bad);
+  border: 1.5px dashed var(--bad);
+  width: auto;
+  padding: 0 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
 }
 .name3d {
   margin-top: -20px;

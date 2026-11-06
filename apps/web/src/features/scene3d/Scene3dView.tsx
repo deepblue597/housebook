@@ -329,6 +329,13 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
           className: `badge3d ${BADGE[level].tone}`,
           text: BADGE[level].glyph,
         });
+      if (it.item.stale)
+        out.push({
+          key: `stale:${it.id}`,
+          world: { ...top, y: top.y + 0.18 },
+          className: 'badge3d stale',
+          text: '?',
+        });
       const named = it.id === hoverId || (selection?.kind === 'item' && selection.id === it.id);
       if (named)
         out.push({
@@ -337,6 +344,15 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
           className: 'name3d',
           text: it.item.name,
         });
+    }
+    for (const g of layout.ghosts) {
+      const top = itemTop(g.transform);
+      out.push({
+        key: `ghost:${g.id}`,
+        world: { ...top, y: top.y + 0.18 },
+        className: 'badge3d ghost',
+        text: 'note missing',
+      });
     }
     return out;
   }, [layout, snapshot, selection, hoverId]);

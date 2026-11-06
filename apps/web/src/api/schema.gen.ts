@@ -48,7 +48,14 @@ export interface paths {
         };
         /** Get House */
         get: operations["get_house_api_house_get"];
-        put?: never;
+        /**
+         * Put House
+         * @description Replace the layout (the only writer of house.json, D8). Validated fully (422 lists every
+         *     issue with its location); `If-Match` against the file on disk (428 without it, 412 on a
+         *     mismatch); the previous file is kept in `.housebook/history/` (last 50); written atomically
+         *     and deterministically. 409 when house.json is read-only (newer schemaVersion, invalid).
+         */
+        put: operations["put_house_api_house_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -87,7 +94,12 @@ export interface paths {
         /** List Items */
         get: operations["list_items_api_items_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Item
+         * @description Create a note from the type's template at `<notes>/<Room>/<Name>.md`. The layout is not
+         *     touched: add the placement with PUT /api/house afterwards (D8).
+         */
+        post: operations["create_item_api_items_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -105,10 +117,20 @@ export interface paths {
         get: operations["get_item_api_items__item_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Item
+         * @description Move the note (and its attachment folder) to `.housebook/trash/`. Remove the placement
+         *     with PUT /api/house first (D8); otherwise it shows as a missing note.
+         */
+        delete: operations["delete_item_api_items__item_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Patch Item
+         * @description Merge-patch the frontmatter (minimal diff: only changed keys' lines are rewritten;
+         *     comments, order and unknown keys stay) and/or replace the body.
+         */
+        patch: operations["patch_item_api_items__item_id__patch"];
         trace?: never;
     };
     "/api/items/{item_id}/attachments/{name}": {
@@ -179,10 +201,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/items/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adopt Item
+         * @description Give a tagged note without `housebook_id` (a `not_adopted` problem) a new id.
+         */
+        post: operations["adopt_item_api_items_adopt_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{item_id}/log": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append Log
+         * @description Append `- YYYY-MM-DD text` under `## Maintenance log` (created if missing). No If-Match:
+         *     appends merge with whatever is on disk.
+         */
+        post: operations["append_log_api_items__item_id__log_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Events
+         * @description Server-sent events. Starts with `resync`; then `house.changed`, `item.changed`,
+         *     `item.deleted`, `problems.changed`; a `ping` event after 20 s of silence keeps proxies from
+         *     timing out and lets the client detect a dead stream.
+         *     No replay: refetch whatever `resync` says differs.
+         */
+        get: operations["events_api_events_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdoptIn */
+        AdoptIn: {
+            /**
+             * Path
+             * @description Note path from a `not_adopted` problem
+             */
+            path: string;
+        };
         /** AttachmentOut */
         AttachmentOut: {
             /** Name */
@@ -223,6 +317,24 @@ export interface components {
             days: number;
             /** Derived */
             derived: boolean;
+        };
+        /**
+         * ErrorOut
+         * @description Error body. `detail` is a message, or for 422 a list of `{type, loc, msg}`.
+         */
+        ErrorOut: {
+            /** Detail */
+            detail: unknown;
+            /**
+             * Currentetag
+             * @description On 412: the file's current ETag
+             */
+            currentEtag?: string | null;
+            /**
+             * Reason
+             * @description On 409: machine-readable cause
+             */
+            reason?: string | null;
         };
         /** Floor */
         Floor: {
@@ -302,6 +414,36 @@ export interface components {
          * @enum {string}
          */
         HouseProblemReason: "unreadable" | "too_large" | "not_json" | "bad_version" | "newer_version" | "invalid";
+        /** ItemCreateIn */
+        ItemCreateIn: {
+            /**
+             * Type
+             * @description Catalogue key or alias
+             */
+            type: string;
+            /**
+             * Name
+             * @description Default: the catalogue's defaultName
+             */
+            name?: string | null;
+            /**
+             * Roomid
+             * @description Room whose name becomes the note's folder (House/<Room>/<Name>.md)
+             */
+            roomId?: string | null;
+            /**
+             * Frontmatter
+             * @description Extra frontmatter (brand, model, ...); not housebook_id/type/name
+             */
+            frontmatter?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Body
+             * @description Default: an empty note template (note limit 4 MiB: 413)
+             */
+            body?: string | null;
+        };
         /** ItemDetailOut */
         ItemDetailOut: {
             /** Id */
@@ -316,6 +458,11 @@ export interface components {
              * @description Content hash of the note file; send as If-Match on writes
              */
             etag: string;
+            /**
+             * Attachmentsetag
+             * @description Changes when the attachment set changes (names, sizes, mtimes)
+             */
+            attachmentsEtag: string;
             /**
              * Name
              * @description `name`, or the file name when missing
@@ -417,6 +564,11 @@ export interface components {
              */
             etag: string;
             /**
+             * Attachmentsetag
+             * @description Changes when the attachment set changes (names, sizes, mtimes)
+             */
+            attachmentsEtag: string;
+            /**
              * Name
              * @description `name`, or the file name when missing
              */
@@ -458,6 +610,26 @@ export interface components {
             /** Obsidianurl */
             obsidianUrl?: string | null;
         };
+        /**
+         * ItemPatchIn
+         * @description PATCH /api/items/{id}. `frontmatter` is a JSON Merge Patch (RFC 7396) applied to the
+         *     note's frontmatter: `null` deletes a key, objects merge, other values replace. `body`
+         *     replaces the Markdown body only when present (non-null).
+         */
+        ItemPatchIn: {
+            /**
+             * Frontmatter
+             * @description JSON Merge Patch on the frontmatter
+             */
+            frontmatter?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            } | null;
+            /**
+             * Body
+             * @description New body, verbatim (the note is limited to 4 MiB: 413)
+             */
+            body?: string | null;
+        };
         /** ItemType */
         ItemType: {
             /** Key */
@@ -493,6 +665,7 @@ export interface components {
              */
             aliases: string[];
         };
+        JsonValue: unknown;
         /** LocationOut */
         LocationOut: {
             /** Floorid */
@@ -505,6 +678,19 @@ export interface components {
             y: number;
             /** Rotation */
             rotation: number;
+        };
+        /** LogEntryIn */
+        LogEntryIn: {
+            /**
+             * Text
+             * @description One line; whitespace is collapsed
+             */
+            text: string;
+            /**
+             * Date
+             * @description YYYY-MM-DD; default: today in HOUSEBOOK_TZ
+             */
+            date?: string | null;
         };
         /** MeOut */
         MeOut: {
@@ -643,6 +829,11 @@ export interface components {
             houseReadOnly: boolean;
             /** Houseschemaversion */
             houseSchemaVersion: number | null;
+            /**
+             * Itemsversion
+             * @description Version of the item index; the SSE `resync` event carries the same value
+             */
+            itemsVersion: string;
             /** Items */
             items: components["schemas"]["ItemDetailOut"][];
             /** Problemcount */
@@ -775,6 +966,89 @@ export interface operations {
             };
         };
     };
+    put_house_api_house_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ETag from the last read (`*` overwrites whatever is there) */
+                "if-match"?: string | null;
+                /** @description `*` to create house.json when it doesn't exist yet */
+                "if-none-match"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["House"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["House"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Precondition Failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     get_snapshot_api_snapshot_get: {
         parameters: {
             query?: never;
@@ -836,6 +1110,66 @@ export interface operations {
             };
         };
     };
+    create_item_api_items_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemCreateIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     get_item_api_items__item_id__get: {
         parameters: {
             query?: never;
@@ -863,6 +1197,157 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_item_api_items__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ETag from the last read (`*` overwrites whatever is there) */
+                "if-match"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Precondition Failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    patch_item_api_items__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description ETag from the last read (`*` overwrites whatever is there) */
+                "if-match"?: string | null;
+            };
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ItemPatchIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Precondition Failed */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Precondition Required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };
@@ -953,6 +1438,157 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MeOut"];
+                };
+            };
+        };
+    };
+    adopt_item_api_items_adopt_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdoptIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    append_log_api_items__item_id__log_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LogEntryIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    events_api_events_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Server-sent events */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": unknown;
                 };
             };
         };

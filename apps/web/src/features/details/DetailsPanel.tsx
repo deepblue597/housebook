@@ -23,9 +23,13 @@ export function DetailsPanel() {
     // Return focus to the thing that represents the selection, else to whatever opened the panel.
     requestAnimationFrame(() => {
       const id = prev?.kind === 'item' ? prev.id : prev?.kind === 'room' ? prev.roomId : null;
-      const attr = prev?.kind === 'item' ? 'data-item-id' : 'data-room-id';
+      const sel = id && CSS.escape(id);
+      const query =
+        prev?.kind === 'item'
+          ? `[data-item-id="${sel}"], [data-ghost-id="${sel}"]`
+          : `[data-room-id="${sel}"]`;
       const target =
-        (id && document.querySelector<HTMLElement>(`[${attr}="${CSS.escape(id)}"]`)) ||
+        (id && document.querySelector<HTMLElement>(query)) ||
         (opener.current instanceof HTMLElement && opener.current.isConnected
           ? opener.current
           : null);
@@ -62,24 +66,42 @@ export function DetailsPanel() {
     );
   } else if (selection.kind === 'item') {
     const item = model.items.get(selection.id);
+    const ghost = item ? undefined : model.placements.get(selection.id);
+    const ghostFloor = ghost ? model.floorById.get(ghost.floorId) : undefined;
+    const ghostRoomId = ghost ? ghostFloor?.cells.get(`${ghost.x},${ghost.y}`) : undefined;
+    const ghostRoom = ghostRoomId ? model.rooms.get(ghostRoomId) : undefined;
     content = item ? (
       <ItemDetails item={item} model={model} headingRef={heading} onClose={close} />
     ) : (
       <div className="details">
         <header className="p-head">
           <div className="grow">
+            {ghost && (
+              <p className="eyebrow">
+                {ghostRoom?.name ?? 'No room'} · {ghostFloor?.floor.name ?? 'Unknown floor'}
+              </p>
+            )}
             <h2 ref={heading} tabIndex={-1}>
-              Item not found
+              {ghost ? 'Note missing' : 'Item not found'}
             </h2>
           </div>
           <button type="button" className="icon-btn" onClick={close} aria-label="Close details">
             ✕
           </button>
         </header>
-        <p className="muted">
-          No item with id <code>{selection.id}</code>. It may have been deleted, or its note lost
-          its <code>housebook_id</code>.
-        </p>
+        {ghost ? (
+          <p className="muted">
+            The layout places <code>{selection.id}</code> here, but no note has that{' '}
+            <code>housebook_id</code>. It may have been deleted or renamed outside Housebook, or its{' '}
+            <code>housebook_id</code> was changed. Relinking it to a note or removing the placement
+            comes with the layout editor.
+          </p>
+        ) : (
+          <p className="muted">
+            No item with id <code>{selection.id}</code>. It may have been deleted, or its note lost
+            its <code>housebook_id</code>.
+          </p>
+        )}
       </div>
     );
   } else {

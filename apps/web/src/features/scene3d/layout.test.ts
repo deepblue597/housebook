@@ -102,3 +102,19 @@ describe('scene layout (examples/house)', () => {
     expect(new Set(sets.values()).size).toBe(4);
   });
 });
+
+describe('scene layout: missing notes', () => {
+  it('a placement whose note is gone is a ghost on its tile, not an item', () => {
+    const snap = exampleSnapshot();
+    const gone = snap.items.find((i) => i.location?.floorId === 'fl_0')!;
+    const m = buildModel({ ...snap, items: snap.items.filter((i) => i !== gone) });
+    const layout = sceneLayout(m, m.floorById.get('fl_0')!, CUT_HEIGHT);
+    expect(layout.items.map((i) => i.id)).not.toContain(gone.id);
+    expect(layout.ghosts.map((g) => g.id)).toEqual([gone.id]);
+    const p = house.placements!.find((x) => x.itemId === gone.id)!;
+    const t = layout.ghosts[0]!.transform;
+    const cell = worldToCell(t.position.x, t.position.z, layout.tileSize);
+    expect(cell.x).toBeGreaterThanOrEqual(p.x);
+    expect(cell.y).toBeGreaterThanOrEqual(p.y);
+  });
+});

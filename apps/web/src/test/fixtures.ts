@@ -9,6 +9,7 @@ export function makeItem(over: Partial<Item> & Pick<Item, 'id' | 'name'>): Item 
   return {
     path: `House/Kitchen/${over.name}.md`,
     etag: 'x',
+    attachmentsEtag: '0000000000000000',
     type: 'other',
     typeKnown: true,
     critical: false,
@@ -73,6 +74,7 @@ export const snapshot: Snapshot = {
   houseReadOnly: false,
   houseSchemaVersion: 1,
   problemCount: 0,
+  itemsVersion: 'v',
   house: {
     schemaVersion: 1,
     grid: { tileSize: 1, width: 4, depth: 2 },
@@ -102,6 +104,8 @@ export function seedStore(snap: Snapshot = snapshot) {
     etag: 'e',
     error: null,
     loadedAt: new Date(),
+    problemCount: snap.problemCount,
+    me: null,
   });
   useUi.setState({ selection: null, query: '', floorId: null, view: 'plan' });
 }
