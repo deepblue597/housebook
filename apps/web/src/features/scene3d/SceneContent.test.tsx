@@ -4,12 +4,13 @@
  * sit where the layout says, selection shows, clicks select.
  */
 import ReactThreeTestRenderer from '@react-three/test-renderer';
-import type { Group, Mesh } from 'three';
-import { describe, expect, it, vi } from 'vitest';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial, type Object3D } from 'three';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CEILING_HEIGHT, CUT_HEIGHT, WALL_ITEM_TOP, boxesMesh } from '../../domain/scene';
 import { buildModel } from '../../store/model';
 import { exampleSnapshot } from '../../test/exampleHouse';
 import { sceneLayout } from './layout';
+import { setSceneLoaderForTests } from './models/library';
 import { scenePalette } from './palette';
 import { SceneContent, type SceneContentProps } from './SceneContent';
 
@@ -44,6 +45,20 @@ const objects = (r: Awaited<ReturnType<typeof render>>) => {
   r.scene.instance.traverse((o) => all.push({ name: o.name, instance: o }));
   return all;
 };
+
+/** Models: GLB loads never finish unless a test says otherwise (no network in unit tests). */
+beforeEach(() => setSceneLoaderForTests(() => new Promise<Object3D>(() => {})));
+afterEach(() => setSceneLoaderForTests(null));
+
+/** A stand-in glTF scene: one mesh. */
+function fakeGltf(): Object3D {
+  const root = new Group();
+  root.add(new Mesh(new BoxGeometry(4, 9, 3), new MeshStandardMaterial({ name: 'metal' })));
+  return root;
+}
+
+const modelOf = (r: Awaited<ReturnType<typeof render>>, id: string) =>
+  (objects(r).find((o) => o.name === `item:${id}`)!.instance as Group).getObjectByName('model')!;
 
 describe('3D scene graph (examples/house)', () => {
   it('draws the selected floor only: one merged wall mesh, one floor mesh per room, every item', async () => {
@@ -136,14 +151,63 @@ describe('3D scene graph (examples/house)', () => {
   });
 
   it('dims items that don’t match an active search', async () => {
+    // Dishwasher (procedural model) matches; the fridge (still loading: box) and valve don't.
     const r = await render(props({ matches: new Set(['it_7f3k2a']) }));
-    const bodyOf = (id: string) =>
-      (objects(r).find((o) => o.name === `item:${id}`)!.instance as Group).getObjectByName(
-        'body',
-      ) as Mesh;
-    const opacity = (id: string) => (bodyOf(id).material as { opacity: number }).opacity;
-    expect(opacity('it_7f3k2a')).toBe(1);
-    expect(opacity('it_4f8k2q')).toBeLessThan(0.5);
+    const opacities = (id: string) => {
+      const out: number[] = [];
+      modelOf(r, id).traverse((o) => {
+        if (o instanceof Mesh && o.name !== 'front' && o.name !== 'depth')
+          out.push((o.material as { opacity: number }).opacity);
+      });
+      return out;
+    };
+    expect(opacities('it_7f3k2a').every((o) => o === 1)).toBe(true);
+    expect(Math.max(...opacities('it_4f8k2q'))).toBeLessThan(0.5);
+    expect(Math.max(...opacities('it_2v9q6t'))).toBeLessThan(0.5);
+    // A dimmed model draws its depth first, so its inner parts don't stack up (opaque ghost).
+    expect(modelOf(r, 'it_2v9q6t').getObjectByName('depth')).toBeTruthy();
+    expect(modelOf(r, 'it_7f3k2a').getObjectByName('depth')).toBeUndefined();
+    await r.unmount();
+  });
+
+  it('draws catalogue models: procedural at once, GLB once loaded, the box while loading', async () => {
+    const r = await render(props());
+    expect(modelOf(r, 'it_7f3k2a').userData.kind).toBe('procedural'); // dishwasher
+    expect(modelOf(r, 'it_2v9q6t').userData.kind).toBe('procedural'); // valve
+    expect(modelOf(r, 'it_4f8k2q').userData.kind).toBe('box'); // fridge, loading
+    await r.unmount();
+
+    setSceneLoaderForTests(() => Promise.resolve(fakeGltf()));
+    const r2 = await render(props());
+    await vi.waitFor(() => expect(modelOf(r2, 'it_4f8k2q').userData.kind).toBe('glb'));
+    // Fitted into the item box: uniform scale, standing on the floor of the box.
+    const m = modelOf(r2, 'it_4f8k2q');
+    expect(m.scale.x).toBeCloseTo(m.scale.y, 9);
+    expect(m.scale.x).toBeGreaterThan(0);
+    await r2.unmount();
+  });
+
+  it('a model that fails to load is drawn as the box', async () => {
+    setSceneLoaderForTests(() => Promise.reject(new Error('HTTP 404')));
+    const r = await render(props());
+    await new Promise((res) => setTimeout(res, 10));
+    expect(modelOf(r, 'it_4f8k2q').userData.kind).toBe('box');
+    expect(modelOf(r, 'it_4f8k2q').getObjectByName('body')).toBeTruthy();
+    await r.unmount();
+  });
+
+  it('selection outlines the model’s large parts, hover too', async () => {
+    const r = await render(props({ selectedItemId: 'it_7f3k2a', hoverId: 'it_2v9q6t' }));
+    const outlined = (id: string) => {
+      let n = 0;
+      modelOf(r, id).traverse((o) => {
+        if (o.parent instanceof Mesh && o.type !== 'Mesh' && o !== modelOf(r, id)) n++;
+      });
+      return n;
+    };
+    expect(outlined('it_7f3k2a')).toBeGreaterThan(0);
+    expect(outlined('it_2v9q6t')).toBeGreaterThan(0);
+    expect(outlined('it_9b3m7x')).toBe(0);
     await r.unmount();
   });
 

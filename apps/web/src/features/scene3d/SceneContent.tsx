@@ -164,6 +164,7 @@ function ItemNode({
     >
       <ItemModel
         type={it.item.type ?? null}
+        mount={it.mount}
         size={t.size}
         tint={it.model.tint}
         highlight={highlight}

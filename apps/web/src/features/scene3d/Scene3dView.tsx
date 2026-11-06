@@ -27,6 +27,7 @@ import { useData } from '../../store/data';
 import type { FloorModel } from '../../store/model';
 import { useSearchResults } from '../../store/search';
 import { useUi } from '../../store/ui';
+import { modelStatus, subscribe as onModelChange } from './models/library';
 import {
   type CameraState,
   type Viewport,
@@ -358,6 +359,13 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
       const s = project(c, vp, p);
       return { x: r.left + el.clientLeft + s.x, y: r.top + el.clientTop + s.y };
     };
+    // Frame count when a model last arrived (or failed): settled only once it has been drawn.
+    let modelFrame = -1;
+    const unsubscribe = onModelChange(() => {
+      modelFrame = shown.current.frames;
+    });
+    const statuses = () =>
+      Object.fromEntries(latest.current.layout.items.map((i) => [i.id, modelStatus(i.item.type)]));
     const scene: SceneTestHook = {
       itemToScreen: (id) => {
         const it = latest.current.layout.items.find((i) => i.id === id);
@@ -382,6 +390,8 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
         const cv = canvasEl.current;
         return (
           s.moving ||
+          s.frames <= modelFrame ||
+          Object.values(statuses()).includes('loading') ||
           scheduled.current > 0 ||
           !s.cam ||
           !goal ||
@@ -399,9 +409,11 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
         floorId: latest.current.layout.floorId,
         wallHeight: latest.current.layout.wallHeight,
       }),
+      models: statuses,
     };
     hook.scene = scene;
     return () => {
+      unsubscribe();
       if (hook.scene === scene) hook.scene = null;
     };
   }, []);

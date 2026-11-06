@@ -362,7 +362,8 @@ and embed user content (a validation message names the offending key, so an unkn
 
 | `reason` | emitted when | the owner fixes it by |
 |---|---|---|
-| `unreadable` | the file can't be read: permissions, I/O error, a directory instead of a file, a symlink leaving the data root, larger than 16 MiB | fixing permissions / the file system |
+| `unreadable` | the file can't be read: permissions, I/O error, a directory instead of a file, a symlink leaving the data root | fixing permissions / the file system |
+| `too_large` | the file is larger than 16 MiB (refused before parsing) | shrinking the file |
 | `not_json` | not decodable as UTF-8 JSON (truncated, empty, bad encoding, nested too deeply to parse) | repairing the file |
 | `bad_version` | `schemaVersion` missing, not an integer ≥ 1 (`"1"`, `1.0`, `true`), the root isn't a JSON object, or an older version this image has no migration for | fixing `schemaVersion` |
 | `newer_version` | `schemaVersion` newer than this image supports: on `house_newer_version`, and on the `house_invalid` that accompanies it when the newer layout can't be displayed | upgrading the image |

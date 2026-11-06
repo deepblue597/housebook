@@ -40,6 +40,7 @@ def test_reason_enum_is_the_documented_closed_set():
     section = doc.split("### 7.1 ", 1)[1].split("\n#", 1)[0]
     documented = set(re.findall(r"^\| `([a-z_]+)` \|", section, flags=re.M))
     assert documented - {"reason"} == REASONS  # minus the header cell
+    assert {"unreadable", "too_large", "not_json", "bad_version", "newer_version", "invalid"} == REASONS
 
 
 # --- unreadable ------------------------------------------------------------------------------------
@@ -69,10 +70,24 @@ def test_symlink_outside_root_is_unreadable(tmp_path: Path, root: Path, make_cli
     assert only_reason(make_client(root)) == "unreadable"
 
 
-def test_too_large_is_unreadable(root: Path, make_client, monkeypatch):
+# --- too_large -------------------------------------------------------------------------------------
+
+
+def test_too_large_is_its_own_reason(root: Path, make_client, monkeypatch):
+    """M2-08: an oversized file is not a permissions problem; the message stays unchanged."""
     monkeypatch.setattr(indexer_mod, "MAX_HOUSE_BYTES", 64)
     vb.write_house(root, vb.house())
-    assert only_reason(make_client(root)) == "unreadable"
+    c = make_client(root)
+    assert only_reason(c) == "too_large"
+    [p] = house_problems(c)
+    assert p["message"].startswith("house.json is invalid: file is larger than 0 MiB")
+
+
+def test_real_limit_message_names_16_mib(root: Path, make_client):
+    vb.write_house(root, vb.house(name="x" * (16 * 1024 * 1024)))
+    [p] = house_problems(make_client(root))
+    assert p["detail"] == {"reason": "too_large"}
+    assert p["message"].startswith("house.json is invalid: file is larger than 16 MiB")
 
 
 # --- not_json --------------------------------------------------------------------------------------

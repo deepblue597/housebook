@@ -46,7 +46,8 @@ class HouseProblemReason(StrEnum):
     """Why house.json is unusable: `detail.reason` on every `house_invalid` and
     `house_newer_version` problem. A closed set: clients switch on it, never on `message`."""
 
-    unreadable = "unreadable"  # can't be read: permissions, I/O, not a regular file, unsafe path, too large
+    unreadable = "unreadable"  # can't be read: permissions, I/O, not a regular file, unsafe path
+    too_large = "too_large"  # larger than the 16 MiB limit, refused before parsing
     not_json = "not_json"  # not decodable UTF-8 JSON (incl. nesting too deep to parse)
     bad_version = "bad_version"  # schemaVersion missing / not an integer >= 1 / no migration path
     newer_version = "newer_version"  # schemaVersion newer than this image supports

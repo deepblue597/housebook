@@ -1,13 +1,14 @@
 /**
- * Item type → 3D model. Milestone 2 draws placeholder boxes sized by the catalogue footprint
- * and these per-type heights; milestone 3 adds GLB models (DESIGN §7.5) behind the same lookup,
- * keeping the box as the fallback for types without a model.
+ * Item type → the box a 3D model is fitted into: real-world height (and depth for wall and
+ * ceiling items) per type, the width from the catalogue footprint. The model itself (CC0 GLB
+ * or procedural) is picked in features/scene3d/models (lazy 3D chunk); the box is also the
+ * fallback drawn when a model can't be loaded.
  */
 import type { ItemShape } from '../domain/scene';
 import { itemType, placementSpec } from './catalog';
 
 export interface ModelSpec extends ItemShape {
-  /** Placeholder tint (also used for the box until real models exist). */
+  /** Type tint: the fallback box's colour, and a subtle hint on the model's colours. */
   tint: string;
 }
 
@@ -29,7 +30,7 @@ const MODELS: Record<string, ModelSpec> = {
   heater: { height: 0.8, depth: 0.45, tint: HEAT, fill: 0.5 },
   boiler: { height: 0.7, depth: 0.35, tint: HEAT, fill: 0.5 },
   radiator: { height: 0.6, depth: 0.1, tint: HEAT },
-  tv: { height: 0.55, depth: 0.08, tint: '#2f3a40' },
+  tv: { height: 0.55, depth: 0.15, tint: '#2f3a40' },
   router: { height: 0.2, tint: TECH, fill: 0.35 },
   valve: { height: 0.15, tint: '#4f86c6', fill: 0.3 },
   gas_valve: { height: 0.15, depth: 0.12, tint: '#e0b03c', fill: 0.3 },

@@ -16,6 +16,7 @@ export interface ReadOnlyNotice {
 
 const KNOWN: ReadonlySet<string> = new Set<HouseProblemReason>([
   'unreadable',
+  'too_large',
   'not_json',
   'bad_version',
   'newer_version',
@@ -34,6 +35,8 @@ const TEXT: Record<Exclude<HouseProblemReason, 'newer_version'>, string> = {
     'house.json has a missing or unsupported schemaVersion, so the layout is read-only until the file is fixed.',
   unreadable:
     'house.json can’t be read (check the file’s permissions), so the layout is read-only until it can be read again.',
+  too_large:
+    'house.json is larger than 16 MiB, so the layout is read-only until the file is made smaller.',
   not_json:
     'house.json is not valid JSON (a syntax error, such as a missing comma or quote), so the layout is read-only until the file is fixed.',
   invalid: 'house.json is not valid, so the layout is read-only until the file is fixed.',

@@ -42,6 +42,7 @@ interface SceneHook {
   moving: () => boolean;
   frames: () => number;
   info: () => { items: string[]; wallTriangles: number; floorId: string; wallHeight: number };
+  models: () => Record<string, 'loading' | 'glb' | 'procedural' | 'box'>;
 }
 declare global {
   interface Window {
@@ -596,17 +597,24 @@ test('search dims non-matching items in 3D (pixels change), matches keep their c
   page,
 }) => {
   await open3d(page);
-  const before = await pixels(page, [
-    await itemPoint(page, FRIDGE),
-    await itemPoint(page, DISHWASHER),
-  ]);
+  // Sample where each model covers its own tile (M3: a light-coloured model's centre can sit
+  // over the light background, where a dimmed model barely differs; its floor tile doesn't).
+  const placed = exampleHouse() as HouseJson & {
+    placements: { itemId: string; x: number; y: number }[];
+  };
+  const at = async () => {
+    const pts = [];
+    for (const id of [FRIDGE, DISHWASHER]) {
+      const pl = placed.placements.find((q) => q.itemId === id)!;
+      pts.push(await cellPoint(page, pl.x, pl.y));
+    }
+    return pixels(page, pts);
+  };
+  const before = await at();
   await searchBox(page).fill('e15'); // matches the dishwasher only
   await expect(page.getByRole('option', { name: /Dishwasher/ })).toBeVisible();
   await stable(page);
-  const after = await pixels(page, [
-    await itemPoint(page, FRIDGE),
-    await itemPoint(page, DISHWASHER),
-  ]);
+  const after = await at();
   expect(dist(before[0]!, after[0]!), 'fridge is dimmed').toBeGreaterThan(20);
   expect(dist(before[1]!, after[1]!), 'dishwasher is not').toBeLessThan(6);
 });
@@ -1316,16 +1324,16 @@ test.describe('retest: read-only banners by reason, end to end', () => {
     }
   });
 
-  test('M2-08: larger than 16 MiB → "unreadable", without blaming permissions', async ({
+  test('M2-08: larger than 16 MiB → "too_large", without blaming permissions', async ({
     page,
     backend,
   }) => {
-    test.fail(true, 'M2-08: the unreadable banner always says "check the file’s permissions"');
     const padded = JSON.stringify(valid()).replace(/}$/, `${' '.repeat(17 * 1024 * 1024)}}`);
     const { url } = await backend({ house: padded });
     await page.goto(`${url}/`);
     const banner = page.locator('.banner[role="note"]');
-    await expect(banner).toHaveAttribute('data-reason', 'unreadable', { timeout: 15_000 });
+    await expect(banner).toHaveAttribute('data-reason', 'too_large', { timeout: 15_000 });
+    await expect(banner).toContainText('larger than 16 MiB');
     // The owner can't fix a size problem by changing permissions.
     await expect(banner).not.toContainText('permissions');
   });

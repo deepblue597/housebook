@@ -61,6 +61,12 @@ describe('read-only notice (switches on detail.reason, data contract §7.1)', ()
     expect(n.text).not.toMatch(/not valid/);
     expect(n.detail).toContain('PermissionError');
   });
+  it('M2-08: a file over 16 MiB says so and doesn’t blame permissions', () => {
+    const n = readOnlyNotice([p('house_invalid', 'house.json is too large', 'too_large')], 1);
+    expect(n.reason).toBe('too_large');
+    expect(n.text).toMatch(/larger than 16 MiB/);
+    expect(n.text).not.toMatch(/permission/);
+  });
   it('M2-07: the message text is never parsed — only detail.reason counts', () => {
     // Words that used to steer the old regexes, with reasons that say otherwise.
     expect(

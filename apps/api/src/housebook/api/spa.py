@@ -17,6 +17,10 @@ from housebook.ports import UnsafePath
 # Vite emits assets/<name>-<hash>.<ext>; the hash is 8+ url-safe chars.
 _HASHED_RE = re.compile(r"(^|/)assets/.+[-.][A-Za-z0-9_-]{8,}\.[a-z0-9]+$")
 
+# Types Python's built-in mimetypes table lacks; the slim image has no /etc/mime.types,
+# so these would otherwise be served as application/octet-stream (under nosniff).
+_MEDIA_TYPES = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json"}
+
 
 def cache_control_for(rel: str) -> str:
     return IMMUTABLE if _HASHED_RE.search(rel) else NO_CACHE
@@ -50,7 +54,12 @@ def mount_spa(app: FastAPI, static_dir: Path | None) -> None:
 def _file_response(path: Path, cache_control: str, request: Request) -> Response:
     """FileResponse plus conditional GET: Starlette sets an ETag but never answers
     If-None-Match, so index.html (no-cache) was re-downloaded on every revalidation."""
-    response = FileResponse(path, headers={"Cache-Control": cache_control}, stat_result=path.stat())
+    response = FileResponse(
+        path,
+        headers={"Cache-Control": cache_control},
+        media_type=_MEDIA_TYPES.get(path.suffix.lower()),
+        stat_result=path.stat(),
+    )
     etag = response.headers["etag"]
     if matches_if_none_match(request, etag.removeprefix("W/").strip('"')):
         return Response(

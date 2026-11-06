@@ -301,7 +301,7 @@ export interface components {
          *     `house_newer_version` problem. A closed set: clients switch on it, never on `message`.
          * @enum {string}
          */
-        HouseProblemReason: "unreadable" | "not_json" | "bad_version" | "newer_version" | "invalid";
+        HouseProblemReason: "unreadable" | "too_large" | "not_json" | "bad_version" | "newer_version" | "invalid";
         /** ItemDetailOut */
         ItemDetailOut: {
             /** Id */

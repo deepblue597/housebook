@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Bundle budget (DESIGN 15.10): the JavaScript a first visit downloads (the entry script plus
 // everything index.html preloads) must stay at or under 200 KB gzipped. Lazy chunks (Markdown,
-// PDF.js) are listed but don't count. Run after `pnpm build`.
+// PDF.js) are listed but don't count. `pnpm size` builds first, so dist/ is never stale (M2-10).
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

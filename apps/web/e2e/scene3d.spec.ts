@@ -26,6 +26,7 @@ interface SceneHook {
   moving: () => boolean;
   frames: () => number;
   info: () => { items: string[]; wallTriangles: number; floorId: string; wallHeight: number };
+  models: () => Record<string, 'loading' | 'glb' | 'procedural' | 'box'>;
 }
 declare global {
   interface Window {
@@ -34,6 +35,7 @@ declare global {
 }
 
 const SCENE_CHUNK = /\/assets\/Scene3dView-[\w-]+\.js$/;
+const MODEL_FILE = /\.(glb|gltf)$/;
 const toggle = (page: Page, name: '2D' | '3D') =>
   page.getByRole('group', { name: 'Plan style' }).getByRole('button', { name, exact: true });
 const viewport3d = (page: Page) => page.getByRole('region', { name: /^3D view of / });
@@ -201,6 +203,8 @@ test('a drag pans the camera and does not select', async ({ page }) => {
   await page.mouse.down();
   await page.mouse.move(p.x + 80, p.y + 40, { steps: 5 });
   await page.mouse.up();
+  // Read positions only once the last pan frame has been drawn (M2-09).
+  await settled(page);
   await expect(panel(page)).toBeHidden();
   const after = (await scene(page)).camera;
   expect(after.x).not.toBeCloseTo(before.x, 3);
@@ -409,4 +413,105 @@ test('M2-03: the water valve behind a wall stays visible, cut away and with wall
     }
   }
   expect(seen).toEqual([]);
+});
+
+// ---- milestone 3: catalogue models ------------------------------------------------------
+
+const models = (page: Page) => page.evaluate(() => window.__housebook!.scene!.models());
+
+/** Requests for model files, by path. */
+function modelRequests(page: Page): string[] {
+  const seen: string[] = [];
+  page.on('request', (r: Request) => {
+    const path = new URL(r.url()).pathname;
+    if (MODEL_FILE.test(path)) seen.push(path);
+  });
+  return seen;
+}
+
+test('M3: the first visit fetches no model; 3D loads each model file once', async ({ page }) => {
+  const seen = modelRequests(page);
+  await gotoPlan(page);
+  await expect(planItems(page)).toHaveCount(13);
+  expect(seen).toEqual([]);
+
+  await toggle(page, '3D').click();
+  await settled(page);
+  const m = await models(page);
+  expect(Object.keys(m)).toHaveLength(13);
+  expect(Object.values(m).every((k) => k === 'glb' || k === 'procedural')).toBe(true);
+  expect(m[FRIDGE]).toBe('glb');
+  expect(m[DISHWASHER]).toBe('procedural');
+  // Content-hashed files, one request per file, however many items share it.
+  expect(seen.length).toBeGreaterThan(0);
+  expect(new Set(seen).size).toBe(seen.length);
+  for (const path of seen) expect(path).toMatch(/^\/assets\/[a-z_]+-[\w-]{8,}\.glb$/);
+
+  // Back to 2D and to 3D again: cached, nothing fetched twice.
+  await toggle(page, '2D').click();
+  await toggle(page, '3D').click();
+  await settled(page);
+  expect(new Set(seen).size).toBe(seen.length);
+});
+
+test('M3: clicking a model selects its item', async ({ page }) => {
+  await open3d(page);
+  expect((await models(page))[FRIDGE]).toBe('glb');
+  await clickItem(page, FRIDGE);
+  await expect(page).toHaveURL(`/i/${FRIDGE}`);
+  await expect(panel(page).getByRole('heading', { level: 2, name: 'Fridge' })).toBeVisible();
+});
+
+for (const [what, reply, tries] of [
+  ['a missing model (404)', { status: 404, body: 'not found' }, 1],
+  ['a corrupt model file', { status: 200, body: 'this is not a glb' }, 1],
+  ['a server error (retried once)', { status: 503, body: 'busy' }, 2],
+] as const) {
+  test(`M3: ${what} falls back to the box`, async ({ page }) => {
+    let hits = 0;
+    await page.route(/\/assets\/fridge-[\w-]+\.glb$/, (route) => {
+      hits += 1;
+      return route.fulfill({ ...reply, contentType: 'application/octet-stream' });
+    });
+    await open3d(page);
+    const m = await models(page);
+    expect(m[FRIDGE]).toBe('box');
+    expect(m[DISHWASHER]).toBe('procedural');
+    expect(hits).toBe(tries);
+    // Still selectable as a box; no retry loop afterwards.
+    await clickItem(page, FRIDGE);
+    await expect(panel(page).getByRole('heading', { level: 2, name: 'Fridge' })).toBeVisible();
+    await page.waitForTimeout(1500);
+    expect(hits).toBe(tries);
+  });
+}
+
+test('M3: model files are content-hashed and served immutable @smoke', async ({ page }) => {
+  const replies: { path: string; status: number; cache: string; type: string }[] = [];
+  page.on('response', (r) => {
+    const path = new URL(r.url()).pathname;
+    if (MODEL_FILE.test(path)) {
+      const h = r.headers();
+      replies.push({
+        path,
+        status: r.status(),
+        cache: h['cache-control'] ?? '',
+        type: h['content-type'] ?? '',
+      });
+    }
+  });
+  await gotoPlan(page);
+  expect(replies).toEqual([]);
+  await toggle(page, '3D').click();
+  await expect(viewport3d(page)).toHaveAttribute('data-ready', 'true');
+  // The kitchen's fridge is a GLB; wait for it (every type in the house loads in parallel).
+  await expect.poll(() => replies.some((r) => r.path.startsWith('/assets/fridge-'))).toBe(true);
+  for (const r of replies) {
+    expect(r.path).toMatch(/^\/assets\/[a-z_]+-[\w-]{8,}\.glb$/);
+    expect(r.status).toBe(200);
+    expect(r.cache).toContain('immutable');
+    // The slim Python image has no /etc/mime.types, so .glb is octet-stream there (the
+    // loader reads bytes either way); model/gltf-binary where the system knows the type.
+    expect(['model/gltf-binary', 'application/octet-stream']).toContain(r.type);
+  }
 });

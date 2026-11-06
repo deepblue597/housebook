@@ -26,6 +26,11 @@ export interface SceneTestHook {
   frames: () => number;
   /** Ids of the item meshes in the scene, and the walls' triangle count. */
   info: () => { items: string[]; wallTriangles: number; floorId: string; wallHeight: number };
+  /**
+   * What each item on the floor is drawn as: 'glb' / 'procedural' model, 'box' (its model
+   * failed) or 'loading'. `moving()` stays true until every load has finished and been drawn.
+   */
+  models: () => Record<string, 'loading' | 'glb' | 'procedural' | 'box'>;
 }
 
 export interface TestHook {

@@ -3,6 +3,7 @@
 import gzip
 import ipaddress
 import json
+import mimetypes
 import os
 from pathlib import Path
 
@@ -403,6 +404,22 @@ def test_spa_files_answer_304(spa_client: TestClient, path: str, cache: str, enc
     assert r.headers["etag"] == etag and r.headers["cache-control"] == cache
     assert "accept-encoding" in r.headers["vary"].lower()
     assert spa_client.get(path, headers={"If-None-Match": '"other"'}).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "name, media_type", [("house-Ab3dE9fG.glb", "model/gltf-binary"), ("house-Ab3dE9fG.gltf", "model/gltf+json")]
+)
+def test_spa_gltf_media_types_ignore_host_mime_db(
+    spa_client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str, media_type: str
+):
+    # Simulate the slim image: only Python's built-in table, no /etc/mime.types.
+    monkeypatch.setattr(mimetypes, "_db", mimetypes.MimeTypes(filenames=()))
+    assert mimetypes.guess_type(name) == (None, None)
+    (tmp_path / "web" / "assets" / name).write_bytes(b"glTF\x02\x00\x00\x00")
+    r = spa_client.get(f"/assets/{name}")
+    assert r.status_code == 200 and r.headers["content-type"] == media_type
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["cache-control"] == "public, max-age=31536000, immutable"
 
 
 def test_pdf_is_sandboxed_and_range_still_works(client: TestClient):

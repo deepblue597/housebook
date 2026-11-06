@@ -199,7 +199,7 @@ class _Scan:
             return prev
         if len(raw) > MAX_HOUSE_BYTES:  # refused before parsing: too large to read
             limit = f"file is larger than {MAX_HOUSE_BYTES // (1024 * 1024)} MiB"
-            return self._house_failed(prev, Why.unreadable, f"house.json is invalid: {limit}", etag)
+            return self._house_failed(prev, Why.too_large, f"house.json is invalid: {limit}", etag)
         try:
             data = json.loads(raw.decode("utf-8-sig"))
         except RecursionError:

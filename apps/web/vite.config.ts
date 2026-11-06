@@ -20,6 +20,8 @@ export default defineConfig({
   resolve: {
     alias: { '@contract': contractDir },
   },
+  // 3D models (src/assets/models) are assets: `?url` in the app, `?inline` in unit tests.
+  assetsInclude: ['**/*.glb'],
   server: {
     fs: { allow: [repoRoot] },
     proxy: { '/api': apiTarget, '/healthz': apiTarget, '/readyz': apiTarget },
@@ -30,6 +32,9 @@ export default defineConfig({
     // The 3D chunk (three + react-three-fiber + drei, ~250 KB gzipped) is lazy and only loads
     // when 3D is opened; the initial bundle is checked by `pnpm size`.
     chunkSizeWarningLimit: 1000,
+    // 3D models are always separate, content-hashed files (served immutable, fetched only by
+    // the 3D view), never inlined as data: URLs into the 3D chunk.
+    assetsInlineLimit: (file) => (file.endsWith('.glb') ? false : undefined),
   },
   test: {
     environment: 'jsdom',

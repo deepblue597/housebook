@@ -230,8 +230,8 @@ Rules: `domain` imports nothing; `features` never import each other's internals;
 ### 7.5 3D assets
 - Base set: **Kenney Furniture Kit** (CC0), plus Quaternius packs (CC0) for gaps. Keep one visual style.
 - Missing types fall back to a labelled coloured box with the catalogue footprint.
-- Pipeline: Blender (optional tweaks) → `gltf-transform` (dedupe, compress) → `assets/models/*.glb`.
-- Licences recorded in `assets/models/LICENSES.md`.
+- Pipeline: Kenney OBJ → `apps/web/scripts/obj-to-glb.mjs` → `apps/web/src/assets/models/*.glb`, imported with `?url` so names are content-hashed. Types without a CC0 model use procedural models (`features/scene3d/models/procedural.ts`).
+- Licences and sha256 recorded in `apps/web/src/assets/models/LICENSES.md`.
 
 ### 7.6 Modes
 - **View mode:** read-only interaction (default for viewers, and on phones).
