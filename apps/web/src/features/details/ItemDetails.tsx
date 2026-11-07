@@ -9,6 +9,7 @@ import { isWebUrl, safeExternalHref } from '../../domain/urls';
 import { type Model, floorOf, roomOf } from '../../store/model';
 import { useUi } from '../../store/ui';
 import { useData } from '../../store/data';
+import { ItemLayoutActions } from '../editor';
 import { Attachments } from './Attachments';
 import { LogEntryForm } from './LogEntryForm';
 import { manualSearchUrl, resolveWikilink } from './links';
@@ -172,6 +173,8 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
           )}
         </ul>
       )}
+
+      <ItemLayoutActions itemId={item.id} />
 
       <dl className="specs">
         {specs

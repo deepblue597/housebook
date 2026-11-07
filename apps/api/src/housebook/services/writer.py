@@ -22,7 +22,7 @@ from pydantic import ValidationError
 from housebook.config import Settings
 from housebook.domain.catalog import Catalog
 from housebook.domain.frontmatter import MAX_NOTE_BYTES, FrontmatterError, is_housebook_tagged, parse
-from housebook.domain.house import House, house_issues, serialize
+from housebook.domain.house import House, HouseIssue, house_issues, serialize, worse_issues
 from housebook.domain.item import parse_fields
 from housebook.domain.note_edit import (
     Edited,
@@ -155,7 +155,12 @@ class Writer:
 
     def put_house(self, house: House, if_match: str | None, if_none_match: str | None) -> tuple[str, House]:
         """Replace the layout. `If-Match: <etag>` (or `*`) for an existing file; `If-None-Match: *`
-        to create a missing one. Returns the new ETag and the layout as written."""
+        to create a missing one. Returns the new ETag and the layout as written.
+
+        `house` has passed the structural check only (`parse_house`). Order: 409 `unreadable` (the
+        preconditions can't be judged without the file), 428/412, 409 read-only, then the semantic
+        check, under the write lock, against the file on disk (D30): issues that file already has
+        may stay; new ones (and any `house_bad_cell`) are a 422."""
         try:
             raw = self.house_repo.read()
         except (UnsafePath, OSError) as e:
@@ -181,6 +186,15 @@ class Writer:
                 "a valid layout, so it is never overwritten",
                 reason,
             )
+        if hs.etag != current:
+            # Replaced between our read and the rescan: the baseline (and the read-only verdict)
+            # would come from a file the client never matched. (A read-only state may carry the
+            # last good version's ETag, so this is checked after the 409, which never writes.)
+            raise precondition_failed(hs.etag)
+        baseline = house_issues(hs.house) if raw is not None and hs.house is not None else []
+        worse = worse_issues(house_issues(house), baseline)
+        if worse:
+            raise unprocessable(issue_errors(worse))
         if house.schema_ is None and hs.house is not None and hs.house.schema_:
             house = house.model_copy(update={"schema_": hs.house.schema_})  # keep the editor hint
         data = serialize(house)
@@ -382,16 +396,17 @@ class Writer:
                 return item_id
 
 
-def validate_house(data: Any) -> House:
-    """Full validation for PUT (DESIGN 15.2): structure first, then every semantic rule, each
-    reported with its JSON location."""
+def parse_house(data: Any) -> House:
+    """Structural check for PUT (types, ranges, patterns, unknown keys), each error with its JSON
+    location. Semantic rules are judged later by `Writer.put_house` against the file on disk (D30)."""
     try:
-        house = House.model_validate(data, context={"tolerant": True})
+        return House.model_validate(data, context={"tolerant": True})
     except ValidationError as e:
         raise unprocessable(
             [{"type": x["type"], "loc": ["body", *x["loc"]], "msg": x["msg"]} for x in e.errors()]
         ) from e
-    issues = house_issues(house)
-    if issues:
-        raise unprocessable([{"type": i.code, "loc": ["body", *i.loc], "msg": i.message} for i in issues])
-    return house
+
+
+def issue_errors(issues: list[HouseIssue]) -> list[dict[str, Any]]:
+    """Semantic issues in the `{type, loc, msg}` shape of a 422 (`type` = the problem kind)."""
+    return [{"type": i.code, "loc": ["body", *i.loc], "msg": i.message} for i in issues]

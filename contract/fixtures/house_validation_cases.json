@@ -1,5 +1,5 @@
 {
-  "description": "Layouts PUT /api/house must reject with 422 (`errors`: each {type, loc} appears in the response's `detail`, where loc is prefixed with \"body\") or accept (`valid`). Semantic types are the house_* problem kinds (data contract §2.1); structural ones are Pydantic error types. The frontend can run the same cases against its own pre-save checks.",
+  "description": "Layouts PUT /api/house must reject with 422 (`errors`: each {type, loc} appears in the response's `detail`, where loc is prefixed with \"body\") or accept (`valid`). `cases` and `valid` are judged against a file on disk without semantic issues. `inherited` cases (D30) are judged against `baseline`, the file on disk (null: no file, created with If-None-Match: *): issues the baseline already has may stay or move, but not grow; `errors` is then the exact set the 422 lists, or empty when the layout is accepted. Semantic types are the house_* problem kinds (data contract §2.1); structural ones are Pydantic error types. The frontend can run the same cases against its own pre-save checks.",
   "cases": [
     {
       "id": "duplicate-room-id",
@@ -1291,6 +1291,1432 @@
           }
         ]
       }
+    }
+  ],
+  "inherited": [
+    {
+      "id": "inherited-unknown-room-kept",
+      "description": "a cell of a deleted room that is already on disk may stay (M5-03)",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 5,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "inherited-unknown-room-moved",
+      "description": "counted per (floor, room), not per tile: the inherited tile may move",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "2,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "unknown-room-one-more",
+      "description": "one more tile of the same missing room makes the layout worse; every tile of that subject is listed",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone",
+              "2,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "house_unknown_room",
+          "loc": [
+            "floors",
+            0,
+            "cells",
+            "1,0"
+          ]
+        },
+        {
+          "type": "house_unknown_room",
+          "loc": [
+            "floors",
+            0,
+            "cells",
+            "2,0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unknown-room-other-room",
+      "description": "a tile of another missing room is new, even if one tile of a missing room goes",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_other"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "house_unknown_room",
+          "loc": [
+            "floors",
+            0,
+            "cells",
+            "1,0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inherited-issue-not-listed",
+      "description": "only the issues that got worse are reported; the inherited one is not",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone",
+              "9,0": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "house_outside_grid",
+          "loc": [
+            "floors",
+            0,
+            "cells",
+            "9,0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "grow-north-with-inherited-issues",
+      "description": "growing north shifts every coordinate; issues keyed without coordinates stay the same",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone",
+              "5,0": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 1,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 4
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,1": "r1",
+              "3,3": "r1",
+              "1,1": "rm_gone",
+              "5,1": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 1,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 1,
+            "y": 1,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 1,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "inherited-duplicate-placement-kept",
+      "description": "an item placed twice on disk may stay placed twice (both copies may move)",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 1,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 2,
+            "y": 0,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 3,
+            "y": 1,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "duplicate-placement-third-copy",
+      "description": "a third copy of an item placed twice on disk is worse",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 1,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 1,
+            "y": 0,
+            "rotation": 0
+          },
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 2,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "house_duplicate_placement",
+          "loc": [
+            "placements",
+            1,
+            "itemId"
+          ]
+        },
+        {
+          "type": "house_duplicate_placement",
+          "loc": [
+            "placements",
+            2,
+            "itemId"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "inherited-duplicate-room-id-kept",
+      "description": "a duplicate room id on disk may stay (which one is meant is a judgement)",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          },
+          {
+            "id": "r1",
+            "name": "Again",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          },
+          {
+            "id": "r1",
+            "name": "Again 2",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "inherited-placement-outside-grid-moved",
+      "description": "a placement outside the grid on disk may move and stay outside",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 9,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 8,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "inherited-opening-unknown-floor-kept",
+      "description": "an opening on an unknown floor on disk may stay",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f_gone",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f_gone",
+            "x": 4,
+            "y": 1,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "id": "bad-cell-always-rejected",
+      "description": "a malformed cell key is never let through, even if the file on disk has it (the server normalises it when reading)",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "01,0": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "01,0": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "house_bad_cell",
+          "loc": [
+            "floors",
+            0,
+            "cells",
+            "01,0"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "structural-always-rejected",
+      "description": "structural errors block whatever the file on disk has",
+      "baseline": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 45
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "literal_error",
+          "loc": [
+            "placements",
+            0,
+            "rotation"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "no-file-everything-is-new",
+      "description": "with no house.json (If-None-Match: *) there is no baseline: every semantic issue is new",
+      "baseline": null,
+      "house": {
+        "schemaVersion": 1,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1",
+              "1,0": "rm_gone"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "house_unknown_room",
+          "loc": [
+            "floors",
+            0,
+            "cells",
+            "1,0"
+          ]
+        }
+      ]
     }
   ]
 }

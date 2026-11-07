@@ -1,11 +1,14 @@
-import { type KeyboardEvent, useCallback, useMemo, useRef } from 'react';
+import { type KeyboardEvent, useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { useResolvedTheme } from '../../app/theme';
+import { useToolPointer } from '../editor';
 import { useData } from '../../store/data';
+import { useEditor } from '../../store/editor';
 import type { FloorModel } from '../../store/model';
 import { useSearchResults } from '../../store/search';
 import { useUi } from '../../store/ui';
 import { FloorTabs } from '../../components/FloorTabs';
-import { planBounds } from './geometry';
+import { EditOverlay } from './EditOverlay';
+import { S, planBounds } from './geometry';
 import { PlanSvg } from './PlanSvg';
 import { usePanZoom } from './usePanZoom';
 
@@ -21,6 +24,30 @@ export function PlanView({ floor }: { floor: FloorModel }) {
   const { width, depth } = model.grid;
   const bounds = useMemo(() => planBounds({ width, depth }), [width, depth]);
   const { view, fit, zoomBy, handlers } = usePanZoom(viewport, bounds, floor.floor.id);
+  const editTool = useEditor((s) => (s.mode === 'edit' ? s.tool : null));
+
+  // Edit mode: pointer position -> grid cell for the active tool (DESIGN §7.3).
+  const svg = useRef<SVGSVGElement>(null);
+  const viewRef = useRef(view);
+  useLayoutEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+  const toCell = useCallback((clientX: number, clientY: number) => {
+    const el = svg.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const v = viewRef.current;
+    return {
+      x: Math.floor((clientX - r.left - v.tx) / v.k / S),
+      y: Math.floor((clientY - r.top - v.ty) / v.k / S),
+    };
+  }, []);
+  const pointer = useToolPointer({
+    floorId: floor.floor.id,
+    target: viewport,
+    toCell,
+    pan: handlers,
+  });
 
   const onItem = useCallback((id: string) => select({ kind: 'item', id }), [select]);
   const onRoom = useCallback(
@@ -64,9 +91,10 @@ export function PlanView({ floor }: { floor: FloorModel }) {
         role="region"
         aria-label={`Plan of ${floor.floor.name}. Drag to pan, scroll or pinch to zoom.`}
         onKeyDown={onKeyDown}
-        {...handlers}
+        data-edit-tool={editTool ?? undefined}
+        {...pointer}
       >
-        <svg className="plan" role="group" aria-label={`${floor.floor.name} plan`}>
+        <svg ref={svg} className="plan" role="group" aria-label={`${floor.floor.name} plan`}>
           <g transform={`translate(${view.tx} ${view.ty}) scale(${view.k})`}>
             <PlanSvg
               model={model}
@@ -82,6 +110,7 @@ export function PlanView({ floor }: { floor: FloorModel }) {
               onItem={onItem}
               onRoom={onRoom}
             />
+            <EditOverlay floorId={floor.floor.id} grid={model.grid} />
           </g>
         </svg>
       </div>

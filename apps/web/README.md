@@ -2,8 +2,8 @@
 
 The Housebook SPA: the 2D floor plan, a lazy-loaded 3D view (milestone 2), a
 Floor → Room → Item list, item and room details, client-side search, live sync and a problems
-panel (milestone 4), and the first write: maintenance log entries for editors. React + TypeScript +
-Vite, Zustand for state; three.js via react-three-fiber (+ drei) for 3D.
+panel (milestone 4), maintenance log entries, and the layout editor (milestone 5). React +
+TypeScript + Vite, Zustand for state; three.js via react-three-fiber (+ drei) for 3D.
 
 ## Run
 
@@ -42,11 +42,16 @@ src/
   domain/      pure TS, no React: text folding, search, status rules, dates, notes conventions
                (error codes, maintenance log), coordinates, walls/areas/labels, 3D geometry
                (item transforms, wall boxes with door/window cuts, merged mesh buffers, picking),
-               colour contrast, URL allowlist, wikilinks. ESLint forbids UI imports here.
+               colour contrast, URL allowlist, wikilinks, layout editing (layout.ts: rectangles,
+               occupancy/stacking, rotate/move clamping, grid resize with shift and loss).
+               ESLint forbids UI imports here.
+  commands/    layout edits as plain-data commands: apply → new layout + exact inverse, or a
+               conflict; replay of pending commands on a fresh layout (412). Pure (domain only).
   catalog/     item types from contract/catalog.json, type icons, type → 3D model (box sizes)
   api/         generated OpenAPI types + a small typed fetch client
   store/       Zustand: data (snapshot + ETag, single-item updates, writes, one ordered queue),
                sync (SSE client + polling fallback), ui (view, floor, selection, query, theme),
+               editor (mode, tool, undo/redo history, pending edits, debounced save, replay),
                the derived read model (incl. missing-note ghosts), search results
   features/
     plan2d/    SVG plan, pan/zoom (mouse, wheel, touch pinch)
@@ -55,9 +60,14 @@ src/
     details/   item and room panel, Markdown notes (lazy), attachments, PDF.js viewer (lazy)
     search/    search combobox
     problems/  ⚠ badge + lazy problems panel (GET /api/problems grouped by kind, Adopt)
+    editor/    edit mode: tools as small state machines (tools.ts), pointer → tool forwarding
+               shared by 2D and 3D (useToolPointer), previews, keyboard shortcuts, Edit toggle,
+               messages, layout actions in the details panel; the side bar (rail, rooms,
+               catalogue, Unplaced tray) and the resize/new-item dialogs are a lazy chunk
   app/         shell, router (/i/<id>), theme, 2D/3D toggle + lazy 3D loader, WebGL probe,
                test hook (non-production builds only)
   components/  shared UI bits (dialog, status wording)
+  strings/     UI text by area (editor.ts), DESIGN D23
 ```
 
 The shared contract is imported as `@contract/…` (`../../contract`).
@@ -95,6 +105,24 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 - **Writes:** the role comes from `/api/me`; viewers (and an unknown role) see no write UI.
   Editors get "Add to maintenance log" in the item panel (`POST /api/items/{id}/log`, no
   If-Match; disabled while the note is unreadable).
+- **Layout editor (milestone 5, DESIGN §7.3, D17, D23–D29):** "Edit" in the top bar (editors,
+  writable layout) opens a side bar: tools Select/move (V), Paint (B), Erase (E), undo/redo,
+  Resize house…, the save state, the room list (add, rename, recolour, paint with, delete when
+  unused), the catalogue (Add <type> arms the place tool) and the Unplaced tray (choose or drag a
+  note onto the plan). Both views turn the pointer into a grid cell and hand it to the tool;
+  presses the tool doesn't want, wheel and two fingers still pan/zoom. Paint and erase take a
+  dragged rectangle as one undo step; the select tool selects (a click on the selected item
+  cycles a stack), drags items by whole tiles; R rotates 90° in place, Delete moves the item to
+  the tray, Ctrl+Z / Ctrl+Shift+Z undo/redo, Esc cancels. A new item from the catalogue asks for a
+  name, creates the note (`POST /api/items`, folder from the tile's room), then adds the
+  placement (D8); undo removes only the placement. Ghosts (missing notes) get Relink (to an
+  unplaced note) and Remove placement in the panel. Every edit is a command (`commands/`) shown
+  at once and saved with `PUT /api/house` + `If-Match` one second after the last edit, in the data
+  queue; on `412` the layout is fetched, the pending commands are replayed on it and the save is
+  retried; edits that no longer apply are dropped with a message (and leave the history). A
+  `house.changed` while edits are pending rebases them the same way. Resize grows or shrinks
+  any side; north/west growth shifts everything; any loss is listed and needs a tick; undo
+  restores it.
 - **Status:** the snapshot's status is used while its `today` is still today in the household
   time zone; after midnight the client recomputes with the same rules (golden fixtures).
 - **Search** runs on the client over the snapshot (D9) with the contract's folding and ranking;
@@ -133,6 +161,11 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   closes; reduced motion respected; 44 px targets on touch screens. axe runs in e2e on the plan,
   the details panel, the list, dark mode and a phone viewport.
 
+## Known limits
+
+- Painting very large areas is slow: the 2D plan draws one SVG `<rect>` per tile, so one
+  rectangle of roughly 50–100k tiles freezes the page for over a second (milestone 8).
+
 ## Tests
 
 - `src/domain/status.test.ts` and `search.test.ts` run `contract/fixtures/status_cases.json` and
@@ -151,6 +184,12 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   `features/details/LogEntryForm.test.tsx`, `features/plan2d/PlanSvg.test.tsx` (ghost, stale).
 - Component tests: search box, item details (chips, link allowlist, Obsidian link), Markdown
   (raw HTML, `javascript:`, wikilinks), list keyboard navigation, snapshot loading (304, errors).
+- Editor: `domain/layout.test.ts` (rectangles, stacking, rotate/move clamping, resize shift and
+  loss), `commands/commands.test.ts` (every command applied and undone exactly, conflicts,
+  idempotence, batch all-or-nothing, random edit sequences undone to the start, replay with kept
+  and dropped commands), `features/editor/tools.test.ts` (tool state machines, previews) and
+  `store/editor.test.ts` (debounce and If-Match, undo/redo saved, D8 order, 412 replay with and
+  without drops, rebase on `house.changed`, edits during a save, 422/network errors, ghosts).
 - E2E (`e2e/`, Playwright, Chromium). Known bugs are reproduced as `test.fail()` tests named
   `FE-NN: …`; when one starts passing, Playwright reports it, so drop the `test.fail` line.
   - `app.spec.ts`: core journeys (plan, dishwasher → E15, room panel, search, PDF, deep links,
@@ -183,6 +222,24 @@ The shared contract is imported as `@contract/…` (`../../contract`).
     image too and checks that the hook isn't there.
   - `gaps.spec.ts`: Find manual online, Copy path (with the select fallback), heading wikilinks,
     protocol-relative links, match counts only where there are matches, two-finger pan.
+  - `editor.spec.ts`: the layout editor against a real backend (editor role), checking
+    `house.json` on disk: edit mode and axe, rectangle paint and erase with undo/redo, a new item
+    from the catalogue (note file, then placement), move/rotate/remove/place from the tray, drag
+    from the tray, stack cycling, rooms, resize growing (shift) and shrinking (loss, confirmation,
+    undo), one debounced PUT with If-Match, 412 replay (kept and dropped edits, SSE blocked),
+    an SSE layout change while an edit is pending, ghost relink/remove, and paint/move/place
+    in 3D.
+  - `editor-verify.spec.ts`: milestone 5 verification: rectangles past the grid edge, Esc
+    mid-drag, Ctrl+Z inside a text field, growth on every side (exact shift), 1 × 1 and 512 × 512,
+    shrink + tray + undo, rotation near the edge, undoing a new item (note kept), name clashes,
+    ghost relink undo and Delete, leaving edit mode/the page, network errors, viewers, 2D ↔ 3D
+    mid-edit, read-only while pending, two tabs, phone; other writers' resizes (translated,
+    ambiguous or mixed → dropped with a message, pending own resize), lost save responses, D30
+    repairs (all problems at once, undo before/after save, beyond 512, races with another tab or
+    an external edit), ordinary edits by another writer not taken for a shift, rooms recreated
+    from odd/long/empty ids, house.json invalid then valid again (SSE on/off), first-run houses
+    with few or no anchors; known bugs as
+    `M5-NN` `test.fail()`s.
   - `retest.spec.ts`: regression probes for the FE-01…FE-09 fixes: keyboard-only and backdrop
     dialog closing, a refresh landing mid-drag or mid-pinch, every read-only house.json cause,
     Esc with an empty query, refused clipboard, link tricks (`//host`, `/\\host`, entity- and

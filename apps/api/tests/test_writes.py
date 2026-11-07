@@ -172,6 +172,153 @@ def test_put_house_reports_every_semantic_issue(editor: TestClient):
     ]
 
 
+# --- D30: a save may not make the layout worse than the file on disk ------------------------------
+
+
+def put_on(c: TestClient, root: Path, baseline: dict | None) -> str | None:
+    """Put `baseline` on disk as the current house.json (None: no file) and return its ETag."""
+    path = root / "house.json"
+    if baseline is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(json.dumps(baseline, indent=2))
+    c.app.state.ctx.indexer.scan()
+    return None if baseline is None else c.get("/api/house").headers["etag"]
+
+
+@pytest.mark.parametrize("case", load_fixture("house_validation_cases.json")["inherited"], ids=lambda c: c["id"])
+def test_put_house_judged_against_the_file_on_disk(editor: TestClient, example_root: Path, case: dict):
+    etag = put_on(editor, example_root, case["baseline"])
+    before = (example_root / "house.json").read_bytes() if etag else None
+    headers = {"If-Match": etag} if etag else {"If-None-Match": "*"}
+    r = put_house(editor, copy.deepcopy(case["house"]), **headers)
+    if not case["errors"]:
+        assert r.status_code == 200, r.text
+        return
+    assert r.status_code == 422, r.text
+    got = sorted((e["type"], e["loc"]) for e in r.json()["detail"])
+    assert got == sorted((e["type"], ["body", *e["loc"]]) for e in case["errors"])  # only the offending ones
+    after = (example_root / "house.json").read_bytes() if (example_root / "house.json").exists() else None
+    assert after == before and history(example_root) == []
+
+
+@pytest.fixture
+def m5_03(example_root: Path, make_client: ClientFactory) -> TestClient:
+    """The example home with a hand-edit leftover: a tile of a deleted room (M5-03)."""
+    path = example_root / "house.json"
+    data = json.loads(path.read_text())
+    data["floors"][0]["cells"]["0,0"] = "rm_gone"
+    path.write_text(json.dumps(data, indent=2))
+    return make_client(example_root, anon_role="editor")
+
+
+def test_inherited_unknown_room_does_not_block_saves(m5_03: TestClient, example_root: Path):
+    assert "house_unknown_room" in {p["kind"] for p in m5_03.get("/api/problems").json()["problems"]}
+    data, etag = house_of(m5_03)
+    data["rooms"][0]["name"] = "Lounge"
+    r = put_house(m5_03, data, etag)
+    assert r.status_code == 200, r.text
+    assert json.loads((example_root / "house.json").read_text())["floors"][0]["cells"]["0,0"] == "rm_gone"
+    data, etag = house_of(m5_03)
+    del data["floors"][0]["cells"]["0,0"]  # the repair ("Erase tiles") is just another save
+    assert put_house(m5_03, data, etag).status_code == 200
+
+
+@pytest.mark.parametrize(
+    "cell, room",
+    [("0,0", "rm_other"), ("15,0", "rm_gone")],
+    ids=["other-missing-room", "one-more-tile-of-the-same-room"],
+)
+def test_new_unknown_room_tiles_are_still_rejected(m5_03: TestClient, example_root: Path, cell: str, room: str):
+    before = (example_root / "house.json").read_bytes()
+    data, etag = house_of(m5_03)
+    data["floors"][0]["cells"][cell] = room
+    r = put_house(m5_03, data, etag)
+    assert r.status_code == 422, r.text
+    assert {e["type"] for e in r.json()["detail"]} == {"house_unknown_room"}
+    assert ["body", "floors", 0, "cells", cell] in [e["loc"] for e in r.json()["detail"]]
+    assert (example_root / "house.json").read_bytes() == before
+
+
+def test_bad_cell_key_is_always_rejected(m5_03: TestClient):
+    data, etag = house_of(m5_03)
+    data["floors"][0]["cells"]["01,0"] = data["floors"][0]["cells"].pop("1,0", "rm_gone")
+    r = put_house(m5_03, data, etag)
+    assert r.status_code == 422 and [e["type"] for e in r.json()["detail"]] == ["house_bad_cell"]
+
+
+def test_if_match_star_is_judged_against_the_file_on_disk(m5_03: TestClient):
+    data, _ = house_of(m5_03)
+    data["grid"]["width"] = 17
+    assert put_house(m5_03, data, "*").status_code == 200  # the inherited tile may stay
+    data["floors"][0]["cells"]["16,0"] = "rm_gone"
+    assert put_house(m5_03, data, "*").status_code == 422  # one more is worse, even with `*`
+
+
+def test_create_with_if_none_match_is_fully_validated(m5_03: TestClient, example_root: Path):
+    data, _ = house_of(m5_03)  # carries the rm_gone tile
+    put_on(m5_03, example_root, None)
+    r = put_house(m5_03, data, **{"If-None-Match": "*"})
+    assert r.status_code == 422 and [e["type"] for e in r.json()["detail"]] == ["house_unknown_room"]
+    assert not (example_root / "house.json").exists()
+    data["floors"][0]["cells"]["0,0"] = data["rooms"][0]["id"]
+    assert put_house(m5_03, data, **{"If-None-Match": "*"}).status_code == 200
+
+
+def test_preconditions_and_read_only_come_before_the_semantic_422(editor: TestClient, example_root: Path):
+    data, etag = house_of(editor)
+    data["floors"][0]["cells"]["0,0"] = "rm_gone"  # a new semantic issue
+    assert put_house(editor, data).status_code == 428
+    assert put_house(editor, data, '"0000"').status_code == 412
+    assert put_house(editor, data, etag).status_code == 422
+    data["placements"][0]["rotation"] = 45  # structure is checked before anything else
+    assert put_house(editor, data).status_code == 422
+    del data["placements"][0]["rotation"]
+    path = example_root / "house.json"
+    path.write_text(path.read_text().replace('"schemaVersion": 1', '"schemaVersion": 2'))
+    editor.app.state.ctx.indexer.scan()
+    r = put_house(editor, data, "*")
+    assert r.status_code == 409 and r.json()["reason"] == "newer_version"
+
+
+def test_put_house_412_when_the_file_is_replaced_during_the_rescan(
+    editor: TestClient, example_root: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """The ETag matched the file read first; the index lagged, and the rescan read a different
+    file. Its read-only verdict and D30 baseline don't belong to what the client matched."""
+    data, _ = house_of(editor)
+    path = example_root / "house.json"
+    matched = path.read_text().replace("Living room", "Salon")
+    path.write_text(matched)  # changed on disk; the watcher hasn't noticed, the index lags
+    indexer = editor.app.state.ctx.indexer
+    scan = indexer.scan
+    swapped = matched.replace("Salon", "Parlour")
+
+    def replaced_then_scan():
+        if path.read_text() == matched:
+            path.write_text(swapped)  # another writer replaces the file between read and rescan
+        return scan()
+
+    monkeypatch.setattr(indexer, "scan", replaced_then_scan)
+    r = put_house(editor, data, f'"{content_hash(matched.encode())}"')
+    assert r.status_code == 412, r.text
+    assert r.json()["currentEtag"] == content_hash(swapped.encode())
+    assert path.read_text() == swapped and history(example_root) == []
+
+
+def test_unreadable_house_json_is_409_before_the_preconditions(editor: TestClient, example_root: Path):
+    if os.geteuid() == 0:
+        pytest.skip("root can read a chmod 000 file")
+    data, _ = house_of(editor)
+    path = example_root / "house.json"
+    path.chmod(0)
+    try:
+        r = put_house(editor, data)  # no If-Match: still 409, the file can't be judged at all
+        assert r.status_code == 409 and r.json()["reason"] == "unreadable"
+    finally:
+        path.chmod(0o644)
+
+
 def test_put_house_bad_json_and_size(editor: TestClient):
     _, etag = house_of(editor)
     r = editor.put("/api/house", content=b"{nope", headers={"If-Match": etag, "Content-Type": "application/json"})

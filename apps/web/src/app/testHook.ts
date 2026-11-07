@@ -5,6 +5,7 @@
  * `--mode e2e`; `pnpm build` (and the Docker image) drop this code entirely.
  */
 import { useData } from '../store/data';
+import { useEditor } from '../store/editor';
 import { useUi } from '../store/ui';
 
 export interface ScenePoint {
@@ -36,6 +37,7 @@ export interface SceneTestHook {
 export interface TestHook {
   ui: typeof useUi;
   data: typeof useData;
+  editor: typeof useEditor;
   scene: SceneTestHook | null;
 }
 
@@ -47,5 +49,5 @@ declare global {
 
 export function installTestHook(): void {
   if (import.meta.env.MODE === 'production') return;
-  window.__housebook = { ui: useUi, data: useData, scene: null };
+  window.__housebook = { ui: useUi, data: useData, editor: useEditor, scene: null };
 }

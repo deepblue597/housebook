@@ -29,10 +29,21 @@ const MAX_K = 6;
 const DRAG_PX = 6;
 const PAD = 12;
 
-const clampK = (k: number) => Math.min(MAX_K, Math.max(MIN_K, k));
+const clampK = (k: number, minK = MIN_K) => Math.min(MAX_K, Math.max(minK, k));
+
+/** The scale that fits `bounds` into a viewport. */
+const fitScale = (bounds: Bounds, width: number, height: number) =>
+  Math.min((width - 2 * PAD) / bounds.w, (height - 2 * PAD) / bounds.h) || 1;
+
+/**
+ * The smallest zoom: MIN_K, or less when the house is so large that MIN_K wouldn't show all of
+ * it (grids up to 512 tiles, M5-06). Fit always shows the whole plan.
+ */
+export const minScale = (bounds: Bounds, width: number, height: number): number =>
+  Math.min(MIN_K, Math.max(1e-3, fitScale(bounds, width, height)));
 
 export function fitView(bounds: Bounds, width: number, height: number): View {
-  const k = clampK(Math.min((width - 2 * PAD) / bounds.w, (height - 2 * PAD) / bounds.h) || 1);
+  const k = clampK(fitScale(bounds, width, height), minScale(bounds, width, height));
   return {
     k,
     tx: (width - bounds.w * k) / 2 - bounds.x * k,
@@ -41,8 +52,8 @@ export function fitView(bounds: Bounds, width: number, height: number): View {
 }
 
 /** Zoom by `factor` keeping the screen point (px, py) fixed. */
-export function zoomAt(v: View, factor: number, px: number, py: number): View {
-  const k = clampK(v.k * factor);
+export function zoomAt(v: View, factor: number, px: number, py: number, minK = MIN_K): View {
+  const k = clampK(v.k * factor, minK);
   const f = k / v.k;
   return { k, tx: px - (px - v.tx) * f, ty: py - (py - v.ty) * f };
 }
@@ -59,8 +70,8 @@ export interface TwoFinger {
  * point that was under the previous midpoint to the new midpoint. Pan and pinch in one go, so
  * the anchor doesn't drift and two fingers moving together pan the plan.
  */
-export function twoFingerStep(v: View, prev: TwoFinger, cur: TwoFinger): View {
-  const k = prev.d > 0 ? clampK((v.k * cur.d) / prev.d) : v.k;
+export function twoFingerStep(v: View, prev: TwoFinger, cur: TwoFinger, minK = MIN_K): View {
+  const k = prev.d > 0 ? clampK((v.k * cur.d) / prev.d, minK) : v.k;
   const f = k / v.k;
   return { k, tx: cur.x - (prev.x - v.tx) * f, ty: cur.y - (prev.y - v.ty) * f };
 }
@@ -85,6 +96,14 @@ export function usePanZoom(target: RefObject<HTMLElement | null>, bounds: Bounds
     frame: null,
   });
   const suppressClick = useRef(false);
+  const boundsRef = useRef(bounds);
+  useEffect(() => {
+    boundsRef.current = bounds;
+  }, [bounds]);
+  const minK = () => {
+    const el = target.current;
+    return el ? minScale(boundsRef.current, el.clientWidth, el.clientHeight) : MIN_K;
+  };
 
   const fit = () => {
     const el = target.current;
@@ -97,7 +116,7 @@ export function usePanZoom(target: RefObject<HTMLElement | null>, bounds: Bounds
     const el = target.current;
     if (!el) return;
     userMoved.current = true;
-    setView((v) => zoomAt(v, factor, el.clientWidth / 2, el.clientHeight / 2));
+    setView((v) => zoomAt(v, factor, el.clientWidth / 2, el.clientHeight / 2, minK()));
   };
 
   // Fit on mount, on floor change and on resize (unless the user has moved the plan since).
@@ -126,7 +145,8 @@ export function usePanZoom(target: RefObject<HTMLElement | null>, bounds: Bounds
       const r = el.getBoundingClientRect();
       const factor = Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015));
       userMoved.current = true;
-      setView((v) => zoomAt(v, factor, e.clientX - r.left, e.clientY - r.top));
+      const min = minScale(boundsRef.current, el.clientWidth, el.clientHeight);
+      setView((v) => zoomAt(v, factor, e.clientX - r.left, e.clientY - r.top, min));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
@@ -154,7 +174,7 @@ export function usePanZoom(target: RefObject<HTMLElement | null>, bounds: Bounds
     if (!cur || !prev) return;
     g.two = cur;
     userMoved.current = true;
-    setView((v) => twoFingerStep(v, prev, cur));
+    setView((v) => twoFingerStep(v, prev, cur, minK()));
   };
 
   const endTwoFinger = () => {

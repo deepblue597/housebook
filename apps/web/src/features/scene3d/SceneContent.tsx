@@ -195,12 +195,14 @@ function GhostNode({
   selected,
   accent,
   color,
+  onHover,
   onItem,
 }: {
   g: SceneGhost;
   selected: boolean;
   accent: string;
   color: string;
+  onHover: (id: string | null) => void;
   onItem: (id: string) => void;
 }) {
   const t = g.transform;
@@ -224,6 +226,11 @@ function GhostNode({
         e.stopPropagation();
         onItem(g.id);
       }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        onHover(g.id);
+      }}
+      onPointerOut={() => onHover(null)}
     >
       <mesh geometry={box}>
         <meshBasicMaterial
@@ -341,6 +348,7 @@ function SceneContentImpl({
           selected={g.id === selectedItemId}
           accent={palette.accent}
           color={palette.wall}
+          onHover={onHover}
           onItem={onItem}
         />
       ))}

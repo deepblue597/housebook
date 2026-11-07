@@ -9,10 +9,11 @@ parts live in [`/contract`](../contract):
 | `contract/catalog.json` | Item type catalogue |
 | `contract/fixtures/status_cases.json` | Golden cases for status rules, "today" and `check_every` parsing |
 | `contract/fixtures/search_cases.json` | Golden cases for folding, error-code extraction and search ranking |
-| `contract/fixtures/house_validation_cases.json` | Layouts `PUT /api/house` rejects (with the expected error `type`/`loc`) or accepts (§2.1, §8.1) |
+| `contract/fixtures/house_validation_cases.json` | Layouts `PUT /api/house` rejects (with the expected error `type`/`loc`) or accepts (§2.1, §8.1), including `inherited` cases judged against a given file on disk (D30) |
 | `contract/fixtures/frontmatter_write_cases.json` | How the server writes one frontmatter value: plain vs. quoted (§3.6) |
 
-Backend (pytest) and frontend (vitest) both run the fixtures. If a rule changes, change the
+Backend (pytest) runs every fixture; the frontend (vitest) runs the status, search and placement
+cases (`house_validation_cases.json` and `frontmatter_write_cases.json` are server-side only for now). If a rule changes, change the
 fixture first.
 
 ## 1. Data root layout
@@ -82,7 +83,8 @@ served as `"1,0"`; keys that aren't two non-negative integers are dropped; a loo
 collides with an existing canonical one is dropped. Each case is a `house_bad_cell` problem, so
 the API never serves a key its own schema rejects.
 
-`PUT /api/house` rejects a layout that breaks any rule with `422` (§8.1). A hand-edited
+`PUT /api/house` rejects a layout that breaks a structural rule, or breaks a semantic rule
+more than the file on disk already does, with `422` (§8.1). A hand-edited
 file that breaks semantic rules still loads; each issue becomes a problem
 (`house_duplicate_id`, `house_bad_cell`, `house_outside_grid`, `house_unknown_room`,
 `house_unknown_floor`, `house_duplicate_placement`). A file that fails structural validation
@@ -423,7 +425,8 @@ next `GET` already show the change, and other clients get an event (§9).
 `etag` / `houseEtag` field of the snapshot; quoted, unquoted and `W/` forms are all accepted). It is
 compared with the hash of the file **on disk**, not the index, so a save in Obsidian that the
 watcher hasn't seen yet still makes a stale ETag fail. `If-Match: *` means "overwrite whatever is
-there" (the UI's *overwrite* after a conflict).
+there" (the UI's *overwrite* after a conflict); for `PUT /api/house` the new layout is still judged
+against the file on disk (§8.1).
 
 | Status | When | Body |
 |---|---|---|
@@ -444,11 +447,34 @@ there" (the UI's *overwrite* after a conflict).
 Body: the whole layout, as `GET /api/house` returns it. `If-Match` or `If-None-Match` is required
 (`428` without either), evaluated in RFC 9110 order: `If-Match` first, then `If-None-Match`, which
 fails (`412`) when it is `*` and the file exists, or lists the current ETag. To create a missing
-`house.json` send `If-None-Match: *`. Validation: structure (Pydantic) and every semantic rule
-of §2.1, each issue reported separately, e.g.
+`house.json` send `If-None-Match: *`. A read-only `house.json` (§2.3) is never written (`409`).
+
+Validation (D30: a save may not make the layout worse than the file on disk; it doesn't have to
+make it perfect):
+
+- **Structure** (Pydantic: types, ranges, patterns, unknown keys) is always enforced, right
+  after the role, size and content-type checks (`403`, `413`, `415`) and before the preconditions.
+- **`house_bad_cell`** (a cell key that isn't canonical `x,y`) is always rejected: the server
+  normalises such keys when it reads a file, so a client never needs to send one.
+- **The other semantic rules of §2.1** are compared with the file **on disk** (also for
+  `If-Match: *`; with no file, e.g. `If-None-Match: *`, every issue counts as new). Each issue has
+  a subject without list indexes or coordinates: unknown room → (floor, room id); duplicate
+  placement → item id; placement outside the grid or on an unknown floor → item id; cells outside
+  the grid → floor; openings outside the grid or on an unknown floor → floor (counted apart from
+  cells); duplicate id → (room or floor, id).
+  The request is rejected when a `(type, subject)` pair occurs more often than in the file on disk.
+  So problems a hand-edit left behind may stay, move (a resize or a move shifts coordinates) or go
+  away, but one more tile of a missing room, a third copy of a placement, or a new kind of problem
+  is refused.
+
+A `422` lists only the offending issues (every issue of a subject that got worse), each
+separately, e.g.
 `{"type": "house_unknown_room", "loc": ["body", "floors", 0, "cells", "1,0"], "msg": "..."}`
-(semantic `type`s are the `house_*` problem kinds). A read-only `house.json` (§2.3) is never written
-(`409`). If the body omits `$schema`, the current file's `$schema` is kept. Before writing, the
+(semantic `type`s are the `house_*` problem kinds). Order of checks: `403`, `413`, `415`,
+structural `422`, `409 unreadable` (house.json exists but can't be read, so the preconditions
+can't be judged), `428`, `412`, `409` read-only, then the semantic `422`, judged under the write
+lock against the file the preconditions were checked on (if the file is replaced between that
+check and the rescan, the answer is `412`). If the body omits `$schema`, the current file's `$schema` is kept. Before writing, the
 previous file is copied to `.housebook/history/` (last 50 kept). Written in the deterministic form of
 §2.1. An identical layout is a no-op (no write, no history entry). Response: `200`, the layout as
 written, `ETag`.

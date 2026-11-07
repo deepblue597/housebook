@@ -21,9 +21,11 @@ import { useResolvedTheme } from '../../app/theme';
 import type { SceneTestHook } from '../../app/testHook';
 import { FloorTabs } from '../../components/FloorTabs';
 import { currentStatus } from '../../components/status';
-import { CEILING_HEIGHT, CUT_HEIGHT } from '../../domain/scene';
+import { CEILING_HEIGHT, CUT_HEIGHT, worldToCell } from '../../domain/scene';
+import { useToolPointer } from '../editor';
 import type { Level } from '../../domain/status';
 import { useData } from '../../store/data';
+import { useEditor } from '../../store/editor';
 import type { FloorModel } from '../../store/model';
 import { useSearchResults } from '../../store/search';
 import { useUi } from '../../store/ui';
@@ -39,10 +41,12 @@ import {
   project,
   rotateBy,
   sameCamera,
+  screenToGround,
   zoomAt,
   zoomLimits,
 } from './camera';
 import { CameraRig } from './CameraRig';
+import { EditPreview } from './EditPreview';
 import { itemTop, sceneLayout } from './layout';
 import { scenePalette } from './palette';
 import { SceneContent } from './SceneContent';
@@ -257,7 +261,10 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
     (roomId: string) => select({ kind: 'room', roomId, floorId }),
     [select, floorId],
   );
+  // The item under the pointer, as react-three-fiber's picking found it (edit tools grab it).
+  const hovered = useRef<string | null>(null);
   const onHover = useCallback((id: string | null) => {
+    hovered.current = id;
     setHoverId(id);
     if (viewport.current) viewport.current.style.cursor = id ? 'pointer' : '';
   }, []);
@@ -434,6 +441,33 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
     };
   }, []);
 
+  // Edit mode: pointer position -> the tile under it on the floor plane (DESIGN §7.3).
+  const editTool = useEditor((s) => (s.mode === 'edit' ? s.tool : null));
+  const toCell = useCallback(
+    (clientX: number, clientY: number) => {
+      const el = viewport.current;
+      const c = shown.current.cam;
+      const vp = vpNow();
+      if (!el || !c || !vp) return null;
+      const r = el.getBoundingClientRect();
+      const p = screenToGround(
+        c,
+        vp,
+        clientX - r.left - el.clientLeft,
+        clientY - r.top - el.clientTop,
+      );
+      return worldToCell(p.x, p.z, latest.current.layout.tileSize);
+    },
+    [vpNow],
+  );
+  const pointer = useToolPointer({
+    floorId,
+    target: viewport,
+    toCell,
+    pan: gestures,
+    pick: () => hovered.current,
+  });
+
   // Said once zooming pauses, not on every wheel or pinch step.
   const zoomNow = cam ? Math.round(cam.goal.zoom) : null;
   const [zoomText, setZoomText] = useState('');
@@ -542,7 +576,8 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
         data-heading={look}
         data-walls={wallsUp ? 'up' : 'cut'}
         onKeyDown={onKeyDown}
-        {...gestures}
+        data-edit-tool={editTool ?? undefined}
+        {...pointer}
       >
         {cam && (
           <Canvas
@@ -579,6 +614,7 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
               onItem={onItem}
               onRoom={onRoom}
             />
+            <EditPreview floorId={floorId} grid={model.grid} ts={tileSize} palette={palette} />
           </Canvas>
         )}
         <SceneOverlays anchors={anchors} handle={overlays} view={lastView} />

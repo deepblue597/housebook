@@ -40,7 +40,7 @@ from housebook.domain.text import nfc
 from housebook.ports import UnsafePath
 from housebook.services.indexer import MAX_HOUSE_BYTES, IndexState
 from housebook.services.sync import items_version, resync_payload, sse_frame
-from housebook.services.writer import field_error, unprocessable, validate_house
+from housebook.services.writer import field_error, parse_house, unprocessable
 
 log = logging.getLogger(__name__)
 
@@ -253,7 +253,7 @@ def require_json(request: Request) -> None:
 
 
 EDIT = [Depends(require_editor), Depends(require_json)]
-IfMatch = Annotated[str | None, Header(description="ETag from the last read (`*` overwrites whatever is there)")]
+IfMatch = Annotated[str | None, Header(description="ETag from the last read (`*` matches any existing file)")]
 IfNoneMatch = Annotated[str | None, Header(description="`*` to create house.json when it doesn't exist yet")]
 
 
@@ -287,10 +287,16 @@ def _item_response(ctx: AppContext, state: IndexState, item_id: str, status_code
 async def put_house(
     request: Request, ctx: Ctx, if_match: IfMatch = None, if_none_match: IfNoneMatch = None
 ) -> Response:
-    """Replace the layout (the only writer of house.json, D8). Validated fully (422 lists every
-    issue with its location); `If-Match` against the file on disk (428 without it, 412 on a
-    mismatch); the previous file is kept in `.housebook/history/` (last 50); written atomically
-    and deterministically. 409 when house.json is read-only (newer schemaVersion, invalid)."""
+    """Replace the layout (the only writer of house.json, D8). `If-Match` against the file on disk
+    (428 without it, 412 on a mismatch; `If-None-Match: *` creates a missing file); 409 when
+    house.json is read-only (newer schemaVersion, invalid) or can't be read. Semantic rules (D30):
+    a save may not make the layout worse than the file on disk, even with `If-Match: *`; problems
+    that file already has (`house_unknown_room`, `house_duplicate_placement`, `house_outside_grid`,
+    `house_unknown_floor`, `house_duplicate_id`) may stay, but one more of a kind for the same
+    subject, or any `house_bad_cell`, is a 422 listing only those issues. Order after the role,
+    size and content-type checks (403, 413, 415): structural 422, 409 `unreadable`, 428, 412,
+    409 read-only, then the semantic 422. The previous file is kept in `.housebook/history/`
+    (last 50); written atomically and deterministically."""
     raw = await request.body()
     if len(raw) > MAX_HOUSE_BYTES:
         raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "house.json is limited to 16 MiB")
@@ -298,7 +304,7 @@ async def put_house(
         data = json.loads(raw)
     except (ValueError, RecursionError):
         raise unprocessable([field_error([], "body is not valid JSON", "json_invalid")]) from None
-    house = validate_house(data)
+    house = parse_house(data)  # structure only; semantic rules are judged against the disk (D30)
     (etag, written), _ = await ctx.sync.write(lambda: ctx.writer.put_house(house, if_match, if_none_match))
     return JSONResponse(written.dump(), headers={"ETag": quote_etag(etag), "Cache-Control": NO_CACHE})
 

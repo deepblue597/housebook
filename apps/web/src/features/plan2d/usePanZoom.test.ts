@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitView, twoFingerStep, zoomAt } from './usePanZoom';
+import { fitView, minScale, twoFingerStep, zoomAt } from './usePanZoom';
 
 const planPointAt = (v: { k: number; tx: number; ty: number }, x: number, y: number) => ({
   x: (x - v.tx) / v.k,
@@ -38,5 +38,18 @@ describe('pan and zoom maths', () => {
     const p = planPointAt(v, prev.x, prev.y);
     expect(p.x).toBeCloseTo(anchor.x, 10);
     expect(p.y).toBeCloseTo(anchor.y, 10);
+  });
+});
+
+describe('minimum zoom (M5-06)', () => {
+  it('Fit shows even a 512-tile grid', () => {
+    const bounds = { x: 0, y: 0, w: 512 * 40, h: 512 * 40 };
+    const v = fitView(bounds, 800, 600);
+    expect(v.k * bounds.w).toBeLessThanOrEqual(800);
+    expect(v.k * bounds.h).toBeLessThanOrEqual(600);
+    expect(minScale(bounds, 800, 600)).toBeLessThanOrEqual(v.k);
+    // Zooming out can't go below what Fit shows, and small houses keep the old limit.
+    expect(zoomAt(v, 0.01, 0, 0, minScale(bounds, 800, 600)).k).toBeCloseTo(v.k);
+    expect(minScale({ x: 0, y: 0, w: 400, h: 400 }, 800, 600)).toBe(0.2);
   });
 });

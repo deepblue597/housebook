@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useData } from '../../store/data';
+import { GhostActions } from '../editor';
 import { useUi } from '../../store/ui';
 import { ItemDetails } from './ItemDetails';
 import { RoomDetails } from './RoomDetails';
@@ -90,12 +91,14 @@ export function DetailsPanel() {
           </button>
         </header>
         {ghost ? (
-          <p className="muted">
-            The layout places <code>{selection.id}</code> here, but no note has that{' '}
-            <code>housebook_id</code>. It may have been deleted or renamed outside Housebook, or its{' '}
-            <code>housebook_id</code> was changed. Relinking it to a note or removing the placement
-            comes with the layout editor.
-          </p>
+          <>
+            <p className="muted">
+              The layout places <code>{selection.id}</code> here, but no note has that{' '}
+              <code>housebook_id</code>. It may have been deleted or renamed outside Housebook, or
+              its <code>housebook_id</code> was changed.
+            </p>
+            <GhostActions ghostId={selection.id} />
+          </>
         ) : (
           <p className="muted">
             No item with id <code>{selection.id}</code>. It may have been deleted, or its note lost

@@ -5,10 +5,12 @@ warranty, quick fixes and maintenance log. Item info is plain Markdown with YAML
 (Obsidian-compatible, Obsidian optional); the layout is `house.json`. One Docker container,
 one household.
 
-Status: milestones 0–3 (data contract; read-only web UI with 2D plan, list, details, search and
-the 3D view) and the **backend of milestone 4**: writes (`PUT /api/house`, item
-create/patch/delete/log), the file watcher, server-sent events and the problems report. The web
-UI doesn't use the write API yet.
+Status: milestones 0–5: the data contract; the web UI with 2D plan, list, details, search and the
+3D view; writes (`PUT /api/house`, item create/patch/delete/log), the file watcher, server-sent
+events, live sync and the problems panel (milestone 4); and the **layout editor** (milestone 5):
+edit mode for editors with paint/erase (rectangle drag), place/move/rotate items, rooms, resizing
+the house, undo/redo, debounced saving with replay on `412`, the Unplaced tray and ghost relinking,
+in 2D and 3D. See `apps/web/README.md`.
 
 ```
 contract/           shared by backend and frontend

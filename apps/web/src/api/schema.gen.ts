@@ -50,10 +50,16 @@ export interface paths {
         get: operations["get_house_api_house_get"];
         /**
          * Put House
-         * @description Replace the layout (the only writer of house.json, D8). Validated fully (422 lists every
-         *     issue with its location); `If-Match` against the file on disk (428 without it, 412 on a
-         *     mismatch); the previous file is kept in `.housebook/history/` (last 50); written atomically
-         *     and deterministically. 409 when house.json is read-only (newer schemaVersion, invalid).
+         * @description Replace the layout (the only writer of house.json, D8). `If-Match` against the file on disk
+         *     (428 without it, 412 on a mismatch; `If-None-Match: *` creates a missing file); 409 when
+         *     house.json is read-only (newer schemaVersion, invalid) or can't be read. Semantic rules (D30):
+         *     a save may not make the layout worse than the file on disk, even with `If-Match: *`; problems
+         *     that file already has (`house_unknown_room`, `house_duplicate_placement`, `house_outside_grid`,
+         *     `house_unknown_floor`, `house_duplicate_id`) may stay, but one more of a kind for the same
+         *     subject, or any `house_bad_cell`, is a 422 listing only those issues. Order after the role,
+         *     size and content-type checks (403, 413, 415): structural 422, 409 `unreadable`, 428, 412,
+         *     409 read-only, then the semantic 422. The previous file is kept in `.housebook/history/`
+         *     (last 50); written atomically and deterministically.
          */
         put: operations["put_house_api_house_put"];
         post?: never;
@@ -970,7 +976,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description ETag from the last read (`*` overwrites whatever is there) */
+                /** @description ETag from the last read (`*` matches any existing file) */
                 "if-match"?: string | null;
                 /** @description `*` to create house.json when it doesn't exist yet */
                 "if-none-match"?: string | null;
@@ -1205,7 +1211,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description ETag from the last read (`*` overwrites whatever is there) */
+                /** @description ETag from the last read (`*` matches any existing file) */
                 "if-match"?: string | null;
             };
             path: {
@@ -1264,7 +1270,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description ETag from the last read (`*` overwrites whatever is there) */
+                /** @description ETag from the last read (`*` matches any existing file) */
                 "if-match"?: string | null;
             };
             path: {

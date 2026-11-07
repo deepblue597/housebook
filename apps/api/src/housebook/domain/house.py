@@ -3,12 +3,15 @@
 Two layers of validation:
 - structural (types, ranges, patterns): always enforced by Pydantic;
 - semantic (unique ids, cells inside the grid, references): `house_issues()`.
-  `House.model_validate(data)` rejects semantic issues too (what `PUT /api/house` will use).
-  Loading from disk passes `context={"tolerant": True}`; the issues then become problems.
+  `House.model_validate(data)` rejects semantic issues too. Loading from disk passes
+  `context={"tolerant": True}`; the issues then become problems. `PUT /api/house` also parses
+  tolerantly and then rejects only issues that make the layout worse than the file on disk
+  (`worse_issues`, D30).
 """
 
 import json
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from typing import Annotated, Any, Literal, Self
 
@@ -180,6 +183,9 @@ class HouseIssue:
     code: str  # maps onto a ProblemKind
     message: str
     loc: tuple[str | int, ...] = field(default=())  # JSON path of the offending value
+    # What the issue is about, without list indexes or coordinates, so the same problem keeps its
+    # key when things are moved, resized or reordered (D30). `worse_issues` counts by (code, subject).
+    subject: tuple[str, ...] = field(default=())
 
 
 def house_issues(house: House) -> list[HouseIssue]:
@@ -191,7 +197,9 @@ def house_issues(house: House) -> list[HouseIssue]:
         seen: set[str] = set()
         for n, i in enumerate(ids):
             if i in seen:
-                out.append(HouseIssue("house_duplicate_id", f"duplicate {kind} id '{i}'", (f"{kind}s", n, "id")))
+                out.append(
+                    HouseIssue("house_duplicate_id", f"duplicate {kind} id '{i}'", (f"{kind}s", n, "id"), (kind, i))
+                )
             seen.add(i)
 
     dupes("room", [r.id for r in house.rooms])
@@ -204,14 +212,26 @@ def house_issues(house: House) -> list[HouseIssue]:
             loc = ("floors", fi, "cells", key)
             xy = parse_cell_key(key)
             if xy is None:
-                out.append(HouseIssue("house_bad_cell", f"floor '{floor.id}': bad cell key '{key}'", loc))
+                out.append(
+                    HouseIssue("house_bad_cell", f"floor '{floor.id}': bad cell key '{key}'", loc, ("cell", floor.id))
+                )
                 continue
             if not (xy[0] < w and xy[1] < d):
-                out.append(HouseIssue("house_outside_grid", f"floor '{floor.id}': cell {key} is outside the grid", loc))
+                out.append(
+                    HouseIssue(
+                        "house_outside_grid",
+                        f"floor '{floor.id}': cell {key} is outside the grid",
+                        loc,
+                        ("cell", floor.id),
+                    )
+                )
             if room_id not in room_ids:
                 out.append(
                     HouseIssue(
-                        "house_unknown_room", f"floor '{floor.id}': cell {key} points to unknown room '{room_id}'", loc
+                        "house_unknown_room",
+                        f"floor '{floor.id}': cell {key} points to unknown room '{room_id}'",
+                        loc,
+                        (floor.id, room_id),
                     )
                 )
 
@@ -221,7 +241,10 @@ def house_issues(house: House) -> list[HouseIssue]:
         if p.item_id in placed:
             out.append(
                 HouseIssue(
-                    "house_duplicate_placement", f"item '{p.item_id}' is placed more than once", (*loc, "itemId")
+                    "house_duplicate_placement",
+                    f"item '{p.item_id}' is placed more than once",
+                    (*loc, "itemId"),
+                    (p.item_id,),
                 )
             )
         placed.add(p.item_id)
@@ -231,12 +254,18 @@ def house_issues(house: House) -> list[HouseIssue]:
                     "house_unknown_floor",
                     f"placement of '{p.item_id}' references unknown floor '{p.floor_id}'",
                     (*loc, "floorId"),
+                    ("placement", p.item_id),
                 )
             )
         _, _, x1, y1 = p.occupied()
         if x1 > w or y1 > d:
             out.append(
-                HouseIssue("house_outside_grid", f"placement of '{p.item_id}' at {p.x},{p.y} is outside the grid", loc)
+                HouseIssue(
+                    "house_outside_grid",
+                    f"placement of '{p.item_id}' at {p.x},{p.y} is outside the grid",
+                    loc,
+                    ("placement", p.item_id),
+                )
             )
 
     for oi, o in enumerate(house.openings):
@@ -247,13 +276,37 @@ def house_issues(house: House) -> list[HouseIssue]:
                     "house_unknown_floor",
                     f"opening at {o.x},{o.y} references unknown floor '{o.floor_id}'",
                     (*loc, "floorId"),
+                    ("opening", o.floor_id),
                 )
             )
         # The east/south boundary edges are addressed from x == width / y == depth.
         ok = (o.x < w and o.y <= d) if o.side == "n" else (o.x <= w and o.y < d)
         if not ok:
-            out.append(HouseIssue("house_outside_grid", f"opening {o.side} at {o.x},{o.y} is outside the grid", loc))
+            out.append(
+                HouseIssue(
+                    "house_outside_grid",
+                    f"opening {o.side} at {o.x},{o.y} is outside the grid",
+                    loc,
+                    ("opening", o.floor_id),
+                )
+            )
     return out
+
+
+# Never let through, whatever the baseline: the server normalises bad keys when it reads a file,
+# so a client that sends one has a bug (D30).
+ALWAYS_REJECTED = frozenset({"house_bad_cell"})
+
+
+def worse_issues(new: list[HouseIssue], baseline: list[HouseIssue]) -> list[HouseIssue]:
+    """D30: the issues of `new` that make the layout worse than `baseline` (the file on disk).
+
+    Issues are counted per `(code, subject)`; every issue of a key that occurs more often than in
+    the baseline is returned (which copy is "the new one" can't be told without positions).
+    Inherited issues may stay, move or shrink. `ALWAYS_REJECTED` codes are always returned."""
+    before = Counter((i.code, i.subject) for i in baseline)
+    after = Counter((i.code, i.subject) for i in new)
+    return [i for i in new if i.code in ALWAYS_REJECTED or after[(i.code, i.subject)] > before[(i.code, i.subject)]]
 
 
 def serialize(house: House) -> bytes:

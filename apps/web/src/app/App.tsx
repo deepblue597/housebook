@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { DetailsPanel } from '../features/details/DetailsPanel';
+import {
+  EditToggle,
+  EditorNotices,
+  LazyEditorPanels,
+  useEditorShortcuts,
+} from '../features/editor';
 import { ProblemsButton } from '../features/problems/ProblemsButton';
 import { ListView } from '../features/list/ListView';
 import { PlanView } from '../features/plan2d/PlanView';
 import { SearchBox } from '../features/search/SearchBox';
 import { readOnlyNotice } from '../components/houseNotice';
 import { useData } from '../store/data';
+import { useEditor } from '../store/editor';
 import { useHouseProblems } from '../store/problems';
 import { type PlanStyle, type Selection, type View, useUi } from '../store/ui';
 import { choose3d, useShows3d } from './scene3d';
@@ -237,7 +244,9 @@ export function App() {
   const model = useData((s) => s.model);
   const selection = useUi((s) => s.selection);
   const setFloor = useUi((s) => s.setFloor);
+  const editing = useEditor((s) => s.mode === 'edit');
   const [why3d, setWhy3d] = useState(false);
+  useEditorShortcuts();
 
   // Opening an item (deep link, search, list) shows the floor it is on: once per selection,
   // when the model has it. A background refresh must not pull someone browsing another floor
@@ -252,7 +261,7 @@ export function App() {
   }, [selection, model, setFloor]);
 
   return (
-    <div className={`app${selection ? ' has-panel' : ''}`}>
+    <div className={`app${selection ? ' has-panel' : ''}${editing ? ' editing' : ''}`}>
       <a className="skip" href="#main">
         Skip to content
       </a>
@@ -264,15 +273,18 @@ export function App() {
         <ViewToggle />
         <PlanStyleToggle onUnsupported={() => setWhy3d(true)} />
         <SearchBox />
+        <EditToggle />
         <ProblemsButton />
         <SyncStatus />
         <ThemeToggle />
       </header>
+      <LazyEditorPanels />
       <main id="main" className="main">
         <Banners why3d={why3d} />
         <Main />
       </main>
       <DetailsPanel />
+      <EditorNotices />
     </div>
   );
 }

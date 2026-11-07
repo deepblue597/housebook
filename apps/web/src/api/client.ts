@@ -1,5 +1,5 @@
 import type { paths } from './schema.gen';
-import type { House, Item, Snapshot } from './types';
+import type { House, Item, ItemCreate, Snapshot } from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -103,11 +103,22 @@ export async function fetchItem(id: string): Promise<Item | null> {
   }
 }
 
-/** GET /api/house; null when there is no usable layout (404). */
-export async function fetchHouse(): Promise<{ house: House; etag: string | null } | null> {
+/**
+ * GET /api/house; null when there is no usable layout (404). `readOnly`: the server keeps the
+ * last good layout but won't accept writes (`X-Housebook-Read-Only`, data contract §2.3).
+ */
+export async function fetchHouse(): Promise<{
+  house: House;
+  etag: string | null;
+  readOnly: boolean;
+} | null> {
   try {
     const res = await request('/api/house', { cache: 'no-store' });
-    return { house: (await res.json()) as House, etag: unquoteEtag(res.headers.get('ETag')) };
+    return {
+      house: (await res.json()) as House,
+      etag: unquoteEtag(res.headers.get('ETag')),
+      readOnly: res.headers.get('X-Housebook-Read-Only')?.toLowerCase() === 'true',
+    };
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
@@ -129,6 +140,30 @@ export const postLogEntry = (id: string, text: string, date?: string) =>
 
 /** POST /api/items/adopt: give a `not_adopted` note its housebook_id. */
 export const postAdopt = (path: string) => postJson<Item>('/api/items/adopt', { path });
+
+/** POST /api/items: create a note (D8: the client places it with PUT /api/house afterwards). */
+export const postItem = (body: ItemCreate) => postJson<Item>('/api/items', body);
+
+/**
+ * PUT /api/house with `If-Match` (data contract §8.1): the layout as written and its new ETag.
+ * A 412 is an ApiError with status 412 (the caller replays its pending edits, DESIGN 15.2).
+ */
+export async function putHouse(
+  house: House,
+  ifMatch: string | null,
+): Promise<{ house: House; etag: string | null }> {
+  const res = await request('/api/house', {
+    method: 'PUT',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      // No ETag known means "there was no house.json" (first run): create it.
+      ...(ifMatch ? { 'If-Match': `"${unquoteEtag(ifMatch)}"` } : { 'If-None-Match': '*' }),
+    },
+    body: JSON.stringify(house),
+  });
+  return { house: (await res.json()) as House, etag: unquoteEtag(res.headers.get('ETag')) };
+}
 
 export type AuthCheck = 'ok' | 'unauthorized' | 'unreachable';
 

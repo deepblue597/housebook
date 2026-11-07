@@ -15,6 +15,7 @@ import {
   fetchSnapshot,
   getJson,
   postAdopt,
+  postItem,
   postLogEntry,
   sameEtag,
 } from '../api/client';
@@ -23,6 +24,7 @@ import type {
   HouseChangedEvent,
   Item,
   ItemChangedEvent,
+  ItemCreate,
   ItemDeletedEvent,
   Me,
   ProblemsChangedEvent,
@@ -65,6 +67,28 @@ interface DataState {
   // Writes (editors only; the server checks the role too).
   appendLog: (id: string, text: string, date?: string) => Promise<Item>;
   adopt: (path: string) => Promise<Item>;
+  /** POST /api/items; the new (still unplaced) item is added to the held items. */
+  createItem: (body: ItemCreate) => Promise<Item>;
+  // Layout editing (store/editor.ts): the layout shown may be ahead of the server's.
+  /** Show a locally edited layout (items are re-located on it); the server ETag is kept. */
+  showLayout: (house: House) => void;
+  /** After a save: the server's new house ETag, and the layout to show. */
+  layoutSaved: (etag: string | null, house: House) => void;
+}
+
+/**
+ * What the editor shows instead of a layout arriving from the server: the server's layout with
+ * the local edits that aren't saved yet replayed on top (DESIGN 15.2). Called inside the queue.
+ */
+export type HouseInterceptor = (server: {
+  house: House | null;
+  etag: string | null;
+  readOnly: boolean;
+}) => House | null;
+
+let interceptor: HouseInterceptor | null = null;
+export function setHouseInterceptor(fn: HouseInterceptor | null): void {
+  interceptor = fn;
 }
 
 // ---- the queue ------------------------------------------------------------------------------
@@ -75,6 +99,12 @@ function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   tail = run.catch(() => undefined);
   return run;
 }
+
+/**
+ * Run `fn` in the same queue as loads, events and writes: nothing else changes the data while
+ * it runs, and events that arrive meanwhile are looked at afterwards (the layout editor's save).
+ */
+export const runExclusive = <T>(fn: () => Promise<T>): Promise<T> => enqueue(fn);
 
 /** A plain load() (first load, focus, polling) shares one that is queued or running. */
 let sharedLoad: Promise<LoadResult> | null = null;
@@ -120,6 +150,17 @@ export function itemIsCurrent(held: Item | undefined, e: ItemChangedEvent): bool
   );
 }
 
+/** The snapshot as shown: its layout replaced by the editor's, when it has unsaved edits. */
+function overlay(snap: Snapshot): Snapshot {
+  if (!interceptor) return snap;
+  const house = interceptor({
+    house: snap.house,
+    etag: snap.houseEtag,
+    readOnly: snap.houseReadOnly,
+  });
+  return house === snap.house ? snap : { ...snap, house, items: relocate(snap.items, house) };
+}
+
 export const useData = create<DataState>()((set, get) => {
   const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -132,7 +173,7 @@ export const useData = create<DataState>()((set, get) => {
       } else {
         set({
           state: 'ready',
-          model: buildModel(res.snapshot),
+          model: buildModel(overlay(res.snapshot)),
           etag: res.etag,
           itemsVersion: res.snapshot.itemsVersion,
           problemCount: res.snapshot.problemCount,
@@ -189,13 +230,13 @@ export const useData = create<DataState>()((set, get) => {
     }
     const now = get().model?.snapshot ?? snap;
     commit(
-      {
+      overlay({
         ...now,
         house: res.house,
         houseEtag: res.etag ?? etag,
         houseSchemaVersion: res.house.schemaVersion,
         items: relocate(now.items, res.house),
-      },
+      }),
       false,
     );
   };
@@ -275,5 +316,26 @@ export const useData = create<DataState>()((set, get) => {
         set((s) => ({ problemsRev: s.problemsRev + 1 }));
         return item;
       }),
+
+    createItem: (body) =>
+      enqueue(async () => {
+        const item = await postItem(body);
+        // Placed by the editor right after (D8); until then it is unplaced.
+        const house = get().model?.snapshot.house ?? null;
+        upsert(relocate([item], house)[0]!);
+        return item;
+      }),
+
+    showLayout: (house) => {
+      const snap = get().model?.snapshot;
+      if (!snap) return;
+      commit({ ...snap, house, items: relocate(snap.items, house) }, false);
+    },
+
+    layoutSaved: (etag, house) => {
+      const snap = get().model?.snapshot;
+      if (!snap) return;
+      commit({ ...snap, house, houseEtag: etag, items: relocate(snap.items, house) }, false);
+    },
   };
 });

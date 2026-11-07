@@ -5,7 +5,7 @@ import pytest
 from pydantic import ValidationError
 
 from conftest import CONTRACT, EXAMPLES
-from housebook.domain.house import House, Placement, house_issues, json_schema
+from housebook.domain.house import House, Placement, house_issues, json_schema, worse_issues
 
 
 @pytest.fixture
@@ -111,3 +111,41 @@ def test_lenient_drops_unknown_keys(example: dict):
 def test_footprint_anchor_and_rotation(rotation: int, footprint: tuple[int, int], rect: tuple[int, int, int, int]):
     p = Placement.model_validate({"itemId": "it_a", "floorId": "f", "x": 3, "y": 4, "rotation": rotation})
     assert p.occupied(footprint) == rect
+
+
+def _issues(example: dict, mutate) -> list:
+    return house_issues(House.model_validate(_broken(example, mutate), context={"tolerant": True}))
+
+
+def test_issue_subjects_leave_out_indexes_and_coordinates(example: dict):
+    def two_tiles_and_a_stray(d: dict) -> None:
+        d["floors"][0]["cells"].update({"0,0": "rm_gone", "16,0": "rm_kit"})
+        d["placements"].append(dict(d["placements"][0], x=0, y=0))
+        d["placements"][1].update(floorId="fl_nope")
+        d["openings"][0].update(floorId="fl_nope")
+        d["rooms"].append(dict(d["rooms"][0]))
+
+    p0, p1 = example["placements"][0]["itemId"], example["placements"][1]["itemId"]
+    room = example["rooms"][0]["id"]
+    got = {(i.code, i.subject) for i in _issues(example, two_tiles_and_a_stray)}
+    assert got == {
+        ("house_unknown_room", ("fl_0", "rm_gone")),
+        ("house_outside_grid", ("cell", "fl_0")),
+        ("house_duplicate_placement", (p0,)),
+        ("house_unknown_floor", ("placement", p1)),
+        ("house_unknown_floor", ("opening", "fl_nope")),
+        ("house_duplicate_id", ("room", room)),
+    }
+
+
+def test_worse_issues_counts_per_subject(example: dict):
+    def tiles(*keys: str):
+        return lambda d: d["floors"][0]["cells"].update(dict.fromkeys(keys, "rm_gone"))
+
+    baseline = _issues(example, tiles("0,0", "1,0"))
+    assert worse_issues(_issues(example, tiles("0,0", "1,0")), baseline) == []
+    assert worse_issues(_issues(example, tiles("5,5")), baseline) == []  # fewer, moved: fine
+    assert len(worse_issues(_issues(example, tiles("0,0", "1,0", "2,0")), baseline)) == 3
+    assert worse_issues(_issues(example, tiles("0,0")), []) != []  # no file: everything is new
+    bad = _issues(example, lambda d: d["floors"][0]["cells"].update({"01,0": "rm_kit"}))
+    assert [i.code for i in worse_issues(bad, bad)] == ["house_bad_cell"]  # never let through

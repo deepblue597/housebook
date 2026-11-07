@@ -21,6 +21,9 @@ for (const t of types) {
   for (const a of t.aliases) byKey.set(a.toLowerCase(), t);
 }
 
+/** Every catalogue type, in catalogue order (the editor's palette). */
+export const itemTypes = (): readonly ItemType[] => types;
+
 /** Catalogue entry for a type key or alias (case-insensitive); undefined if unknown. */
 export const itemType = (key: string | null | undefined): ItemType | undefined =>
   key ? byKey.get(key.toLowerCase()) : undefined;

@@ -77,7 +77,7 @@
       },
       "put": {
         "summary": "Put House",
-        "description": "Replace the layout (the only writer of house.json, D8). Validated fully (422 lists every\nissue with its location); `If-Match` against the file on disk (428 without it, 412 on a\nmismatch); the previous file is kept in `.housebook/history/` (last 50); written atomically\nand deterministically. 409 when house.json is read-only (newer schemaVersion, invalid).",
+        "description": "Replace the layout (the only writer of house.json, D8). `If-Match` against the file on disk\n(428 without it, 412 on a mismatch; `If-None-Match: *` creates a missing file); 409 when\nhouse.json is read-only (newer schemaVersion, invalid) or can't be read. Semantic rules (D30):\na save may not make the layout worse than the file on disk, even with `If-Match: *`; problems\nthat file already has (`house_unknown_room`, `house_duplicate_placement`, `house_outside_grid`,\n`house_unknown_floor`, `house_duplicate_id`) may stay, but one more of a kind for the same\nsubject, or any `house_bad_cell`, is a 422 listing only those issues. Order after the role,\nsize and content-type checks (403, 413, 415): structural 422, 409 `unreadable`, 428, 412,\n409 read-only, then the semantic 422. The previous file is kept in `.housebook/history/`\n(last 50); written atomically and deterministically.",
         "operationId": "put_house_api_house_put",
         "parameters": [
           {
@@ -93,10 +93,10 @@
                   "type": "null"
                 }
               ],
-              "description": "ETag from the last read (`*` overwrites whatever is there)",
+              "description": "ETag from the last read (`*` matches any existing file)",
               "title": "If-Match"
             },
-            "description": "ETag from the last read (`*` overwrites whatever is there)"
+            "description": "ETag from the last read (`*` matches any existing file)"
           },
           {
             "name": "if-none-match",
@@ -424,10 +424,10 @@
                   "type": "null"
                 }
               ],
-              "description": "ETag from the last read (`*` overwrites whatever is there)",
+              "description": "ETag from the last read (`*` matches any existing file)",
               "title": "If-Match"
             },
-            "description": "ETag from the last read (`*` overwrites whatever is there)"
+            "description": "ETag from the last read (`*` matches any existing file)"
           }
         ],
         "requestBody": {
@@ -550,10 +550,10 @@
                   "type": "null"
                 }
               ],
-              "description": "ETag from the last read (`*` overwrites whatever is there)",
+              "description": "ETag from the last read (`*` matches any existing file)",
               "title": "If-Match"
             },
-            "description": "ETag from the last read (`*` overwrites whatever is there)"
+            "description": "ETag from the last read (`*` matches any existing file)"
           }
         ],
         "responses": {
