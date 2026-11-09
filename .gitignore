@@ -6,3 +6,7 @@ node_modules/
 apps/web/dist/
 # runtime state the app creates inside a data root
 .housebook/
+
+# local dev data (make dev)
+/.dev-data/
+/compose.override.yaml

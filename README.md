@@ -26,6 +26,10 @@ docs/data-contract.md   house.json v1, frontmatter, status, search, problems
 
 ## Run locally
 
+Working on the code? `make setup && make dev` starts the backend and the frontend together on a
+throwaway copy of the example data; see [CONTRIBUTING.md](CONTRIBUTING.md). The rest of this
+section runs the backend on its own.
+
 Requires [uv](https://docs.astral.sh/uv/) (it fetches Python 3.13 if needed).
 
 ```sh
