@@ -25,6 +25,7 @@ import {
   type Conflict,
   type RepairFix,
   applyCommand,
+  floorLoss,
   repairCommand,
   replay,
   shiftCommand,
@@ -42,6 +43,7 @@ import {
   isRoomColor,
   isValidId,
   movedPlacement,
+  newFloorId,
   newRoomId,
   rectBetween,
   rectCells,
@@ -137,6 +139,13 @@ interface EditorState {
   renameRoom: (roomId: string, name: string) => boolean;
   recolorRoom: (roomId: string, color: string) => void;
   deleteRoom: (roomId: string) => void;
+  /** A new empty floor above the top one or below the lowest (D35); shows it. Its id. */
+  addFloor: (where: 'above' | 'below') => string | null;
+  renameFloor: (floorId: string, name: string) => boolean;
+  /** Swap levels with the floor above (`up`) or below. */
+  moveFloor: (floorId: string, dir: 'up' | 'down') => void;
+  /** Remove a floor and what is on it, exactly as `floorLoss` shows it now. */
+  deleteFloor: (floorId: string) => boolean;
   resize: (by: ResizeDeltas, allowLoss: string[]) => boolean;
   /** Fix a problem in the layout (D30) as one undoable edit. */
   repair: (issue: LayoutIssue, fix: RepairFix) => boolean;
@@ -180,6 +189,16 @@ let unconfirmed: { body: string; n: number } | null = null;
 
 const house = (): House | null => useData.getState().model?.snapshot.house ?? null;
 const itemName = (id: string) => useData.getState().model?.items.get(id)?.name ?? id;
+const floorName = (id: string): string =>
+  (house()?.floors ?? []).find((f) => f.id === id)?.name ?? id;
+
+/** Floors by level, highest first (as the floor tabs show them). */
+const floorsByLevel = () => [...(house()?.floors ?? [])].sort((a, b) => b.level - a.level);
+
+/** Levels the contract allows (`floors[].level`). */
+const MIN_LEVEL = -20;
+const MAX_LEVEL = 200;
+
 const roomName = (id: string): string => {
   const find = (h: House | null) => (h?.rooms ?? []).find((r) => r.id === id)?.name;
   return find(house()) ?? find(useEditor.getState().base) ?? id;
@@ -696,6 +715,87 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
         const sel = useUi.getState().selection;
         if (sel?.kind === 'room' && sel.roomId === roomId) useUi.getState().select(null);
       }
+    },
+
+    addFloor: (where) => {
+      const h = house();
+      if (!h) return null;
+      const levels = h.floors.map((f) => f.level);
+      const level = where === 'above' ? Math.max(...levels) + 1 : Math.min(...levels) - 1;
+      if (level > MAX_LEVEL || level < MIN_LEVEL) {
+        notify('warn', EDITOR.floorLevelLimit);
+        return null;
+      }
+      const names = new Set(h.floors.map((f) => f.name));
+      const base = EDITOR.floorDefaultName(level);
+      let name = base;
+      for (let n = 2; names.has(name); n++) name = `${base} ${n}`;
+      const floor = { id: newFloorId(new Set(h.floors.map((f) => f.id))), name, level, cells: {} };
+      if (!run({ kind: 'floor.add', floor }, EDITOR.label.floorAdd(name))) return null;
+      useUi.getState().setFloor(floor.id);
+      return floor.id;
+    },
+
+    renameFloor: (floorId, name) => {
+      const clean = cleanRoomName(name); // same rule: 1–100 characters
+      if (!clean) {
+        notify('warn', EDITOR.floorNameInvalid);
+        return false;
+      }
+      const from = floorName(floorId);
+      if (clean === from) return true;
+      return run(
+        { kind: 'floor.update', id: floorId, name: clean },
+        EDITOR.label.floorRename(from, clean),
+      );
+    },
+
+    moveFloor: (floorId, dir) => {
+      const floors = floorsByLevel();
+      const i = floors.findIndex((f) => f.id === floorId);
+      const other = floors[dir === 'up' ? i - 1 : i + 1];
+      if (i < 0 || !other) return;
+      const me = floors[i]!;
+      // Swap levels; equal levels (a hand edit) become one apart.
+      const mine = other.level === me.level ? me.level + (dir === 'up' ? 1 : -1) : other.level;
+      if (mine > MAX_LEVEL || mine < MIN_LEVEL) {
+        notify('warn', EDITOR.floorLevelLimit);
+        return;
+      }
+      run(
+        {
+          kind: 'batch',
+          commands: [
+            { kind: 'floor.update', id: me.id, level: mine },
+            { kind: 'floor.update', id: other.id, level: me.level },
+          ],
+        },
+        EDITOR.label.floorMove(me.name, dir),
+      );
+    },
+
+    deleteFloor: (floorId) => {
+      const h = house();
+      if (!h) return false;
+      const loss = floorLoss(h, floorId);
+      const name = floorName(floorId);
+      const ok = run(
+        {
+          kind: 'floor.remove',
+          id: floorId,
+          confirmed: {
+            tiles: loss.tiles,
+            items: loss.placements.map((p) => p.placement.itemId),
+            openings: loss.openings.length,
+          },
+        },
+        EDITOR.label.floorRemove(name),
+      );
+      if (ok && useUi.getState().floorId === floorId) {
+        const next = floorsByLevel()[0];
+        if (next) useUi.getState().setFloor(next.id);
+      }
+      return ok;
     },
 
     resize: (by, allowLoss) => {

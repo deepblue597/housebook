@@ -30,6 +30,8 @@ interface Props {
   matches: ReadonlySet<string> | null;
   onItem: (id: string) => void;
   onRoom: (roomId: string) => void;
+  /** The floor below, drawn faintly under this one while editing (D35): trace its walls. */
+  underlay?: FloorModel | null;
 }
 
 const path = (segs: readonly Segment[]) =>
@@ -98,6 +100,7 @@ function PlanSvgImpl({
   matches,
   onItem,
   onRoom,
+  underlay = null,
 }: Props) {
   const { width: W, depth: H } = model.grid;
   const geometry = useMemo(() => {
@@ -119,8 +122,15 @@ function PlanSvgImpl({
         return r ? [[i.id, r] as const] : [];
       }),
     );
-    return { labels, walls: walls(floor.cells), grid, items };
-  }, [model, floor, W, H]);
+    const below = underlay ? walls(underlay.cells) : null;
+    return {
+      labels,
+      walls: walls(floor.cells),
+      grid,
+      items,
+      underlay: below ? path([...below.exterior, ...below.interior]) : null,
+    };
+  }, [model, floor, W, H, underlay]);
 
   const palette = PALETTE[theme];
   const labelInk = (color: string) => {
@@ -149,6 +159,11 @@ function PlanSvgImpl({
         height={H * S + MARGIN + FOOTER}
       />
       <path className="grid" d={geometry.grid} />
+      {geometry.underlay && (
+        <path className="underlay" d={geometry.underlay} data-underlay={underlay?.floor.id}>
+          <title>{`${underlay?.floor.name}, the floor below`}</title>
+        </path>
+      )}
 
       {geometry.labels.map(({ roomId, cells }) => {
         const room = model.rooms.get(roomId)!;

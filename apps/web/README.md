@@ -119,6 +119,10 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 - **Attachments (milestone 6, D33):** editors add files with "Add files" or by dropping them on
   the Attachments section (PDF, JPEG, PNG, WebP, HEIC; 25 MB each; uploaded one after the other),
   and remove one with ✕ → Remove (to the trash; only files in the item's own folder).
+- **Floors (milestone 7, D35):** the editor's "Floors" section adds a floor above the top one or
+  below the lowest, renames, moves floors up/down (levels) and deletes one with what is on it
+  (confirmation lists tiles, items to the tray and doors/windows; never the last floor). Undo
+  restores everything. While editing, the floor below is drawn dashed under the current one.
 - **First run (milestone 6, D34):** with no `house.json`, editors get "Set up your house" (floor
   name and size), which creates the layout and opens the editor with "Room 1" ready to paint.
   Existing items and notes still to adopt are counted. An unreadable `house.json` is never

@@ -12,6 +12,7 @@ import { EDITOR } from '../../strings/editor';
 import { useData } from '../../store/data';
 import { type Tool, applyContext, useEditor } from '../../store/editor';
 import { useUi } from '../../store/ui';
+import { DeleteFloorDialog } from './DeleteFloorDialog';
 import { TRAY_MIME } from './useToolPointer';
 
 const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase'];
@@ -197,8 +198,20 @@ function ToolHint() {
   );
 }
 
-function RoomName({ id, name }: { id: string; name: string }) {
-  const rename = useEditor((s) => s.renameRoom);
+/** A name field that renames on Enter or blur and reverts on Esc or a refused name. */
+function NameInput({
+  id,
+  name,
+  label,
+  rename,
+  className,
+}: {
+  id: string;
+  name: string;
+  label: string;
+  rename: (id: string, name: string) => boolean;
+  className: string;
+}) {
   const [draft, setDraft] = useState(name);
   const commit = () => {
     if (draft === name) return;
@@ -216,14 +229,115 @@ function RoomName({ id, name }: { id: string; name: string }) {
   };
   return (
     <input
-      className="room-name"
+      className={className}
       value={draft}
       maxLength={100}
-      aria-label={EDITOR.roomName(name)}
+      aria-label={label}
       onChange={(e) => setDraft(e.target.value)}
       onBlur={commit}
       onKeyDown={onKey}
     />
+  );
+}
+
+function RoomName({ id, name }: { id: string; name: string }) {
+  const rename = useEditor((s) => s.renameRoom);
+  return (
+    <NameInput
+      id={id}
+      name={name}
+      label={EDITOR.roomName(name)}
+      rename={rename}
+      className="room-name"
+    />
+  );
+}
+
+/** Floors by level, highest first, with add/rename/reorder/delete (D35). */
+function FloorList() {
+  const model = useData((s) => s.model);
+  const current = useUi((s) => s.floorId);
+  const setFloor = useUi((s) => s.setFloor);
+  const addFloor = useEditor((s) => s.addFloor);
+  const renameFloor = useEditor((s) => s.renameFloor);
+  const moveFloor = useEditor((s) => s.moveFloor);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const floors = model?.floors ?? []; // highest level first
+  const shown = (current && model?.floorById.has(current) ? current : floors[0]?.floor.id) ?? null;
+  return (
+    <section className="ed-section" aria-labelledby="ed-floors">
+      <header>
+        <h3 id="ed-floors">{EDITOR.floors}</h3>
+      </header>
+      <ul className="floors">
+        {floors.map(({ floor, cells, items }, i) => (
+          <li
+            key={floor.id}
+            className={floor.id === shown ? 'on' : undefined}
+            data-floor={floor.id}
+          >
+            <button
+              type="button"
+              className="icon-btn floor-show"
+              aria-pressed={floor.id === shown}
+              aria-label={EDITOR.floorShow(floor.name)}
+              title={EDITOR.floorShow(floor.name)}
+              onClick={() => setFloor(floor.id)}
+            >
+              <span aria-hidden="true">{floor.id === shown ? '●' : '○'}</span>
+            </button>
+            <NameInput
+              key={`${floor.id}:${floor.name}`}
+              id={floor.id}
+              name={floor.name}
+              label={EDITOR.floorName(floor.name)}
+              rename={renameFloor}
+              className="room-name"
+            />
+            <span className="count">{EDITOR.floorContents(cells.size, items.length)}</span>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={EDITOR.floorUp(floor.name)}
+              title={EDITOR.floorUp(floor.name)}
+              disabled={i === 0}
+              onClick={() => moveFloor(floor.id, 'up')}
+            >
+              ↑
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={EDITOR.floorDown(floor.name)}
+              title={EDITOR.floorDown(floor.name)}
+              disabled={i === floors.length - 1}
+              onClick={() => moveFloor(floor.id, 'down')}
+            >
+              ↓
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={EDITOR.floorDelete(floor.name)}
+              title={floors.length === 1 ? EDITOR.floorDeleteLast : EDITOR.floorDelete(floor.name)}
+              disabled={floors.length === 1}
+              onClick={() => setDeleting(floor.id)}
+            >
+              ✕
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="floor-add">
+        <button type="button" className="btn" onClick={() => addFloor('above')}>
+          + {EDITOR.floorAddAbove}
+        </button>
+        <button type="button" className="btn" onClick={() => addFloor('below')}>
+          + {EDITOR.floorAddBelow}
+        </button>
+      </div>
+      {deleting && <DeleteFloorDialog floorId={deleting} onClose={() => setDeleting(null)} />}
+    </section>
   );
 }
 
@@ -401,6 +515,7 @@ export function EditorSidebar({ onResize }: { onResize: () => void }) {
       <SaveStatus />
       <Repairs />
       <ToolHint />
+      <FloorList />
       <RoomList />
       <Catalogue />
       <UnplacedTray />

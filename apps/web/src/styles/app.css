@@ -600,6 +600,16 @@ code {
   background: var(--accent-soft);
 }
 
+/* The floor below while editing (D35): faint, dashed, never in the way of a click. */
+.plan .underlay {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+  stroke-dasharray: 6 5;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 /* ---- first run (D34) ------------------------------------------------------------- */
 .first-run-card {
   display: flex;
@@ -1909,6 +1919,7 @@ code {
   letter-spacing: 0;
 }
 .rooms,
+.floors,
 .catalogue,
 .tray {
   list-style: none;
@@ -1923,8 +1934,46 @@ code {
   padding: 2px 4px;
   border-radius: 8px;
 }
-.rooms li.on {
+.rooms li.on,
+.floors li.on {
   background: var(--accent-soft);
+}
+/* Floors (D35): the tile/item count sits under the name, the sidebar is narrow. */
+.floors li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+  grid-template-areas:
+    'show name up down del'
+    '. count up down del';
+  align-items: center;
+  column-gap: 2px;
+  padding: 2px 4px;
+  border-radius: 8px;
+}
+.floors .floor-show {
+  grid-area: show;
+}
+.floors .room-name {
+  grid-area: name;
+}
+.floors .count {
+  grid-area: count;
+  padding-left: 7px;
+}
+.floors .icon-btn:nth-last-of-type(3) {
+  grid-area: up;
+}
+.floors .icon-btn:nth-last-of-type(2) {
+  grid-area: down;
+}
+.floors .icon-btn:nth-last-of-type(1) {
+  grid-area: del;
+}
+.floor-add {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 6px;
 }
 .rooms input[type='color'] {
   width: 28px;
@@ -1934,7 +1983,8 @@ code {
   border-radius: 6px;
   background: none;
 }
-.rooms .room-name {
+.rooms .room-name,
+.floors .room-name {
   min-width: 0;
   min-height: 32px;
   border: 1px solid transparent;
@@ -1943,18 +1993,23 @@ code {
   padding: 2px 6px;
 }
 .rooms .room-name:hover,
-.rooms .room-name:focus {
+.rooms .room-name:focus,
+.floors .room-name:hover,
+.floors .room-name:focus {
   border-color: var(--line);
   background: var(--bg);
 }
-.rooms .icon-btn {
+.rooms .icon-btn,
+.floors .icon-btn {
   min-width: 32px;
   min-height: 32px;
 }
-.rooms .icon-btn[aria-pressed='true'] {
+.rooms .icon-btn[aria-pressed='true'],
+.floors .icon-btn[aria-pressed='true'] {
   color: var(--accent);
 }
-.rooms .icon-btn:disabled {
+.rooms .icon-btn:disabled,
+.floors .icon-btn:disabled {
   opacity: 0.3;
   cursor: default;
 }

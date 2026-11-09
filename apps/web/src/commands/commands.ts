@@ -11,10 +11,11 @@
  *
  * Pure: imports only `domain/`.
  */
-import { type Cell, cellKey } from '../domain/coords';
+import { type Cell, cellKey, parseCellKey } from '../domain/coords';
 import {
   type FootprintOf,
   type Layout,
+  type LayoutFloor,
   type LayoutOpening,
   type LayoutPlacement,
   type LayoutRoom,
@@ -84,6 +85,37 @@ export interface RoomRemoveCommand {
   repair?: true;
 }
 
+/**
+ * Add a floor (D35) at `index` in the list (the end by default). As the undo of `floor.remove`,
+ * `restore` puts the placements and doors/windows that were on it back where they were in
+ * house.json.
+ */
+export interface FloorAddCommand {
+  kind: 'floor.add';
+  floor: LayoutFloor;
+  index?: number;
+  restore?: {
+    placements: { index: number; placement: LayoutPlacement }[];
+    openings: { index: number; opening: LayoutOpening }[];
+  };
+}
+export interface FloorUpdateCommand {
+  kind: 'floor.update';
+  id: string;
+  name?: string;
+  level?: number;
+}
+/**
+ * Remove a floor with its tiles, placements (the items go to the Unplaced tray; notes are never
+ * touched) and doors/windows. `confirmed` is what the user saw go: on replay, more tiles or
+ * other items on the floor are a conflict (`more_lost`), as for a resize. Never the last floor.
+ */
+export interface FloorRemoveCommand {
+  kind: 'floor.remove';
+  id: string;
+  confirmed: { tiles: number; items: string[]; openings: number };
+}
+
 /** Add (replacing the same edge) or remove openings; used to restore what a resize cut. */
 export interface OpeningsCommand {
   kind: 'openings';
@@ -128,6 +160,9 @@ export interface BatchCommand {
 export type Command =
   | CellsCommand
   | PlacementCommand
+  | FloorAddCommand
+  | FloorUpdateCommand
+  | FloorRemoveCommand
   | RoomAddCommand
   | RoomUpdateCommand
   | RoomRemoveCommand
@@ -138,6 +173,8 @@ export type Command =
 
 export type ConflictCode =
   | 'floor_missing'
+  | 'floor_exists'
+  | 'last_floor'
   | 'room_missing'
   | 'room_exists'
   | 'room_in_use'
@@ -352,6 +389,113 @@ function applyRoomRemove(l: Layout, c: RoomRemoveCommand): ApplyResult {
   };
 }
 
+/** What removing a floor takes with it (D35): tiles, placed items in list order, openings. */
+export function floorLoss(l: Layout, floorId: string) {
+  const floor = l.floors.find((f) => f.id === floorId);
+  const placements = (l.placements ?? []).flatMap((placement, index) =>
+    placement.floorId === floorId ? [{ index, placement }] : [],
+  );
+  const openings = (l.openings ?? []).flatMap((opening, index) =>
+    opening.floorId === floorId ? [{ index, opening }] : [],
+  );
+  return { floor, placements, openings, tiles: Object.keys(floor?.cells ?? {}).length };
+}
+
+function applyFloorAdd(l: Layout, c: FloorAddCommand, ctx: ApplyContext): ApplyResult {
+  const inverse: FloorRemoveCommand = {
+    kind: 'floor.remove',
+    id: c.floor.id,
+    confirmed: {
+      tiles: Object.keys(c.floor.cells ?? {}).length,
+      items: (c.restore?.placements ?? []).map((p) => p.placement.itemId),
+      openings: c.restore?.openings.length ?? 0,
+    },
+  };
+  const prev = l.floors.find((f) => f.id === c.floor.id);
+  if (prev) {
+    // A save whose response was lost: already there, nothing to do.
+    if (JSON.stringify(prev) === JSON.stringify(c.floor))
+      return { ok: true, layout: l, inverse, changed: false };
+    return fail('floor_exists', c.floor.id);
+  }
+  const floors = [...l.floors];
+  floors.splice(Math.min(Math.max(0, c.index ?? floors.length), floors.length), 0, c.floor);
+  let placements = l.placements ?? [];
+  let openings = l.openings ?? [];
+  if (c.restore) {
+    placements = [...placements];
+    for (const { index, placement } of [...c.restore.placements].sort(
+      (a, b) => a.index - b.index,
+    )) {
+      if (placements.some((p) => p.itemId === placement.itemId))
+        return fail('already_placed', placement.itemId);
+      if (ctx.noteDeleted?.(placement.itemId)) return fail('note_deleted', placement.itemId);
+      placements.splice(Math.min(index, placements.length), 0, placement);
+    }
+    openings = [...openings];
+    for (const { index, opening } of [...c.restore.openings].sort((a, b) => a.index - b.index))
+      if (!openings.some((o) => openingKey(o) === openingKey(opening)))
+        openings.splice(Math.min(index, openings.length), 0, opening);
+  }
+  return { ok: true, layout: { ...l, floors, placements, openings }, inverse, changed: true };
+}
+
+function applyFloorUpdate(l: Layout, c: FloorUpdateCommand): ApplyResult {
+  const i = l.floors.findIndex((f) => f.id === c.id);
+  if (i < 0) return fail('floor_missing', c.id);
+  const prev = l.floors[i]!;
+  const next = {
+    ...prev,
+    ...(c.name !== undefined && { name: c.name }),
+    ...(c.level !== undefined && { level: c.level }),
+  };
+  const inverse: FloorUpdateCommand = {
+    kind: 'floor.update',
+    id: c.id,
+    ...(c.name !== undefined && { name: prev.name }),
+    ...(c.level !== undefined && { level: prev.level }),
+  };
+  if (next.name === prev.name && next.level === prev.level)
+    return { ok: true, layout: l, inverse, changed: false };
+  return {
+    ok: true,
+    layout: { ...l, floors: l.floors.map((f, j) => (j === i ? next : f)) },
+    inverse,
+    changed: true,
+  };
+}
+
+function applyFloorRemove(l: Layout, c: FloorRemoveCommand): ApplyResult {
+  const index = l.floors.findIndex((f) => f.id === c.id);
+  if (index < 0)
+    return { ok: true, layout: l, inverse: { kind: 'batch', commands: [] }, changed: false };
+  if (l.floors.length === 1) return fail('last_floor', c.id);
+  const loss = floorLoss(l, c.id);
+  const confirmedItems = new Set(c.confirmed.items);
+  if (
+    loss.tiles > c.confirmed.tiles ||
+    loss.openings.length > c.confirmed.openings ||
+    loss.placements.some((p) => !confirmedItems.has(p.placement.itemId))
+  )
+    return fail('more_lost');
+  return {
+    ok: true,
+    layout: {
+      ...l,
+      floors: l.floors.filter((f) => f.id !== c.id),
+      placements: (l.placements ?? []).filter((p) => p.floorId !== c.id),
+      openings: (l.openings ?? []).filter((o) => o.floorId !== c.id),
+    },
+    inverse: {
+      kind: 'floor.add',
+      floor: loss.floor!,
+      index,
+      restore: { placements: loss.placements, openings: loss.openings },
+    },
+    changed: true,
+  };
+}
+
 function applyOpenings(l: Layout, c: OpeningsCommand): ApplyResult {
   const byKey = new Map((l.openings ?? []).map((o) => [openingKey(o), o]));
   const before = new Map(byKey);
@@ -530,6 +674,12 @@ export function applyCommand(layout: Layout, cmd: Command, ctx: ApplyContext): A
       return applyCells(layout, cmd);
     case 'placement':
       return applyPlacement(layout, cmd, ctx);
+    case 'floor.add':
+      return applyFloorAdd(layout, cmd, ctx);
+    case 'floor.update':
+      return applyFloorUpdate(layout, cmd);
+    case 'floor.remove':
+      return applyFloorRemove(layout, cmd);
     case 'room.add':
       return applyRoomAdd(layout, cmd);
     case 'room.update':
@@ -573,6 +723,29 @@ export function shiftCommand(cmd: Command, dx: number, dy: number): Command {
     }
     case 'batch':
       return { ...cmd, commands: cmd.commands.map((c) => shiftCommand(c, dx, dy)) };
+    case 'floor.add': {
+      const cells: Record<string, string> = {};
+      for (const [key, room] of Object.entries(cmd.floor.cells ?? {})) {
+        const c = parseCellKey(key);
+        if (c) cells[cellKey(c.x + dx, c.y + dy)] = room;
+      }
+      return {
+        ...cmd,
+        floor: { ...cmd.floor, cells },
+        ...(cmd.restore && {
+          restore: {
+            placements: cmd.restore.placements.map((r) => ({
+              ...r,
+              placement: { ...r.placement, x: r.placement.x + dx, y: r.placement.y + dy },
+            })),
+            openings: cmd.restore.openings.map((r) => ({
+              ...r,
+              opening: { ...r.opening, x: r.opening.x + dx, y: r.opening.y + dy },
+            })),
+          },
+        }),
+      };
+    }
     case 'dedupe':
       return cmd.restore
         ? {
