@@ -12,3 +12,4 @@ export {
   TRAY_MIME,
   useToolPointer,
 } from './useToolPointer';
+export { NoFloorPlan } from './FirstRun';

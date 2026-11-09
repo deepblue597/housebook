@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { house as exampleHouse } from '../test/exampleHouse';
 import {
+  firstLayout,
   type Layout,
   type LayoutPlacement,
   canonicalLayout,
@@ -300,5 +301,29 @@ describe('a shift needs tiles or openings to confirm it (M5-11)', () => {
     };
     const grown = resizeLayout(one, { n: 0, e: 0, s: 0, w: 1 }, fp11).layout;
     expect(inferShift(one, grown, fp11)).toEqual({ dx: 1, dy: 0 });
+  });
+});
+
+describe('firstLayout (first run, D34)', () => {
+  it('one empty floor at level 0 on a grid of 1 m tiles', () => {
+    const l = firstLayout('  Ground   floor ', 16, 10, () => 0);
+    expect(l).toEqual({
+      schemaVersion: 1,
+      grid: { tileSize: 1, width: 16, depth: 10 },
+      rooms: [],
+      floors: [{ id: 'fl_000000', name: 'Ground floor', level: 0, cells: {} }],
+      placements: [],
+      openings: [],
+    });
+  });
+
+  it('refuses names and sizes the contract would reject', () => {
+    expect(firstLayout('', 16, 10)).toBeNull();
+    expect(firstLayout('x'.repeat(101), 16, 10)).toBeNull();
+    expect(firstLayout('F', 0, 10)).toBeNull();
+    expect(firstLayout('F', 513, 10)).toBeNull();
+    expect(firstLayout('F', 10.5, 10)).toBeNull();
+    expect(firstLayout('F', Number.NaN, 10)).toBeNull();
+    expect(firstLayout('F', 512, 1)).not.toBeNull();
   });
 });

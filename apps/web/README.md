@@ -119,6 +119,10 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 - **Attachments (milestone 6, D33):** editors add files with "Add files" or by dropping them on
   the Attachments section (PDF, JPEG, PNG, WebP, HEIC; 25 MB each; uploaded one after the other),
   and remove one with ✕ → Remove (to the trash; only files in the item's own folder).
+- **First run (milestone 6, D34):** with no `house.json`, editors get "Set up your house" (floor
+  name and size), which creates the layout and opens the editor with "Room 1" ready to paint.
+  Existing items and notes still to adopt are counted. An unreadable `house.json` is never
+  replaced; viewers are told someone who can edit can set it up.
 - **Layout editor (milestone 5, DESIGN §7.3, D17, D23–D29):** "Edit" in the top bar (editors,
   writable layout) opens a side bar: tools Select/move (V), Paint (B), Erase (E), undo/redo,
   Resize house…, the save state, the room list (add, rename, recolour, paint with, delete when

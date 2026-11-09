@@ -270,13 +270,45 @@ export const openingKey = (o: Pick<LayoutOpening, 'floorId' | 'x' | 'y' | 'side'
 
 const BASE36 = '0123456789abcdefghijklmnopqrstuvwxyz';
 
-/** `rm_` + 6 base36 characters, not used yet. `random` returns [0, 1). */
-export function newRoomId(taken: ReadonlySet<string>, random: () => number = Math.random): string {
+function newId(prefix: string, taken: ReadonlySet<string>, random: () => number): string {
   for (;;) {
-    let id = 'rm_';
+    let id = prefix;
     for (let i = 0; i < 6; i++) id += BASE36[Math.floor(random() * 36)];
     if (!taken.has(id)) return id;
   }
+}
+
+/** `rm_` + 6 base36 characters, not used yet. `random` returns [0, 1). */
+export const newRoomId = (taken: ReadonlySet<string>, random: () => number = Math.random): string =>
+  newId('rm_', taken, random);
+
+/** `fl_` + 6 base36 characters, not used yet. */
+export const newFloorId = (
+  taken: ReadonlySet<string>,
+  random: () => number = Math.random,
+): string => newId('fl_', taken, random);
+
+/**
+ * The layout a first run creates (DESIGN 15.16, D34): one empty floor at level 0 on a
+ * `width` × `depth` grid of 1 m tiles. Null when the name or a size is out of range.
+ */
+export function firstLayout(
+  floorName: string,
+  width: number,
+  depth: number,
+  random: () => number = Math.random,
+): Layout | null {
+  const name = cleanRoomName(floorName);
+  const ok = (n: number) => Number.isInteger(n) && n >= MIN_GRID && n <= MAX_GRID;
+  if (!name || !ok(width) || !ok(depth)) return null;
+  return {
+    schemaVersion: 1,
+    grid: { tileSize: 1, width, depth },
+    rooms: [],
+    floors: [{ id: newFloorId(new Set(), random), name, level: 0, cells: {} }],
+    placements: [],
+    openings: [],
+  };
 }
 
 /** Room names the contract accepts: 1–100 characters after trimming. */
