@@ -42,7 +42,7 @@ already supports it (`PATCH /api/items/{id}`, `DELETE /api/items/{id}`); the app
 
 ## M7: Floors, doors and windows (~3 days) — done
 
-Shipped in pull requests #8 (floors) and the doors-and-windows pull request; decisions D35–D36.
+Shipped in pull requests #8 (floors) and #9 (doors and windows); decisions D35–D36.
 
 The file format supports any number of floors and doors/windows; the editor can't create them.
 
