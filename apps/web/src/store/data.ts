@@ -13,6 +13,7 @@ import {
   fetchHouse,
   fetchItem,
   fetchSnapshot,
+  deleteAttachment,
   deleteItemRequest,
   getJson,
   patchItem,
@@ -20,6 +21,7 @@ import {
   postItem,
   postLogEntry,
   sameEtag,
+  uploadAttachment,
 } from '../api/client';
 import type {
   House,
@@ -72,6 +74,10 @@ interface DataState {
   adopt: (path: string) => Promise<Item>;
   /** PATCH /api/items/{id} against `etag` (the version the edit started from); 412 throws. */
   updateItem: (id: string, patch: ItemPatch, etag: string) => Promise<Item>;
+  /** Upload one file to an item's attachments (D33). */
+  addAttachment: (id: string, file: Blob, name: string) => Promise<Item>;
+  /** Move an attachment to the trash (D33). */
+  removeAttachment: (id: string, name: string) => Promise<Item>;
   /** DELETE /api/items/{id} against `etag`; the item leaves the held items. */
   deleteItem: (id: string, etag: string) => Promise<void>;
   /** POST /api/items; the new (still unplaced) item is added to the held items. */
@@ -330,6 +336,20 @@ export const useData = create<DataState>()((set, get) => {
         // The layout shown may be ahead of the server's (unsaved editor edits).
         const house = get().model?.snapshot.house ?? null;
         upsert(relocate([item], house)[0]!);
+        return item;
+      }),
+
+    addAttachment: (id, file, name) =>
+      enqueue(async () => {
+        const item = await uploadAttachment(id, file, name);
+        upsert(relocate([item], get().model?.snapshot.house ?? null)[0]!);
+        return item;
+      }),
+
+    removeAttachment: (id, name) =>
+      enqueue(async () => {
+        const item = await deleteAttachment(id, name);
+        upsert(relocate([item], get().model?.snapshot.house ?? null)[0]!);
         return item;
       }),
 

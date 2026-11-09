@@ -11,7 +11,8 @@ events, live sync and the problems panel (milestone 4); and the **layout editor*
 edit mode for editors with paint/erase (rectangle drag), place/move/rotate items, rooms, resizing
 the house, undo/redo, debounced saving with replay on `412`, the Unplaced tray and ghost relinking,
 in 2D and 3D. Milestone 6 (in progress, see `docs/ROADMAP.md`): the **note editor** (edit an
-item's fields and notes in the app) and **deleting items** (to the trash). See `apps/web/README.md`.
+item's fields and notes in the app) **deleting items** (to the trash) and
+**uploading attachments** (photos lose their GPS data; HEIC becomes JPEG). See `apps/web/README.md`.
 
 ```
 contract/           shared by backend and frontend
@@ -119,6 +120,8 @@ Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md
 | GET | `/api/items/{id}` | One item; `ETag` = note content hash (the `If-Match` for writes) |
 | PATCH | `/api/items/{id}` | `{frontmatter?: <JSON Merge Patch>, body?}` with `If-Match` (editor). Minimal-diff frontmatter edit |
 | DELETE | `/api/items/{id}` | Move the note (and its attachment folder) to `.housebook/trash/` (`If-Match`, editor) |
+| POST | `/api/items/{id}/attachments?name=` | Upload a file as the raw body (`application/octet-stream`, editor): PDF, JPEG, PNG, WebP or HEIC by content, ≤ 25 MiB; photos are saved again without metadata (GPS), HEIC as JPEG; stored in the item's attachments folder and listed in `attachments` |
+| DELETE | `/api/items/{id}/attachments/{name}` | Move a file from the item's attachments folder to `.housebook/trash/` and unlist it (editor) |
 | POST | `/api/items/{id}/log` | Append `- YYYY-MM-DD text` under `## Maintenance log` (`{text, date?}`, no `If-Match`, editor) |
 | POST | `/api/items/adopt` | Give a tagged note without `housebook_id` (a `not_adopted` problem) an id (`{path}`, editor) |
 | GET | `/api/events` | Server-sent events: `resync` on connect, then `house.changed`, `item.changed`, `item.deleted`, `problems.changed`; a `ping` event after 20 s of silence |
@@ -144,7 +147,8 @@ Writes need `Content-Type: application/json` (CSRF guard) and the `editor` role.
 `/api/events` is a long-lived stream. nginx: `proxy_buffering off; proxy_http_version 1.1;
 proxy_read_timeout 1h;` (the app also sends `X-Accel-Buffering: no`); ingress-nginx: the
 `proxy-buffering: "off"` and `proxy-read-timeout` annotations. Traefik streams fine; don't apply a
-compress middleware to `text/event-stream`. Use HTTP/2 at the proxy: over HTTP/1.1 browsers allow
+compress middleware to `text/event-stream`. Uploads are up to 25 MiB: raise the proxy's body limit (nginx defaults to 1 MB: `client_max_body_size
+30m;`, ingress-nginx: `proxy-body-size`). Use HTTP/2 at the proxy: over HTTP/1.1 browsers allow
 6 connections per host and every open tab holds one stream.
 
 ## Restore test

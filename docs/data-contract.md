@@ -487,6 +487,8 @@ written, `ETag`.
 | `PATCH` | `/api/items/{id}` | `{frontmatter?, body?}` | `If-Match` | `200`, item detail, `ETag` |
 | `POST` | `/api/items/{id}/log` | `{text, date?}` | none | `200`, item detail, `ETag` |
 | `DELETE` | `/api/items/{id}` | – | `If-Match` | `204` |
+| `POST` | `/api/items/{id}/attachments?name=` | the file (`application/octet-stream`) | none | `201`, item detail, `ETag`, `Location` (the file) |
+| `DELETE` | `/api/items/{id}/attachments/{name}` | – | none | `200`, item detail, `ETag` |
 | `POST` | `/api/items/adopt` | `{path}` | none | `200`, item detail, `ETag` |
 
 - **Create:** `type` is a catalogue key or alias (stored as the canonical key); `name` defaults to
@@ -504,6 +506,24 @@ written, `ETag`.
 - **Delete:** moves the note, and its sibling attachment folder unless that folder contains notes,
   to `.housebook/trash/<stamp>-<id>/`. Remove the placement first (D8); otherwise it becomes a
   `missing_note`.
+- **Upload attachment (D33):** the body is the file itself with `Content-Type:
+  application/octet-stream` (anything else is `415`; a cross-site form can't send it, the same
+  CSRF guard as JSON); `name` is the original file name. At most 25 MiB (`413`); an empty body or
+  a name with control characters is `422`. The type is taken from the first bytes: PDF, JPEG, PNG,
+  WebP, HEIC/HEIF, anything else is `415`. PDFs are stored as sent. Images are decoded and saved
+  again: EXIF orientation applied, all metadata (EXIF incl. GPS, XMP, comments) dropped, colour
+  profile kept; HEIC/HEIF become JPEG; more than 80 megapixels or an unreadable image is `422`.
+  The file goes into the item's attachments folder (`House/Kitchen/Dishwasher/`, created if
+  needed) under the cleaned name (rules as for notes, fallback `Attachment`) with the extension of
+  its type (`.pdf`, `.jpg`, `.png`, `.webp`), `-2`, `-3`, … on a collision, and
+  `"[[Dishwasher/<file>]]"` is appended to `attachments` (minimal diff; an unquoted
+  `[[x]]` entry is rewritten as `"[[x]]"`). No `If-Match`: like a log entry, it merges with
+  whatever is on disk. A note that can't be parsed is `409 unparseable` and nothing is stored.
+  Uploads in progress live in `.housebook/uploads/` and are deleted whatever happens.
+- **Delete attachment (D33):** only a file directly in the item's attachments folder (else
+  `409 not_in_folder`: a link elsewhere may be shared by several notes; remove the link in the note
+  instead). The file moves to `.housebook/trash/<stamp>-<id>-attachment/`; links in `attachments`
+  that point to it are removed (the key too when none is left).
 - **Adopt:** `path` of a current `not_adopted` problem (anything else: `404`, or `422` outside the
   notes folder), so files the scanner ignores are never written. Writes a new `housebook_id` as the
   first frontmatter line (`409` `not_tagged` / `has_id` if the file changed since the scan).

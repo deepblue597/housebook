@@ -5,6 +5,8 @@ import json
 import logging
 import os
 import posixpath
+import secrets
+import unicodedata
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 from urllib.parse import quote
@@ -40,6 +42,7 @@ from housebook.domain.text import nfc
 from housebook.ports import UnsafePath
 from housebook.services.indexer import MAX_HOUSE_BYTES, IndexState
 from housebook.services.sync import items_version, resync_payload, sse_frame
+from housebook.services.uploads import UploadRejected, prepare
 from housebook.services.writer import field_error, parse_house, unprocessable
 
 log = logging.getLogger(__name__)
@@ -373,6 +376,92 @@ async def delete_item(item_id: str, ctx: Ctx, if_match: IfMatch = None) -> Respo
     with PUT /api/house first (D8); otherwise it shows as a missing note."""
     await ctx.sync.write(lambda: ctx.writer.delete_item(item_id, if_match), deleted=[item_id])
     return Response(status_code=204)
+
+
+# --- attachments (D33) ---------------------------------------------------------------------------
+
+
+def require_upload(request: Request) -> None:
+    """The file is the raw body. `application/octet-stream` isn't a type a cross-site form or a
+    no-cors fetch can send, so, like the JSON rule, this is the CSRF guard."""
+    ctype = request.headers.get("content-type", "").split(";")[0].strip().lower()
+    if ctype != "application/octet-stream":
+        raise HTTPException(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, "Content-Type must be application/octet-stream")
+
+
+UploadName = Annotated[
+    str,
+    Query(
+        min_length=1,
+        max_length=255,
+        description="Original file name; the stored name is cleaned, made unique and gets the extension of the "
+        "detected type",
+    ),
+]
+
+
+@api.post(
+    "/items/{item_id}/attachments",
+    response_model=ItemDetailOut,
+    status_code=201,
+    dependencies=[Depends(require_editor), Depends(require_upload)],
+    responses=_errors(404, 409, 413, 415, 422),
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+async def upload_attachment(item_id: str, name: UploadName, request: Request, ctx: Ctx) -> Response:
+    """Attach a file (PDF, JPEG, PNG, WebP or HEIC, by its first bytes; at most 25 MiB) to an item. It is
+    stored in the item's attachments folder next to the note and listed in `attachments`. Images are
+    saved again without metadata (EXIF and GPS); HEIC becomes JPEG. `Location` is the file's URL."""
+    if any(unicodedata.category(ch) == "Cc" for ch in name):
+        raise unprocessable([field_error(["query", "name"], "name must not contain control characters")])
+    if item_id not in ctx.state().items:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No item with this id")
+    upload = ctx.writer.notes.upload_dir() / f".{secrets.token_hex(8)}.part"
+    prepared_path = None
+    try:
+        size = 0
+        with upload.open("wb") as f:
+            async for chunk in request.stream():  # ClientDisconnect past the size limit (413)
+                size += len(chunk)
+                f.write(chunk)
+        if size == 0:
+            raise unprocessable([field_error(["body"], "the file is empty")])
+        try:
+            prepared = await asyncio.to_thread(prepare, upload)
+        except UploadRejected as e:
+            raise HTTPException(e.status, str(e)) from None
+        prepared_path = prepared.path
+        stored, state = await ctx.sync.write(
+            lambda: ctx.writer.add_attachment(item_id, prepared.path, name, prepared.extension)
+        )
+    finally:
+        upload.unlink(missing_ok=True)
+        if prepared_path is not None:
+            prepared_path.unlink(missing_ok=True)
+    response = _item_response(ctx, state, item_id)
+    response.status_code = 201
+    response.headers["Location"] = f"/api/items/{quote(item_id, safe='')}/attachments/{quote(stored, safe='')}"
+    return response
+
+
+@api.delete(
+    "/items/{item_id}/attachments/{name}",
+    response_model=ItemDetailOut,
+    dependencies=[Depends(require_editor)],
+    responses=_errors(404, 409),
+)
+async def delete_attachment(item_id: str, name: str, ctx: Ctx) -> Response:
+    """Move an attachment to `.housebook/trash/` and remove its link from `attachments`. Only files
+    in the item's own attachments folder (409 `not_in_folder` otherwise: it may be shared)."""
+    if not is_safe_name(name):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid file name")
+    _, state = await ctx.sync.write(lambda: ctx.writer.delete_attachment(item_id, name))
+    return _item_response(ctx, state, item_id)
 
 
 # --- events (DESIGN 15.7) -----------------------------------------------------------------------

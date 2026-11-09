@@ -297,7 +297,7 @@ function ItemDetailsView({
 
       {editor && <LogEntryForm key={item.id} item={item} />}
 
-      <Attachments attachments={item.attachments} />
+      <Attachments item={item} editor={editor} />
 
       <footer className="note-foot">
         <p className="path">

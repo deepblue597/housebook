@@ -150,7 +150,12 @@ export interface paths {
         get: operations["get_attachment_api_items__item_id__attachments__name__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Attachment
+         * @description Move an attachment to `.housebook/trash/` and remove its link from `attachments`. Only files
+         *     in the item's own attachments folder (409 `not_in_folder` otherwise: it may be shared).
+         */
+        delete: operations["delete_attachment_api_items__item_id__attachments__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -242,6 +247,28 @@ export interface paths {
          *     appends merge with whatever is on disk.
          */
         post: operations["append_log_api_items__item_id__log_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{item_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Attachment
+         * @description Attach a file (PDF, JPEG, PNG, WebP or HEIC, by its first bytes; at most 25 MiB) to an item. It is
+         *     stored in the item's attachments folder next to the note and listed in `attachments`. Images are
+         *     saved again without metadata (EXIF and GPS); HEIC becomes JPEG. `Location` is the file's URL.
+         */
+        post: operations["upload_attachment_api_items__item_id__attachments_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1388,6 +1415,56 @@ export interface operations {
             };
         };
     };
+    delete_attachment_api_items__item_id__attachments__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_problems_api_problems_get: {
         parameters: {
             query?: never;
@@ -1525,6 +1602,80 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ItemDetailOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    upload_attachment_api_items__item_id__attachments_post: {
+        parameters: {
+            query: {
+                /** @description Original file name; the stored name is cleaned, made unique and gets the extension of the detected type */
+                name: string;
+            };
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

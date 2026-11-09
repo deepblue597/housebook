@@ -15,11 +15,13 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
 from housebook.config import Settings
+from housebook.domain.attachments import link_target
 from housebook.domain.catalog import Catalog
 from housebook.domain.frontmatter import MAX_NOTE_BYTES, FrontmatterError, is_housebook_tagged, parse
 from housebook.domain.house import House, HouseIssue, house_issues, serialize, worse_issues
@@ -242,6 +244,67 @@ class Writer:
         log.info("note moved to trash", extra={"item_id": item_id, "path": item.rel, "trash": dest})
         return dest
 
+    # attachments (D33) ---------------------------------------------------------------------------
+
+    def add_attachment(self, item_id: str, src: Path, original_name: str, extension: str) -> str:
+        """Move a prepared upload into the item's attachments folder (`House/K/Dishwasher/`, next
+        to the note) and list it in `attachments` as a wikilink, which Obsidian keeps current
+        when files move. No If-Match: like a log entry, adding merges with whatever is on disk.
+        Returns the stored file name (made unique in the folder)."""
+        item, raw = self._current(item_id)
+        try:
+            data = parse(raw).data
+        except FrontmatterError as e:
+            raise self._unparseable(e) from e
+        folder = _attachments_folder(item.rel)
+        stem = clean_filename(posixpath.splitext(original_name)[0], fallback="Attachment")
+        taken = self.notes.names_in(folder)
+        name, n = f"{stem}{extension}", 1
+        while name.casefold() in taken:
+            n += 1
+            name = f"{stem}-{n}{extension}"
+        link = f"[[{posixpath.basename(folder)}/{name}]]"
+        # Edit first (it can still fail: size, an unwritable note), then move the file in.
+        edited = self._edit(raw, {"attachments": [*_attachment_links(data.get("attachments")), link]}, None)
+        try:
+            self.notes.add_file(folder, name, src)
+        except FileExistsError as e:
+            raise conflict("a file with this name appeared meanwhile; try again", "exists") from e
+        except UnsafePath as e:
+            raise conflict("the item's attachments folder can't be written", "unsafe") from e
+        self._write(item, raw, edited.raw, "attach")
+        log.info("attachment added", extra={"item_id": item_id, "path": f"{folder}/{name}"})
+        return name
+
+    def delete_attachment(self, item_id: str, name: str) -> str:
+        """Move an attachment to `.housebook/trash/` and remove its link from `attachments`.
+        Only files in the item's own attachments folder: a link to a file elsewhere may be shared
+        with other notes (409 `not_in_folder`; remove the link in the note instead)."""
+        item, raw = self._current(item_id)
+        att = next((a for a in item.attachments if a.name == nfc(name)), None)
+        if att is None:
+            raise not_found("No such attachment")
+        if nfc(posixpath.dirname(att.rel)) != nfc(_attachments_folder(item.rel)):
+            raise conflict(
+                "the file is outside the item's attachments folder (maybe shared); remove its link in the note",
+                "not_in_folder",
+            )
+        edited: Edited | None = None
+        if att.listed:
+            try:
+                data = parse(raw).data
+            except FrontmatterError as e:
+                raise self._unparseable(e) from e
+            links = _attachment_links(data.get("attachments"))
+            keep = [link for link in links if not _points_to(link, item.rel, att.rel)]
+            if len(keep) != len(links):
+                edited = self._edit(raw, {"attachments": keep or None}, None)
+        dest = self.notes.trash_file(att.rel, f"{item_id}-attachment", self.clock())
+        if edited is not None:
+            self._write(item, raw, edited.raw, "detach")
+        log.info("attachment moved to trash", extra={"item_id": item_id, "path": att.rel, "trash": dest})
+        return dest
+
     def create_item(
         self,
         type_key: str,
@@ -410,3 +473,42 @@ def parse_house(data: Any) -> House:
 def issue_errors(issues: list[HouseIssue]) -> list[dict[str, Any]]:
     """Semantic issues in the `{type, loc, msg}` shape of a 422 (`type` = the problem kind)."""
     return [{"type": i.code, "loc": ["body", *i.loc], "msg": i.message} for i in issues]
+
+
+def _attachments_folder(note_rel: str) -> str:
+    """`House/Kitchen/Dishwasher.md` -> `House/Kitchen/Dishwasher` (contract §3.4)."""
+    return note_rel[:-3] if note_rel.lower().endswith(".md") else note_rel
+
+
+def _attachment_links(value: Any) -> list[str]:
+    """The `attachments` frontmatter as a list of link strings. An unquoted
+    `attachments: [[x.pdf]]` reads as a nested list; it is written back as `"[[x.pdf]]"`."""
+    if value is None or value == "":
+        return []
+    if isinstance(value, str):
+        return [value]
+    if not isinstance(value, list):
+        return []
+    out: list[str] = []
+    for v in value:
+        if isinstance(v, str):
+            out.append(v)
+        elif isinstance(v, list) and len(v) == 1 and isinstance(v[0], list) and len(v[0]) == 1:
+            out.append(f"[[{v[0][0]}]]")  # [[x]] inside a flow list
+        elif isinstance(v, list) and v and all(isinstance(x, str) for x in v):
+            out.append(f"[[{', '.join(v)}]]")
+    return out
+
+
+def _points_to(link: str, note_rel: str, target_rel: str) -> bool:
+    """Whether a link names `target_rel`: relative to the note's folder or the data root, or by
+    a bare file name (the same order links resolve in, contract §3.4)."""
+    t = nfc(link_target(link)).replace("\\", "/")
+    want = nfc(target_rel)
+    if not t:
+        return False
+    if posixpath.normpath(posixpath.join(posixpath.dirname(nfc(note_rel)), t)) == want:
+        return True
+    if posixpath.normpath(t) == want:
+        return True
+    return "/" not in t and t == posixpath.basename(want)

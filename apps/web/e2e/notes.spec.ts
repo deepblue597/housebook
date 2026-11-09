@@ -156,3 +156,55 @@ test.describe('delete item', () => {
     await expect(page.locator(`.plan [data-ghost-id="${DISHWASHER}"]`)).toHaveCount(0);
   });
 });
+
+test.describe('attachments', () => {
+  const PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+  // A 1×1 PNG.
+  const PNG = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  );
+
+  test('editors add files, see them listed, and remove one to the trash', async ({
+    page,
+    backend,
+  }) => {
+    const { url, dataDir } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'editor' });
+    await page.goto(`${url}/i/${DISHWASHER}`);
+    await expect(page.locator('[data-sync]')).toHaveAttribute('data-sync', 'live');
+    const section = panel(page).getByRole('region', { name: 'Attachments' });
+
+    await section.getByLabel('Files to attach').setInputFiles([
+      { name: 'Invoice.pdf', mimeType: 'application/pdf', buffer: PDF },
+      { name: 'plate.png', mimeType: 'image/png', buffer: PNG },
+      { name: 'notes.txt', mimeType: 'text/plain', buffer: Buffer.from('hello') },
+    ]);
+    await expect(section.getByRole('status')).toHaveText('2 files added.');
+    await expect(section.getByRole('alert')).toContainText(
+      'notes.txt: only PDF, JPEG, PNG, WebP or HEIC files can be attached.',
+    );
+    await expect(section.getByRole('button', { name: 'View Invoice.pdf' })).toBeVisible();
+    await expect(section.getByRole('button', { name: 'Preview plate.png' })).toBeVisible();
+    expect(readFileSync(join(dataDir, 'House/Kitchen/Dishwasher/Invoice.pdf'))).toEqual(PDF);
+    expect(existsSync(join(dataDir, 'House/Kitchen/Dishwasher/notes.txt'))).toBe(false);
+    expect(read(dataDir)).toContain(
+      'attachments: ["[[Dishwasher/manual.pdf]]", "[[Dishwasher/Invoice.pdf]]", "[[Dishwasher/plate.png]]"]',
+    );
+    await expectNoA11yViolations(page);
+
+    await section.getByRole('button', { name: 'Remove Invoice.pdf' }).click();
+    await section.getByRole('button', { name: 'Remove Invoice.pdf' }).click(); // confirm
+    await expect(section.getByRole('status')).toHaveText('Invoice.pdf moved to the trash.');
+    await expect(section.getByRole('button', { name: 'View Invoice.pdf' })).toHaveCount(0);
+    expect(existsSync(join(dataDir, 'House/Kitchen/Dishwasher/Invoice.pdf'))).toBe(false);
+    expect(read(dataDir)).not.toContain('Invoice.pdf');
+  });
+
+  test('viewers can’t add or remove files', async ({ page }) => {
+    await page.goto(`/i/${DISHWASHER}`);
+    const section = panel(page).getByRole('region', { name: 'Attachments' });
+    await expect(section.getByRole('button', { name: 'View manual.pdf' })).toBeVisible();
+    await expect(section.getByRole('button', { name: 'Add files' })).toHaveCount(0);
+    await expect(section.getByRole('button', { name: /^Remove/ })).toHaveCount(0);
+  });
+});

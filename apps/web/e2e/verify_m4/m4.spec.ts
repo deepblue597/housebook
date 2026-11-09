@@ -811,7 +811,7 @@ test.describe('keyboard, screen reader, phone', () => {
       .getByRole('status');
     await expect(status).toHaveText('Write what was done first.');
     await page.keyboard.type('Keyboard entry');
-    const add = panel(page).getByRole('button', { name: 'Add' });
+    const add = panel(page).getByRole('button', { name: 'Add', exact: true });
     // Tab through the date field (Chrome: month/day/year segments) to Add.
     for (let i = 0; i < 6 && !(await add.evaluate((b) => b === document.activeElement)); i++)
       await page.keyboard.press('Tab');
