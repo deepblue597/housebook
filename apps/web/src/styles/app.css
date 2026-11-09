@@ -538,6 +538,34 @@ code {
   }
 }
 
+.btn.danger {
+  border-color: var(--bad);
+  background: var(--bad);
+  color: var(--paper);
+}
+.btn.danger:hover {
+  filter: brightness(1.08);
+}
+.note-actions .danger-quiet {
+  margin-left: auto;
+  color: var(--bad);
+}
+.delete-what {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.delete-what li + li {
+  margin-top: 6px;
+}
+.delete-dialog .msg {
+  min-height: 1em;
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.delete-dialog .msg.err {
+  color: var(--bad);
+}
+
 /* ---- search ---------------------------------------------------------------------- */
 .search {
   position: relative;

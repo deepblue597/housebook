@@ -11,6 +11,7 @@ import { useUi } from '../../store/ui';
 import { useData } from '../../store/data';
 import { ItemLayoutActions } from '../editor';
 import { Attachments } from './Attachments';
+import { DeleteItemDialog } from './DeleteItemDialog';
 import { useDrafts } from './drafts';
 import { LogEntryForm } from './LogEntryForm';
 import { NoteEditor } from './NoteEditor';
@@ -122,6 +123,7 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
   const putDraft = useDrafts((s) => s.put);
   // "Saved." after the editor closes, for this item only.
   const [done, setDone] = useState<{ id: string; text: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const resolve: MarkdownBodyProps['resolve'] = (link) => resolveWikilink(model, item, link);
   const navigate = (href: string) => select(selectionFromPath(href));
 
@@ -222,8 +224,12 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
               <span className="msg" role="status">
                 {done?.id === item.id ? done.text : ''}
               </span>
+              <button type="button" className="btn danger-quiet" onClick={() => setDeleting(true)}>
+                Delete item
+              </button>
             </div>
           )}
+          {deleting && <DeleteItemDialog item={item} onClose={() => setDeleting(false)} />}
           <ItemDetailsView
             item={item}
             resolve={resolve}

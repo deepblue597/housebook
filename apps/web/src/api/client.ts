@@ -180,6 +180,18 @@ export async function patchItem(id: string, patch: ItemPatch, etag: string): Pro
   return (await res.json()) as Item;
 }
 
+/**
+ * DELETE /api/items/{id} with `If-Match`: the note and its attachment folder go to
+ * `.housebook/trash/` (data contract §8.2). Remove the placement first (D8).
+ */
+export async function deleteItemRequest(id: string, etag: string): Promise<void> {
+  await request(`/api/items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+    headers: { 'If-Match': `"${unquoteEtag(etag)}"` },
+  });
+}
+
 /** POST /api/items: create a note (D8: the client places it with PUT /api/house afterwards). */
 export const postItem = (body: ItemCreate) => postJson<Item>('/api/items', body);
 

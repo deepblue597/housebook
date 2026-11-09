@@ -13,6 +13,7 @@ import {
   fetchHouse,
   fetchItem,
   fetchSnapshot,
+  deleteItemRequest,
   getJson,
   patchItem,
   postAdopt,
@@ -71,6 +72,8 @@ interface DataState {
   adopt: (path: string) => Promise<Item>;
   /** PATCH /api/items/{id} against `etag` (the version the edit started from); 412 throws. */
   updateItem: (id: string, patch: ItemPatch, etag: string) => Promise<Item>;
+  /** DELETE /api/items/{id} against `etag`; the item leaves the held items. */
+  deleteItem: (id: string, etag: string) => Promise<void>;
   /** POST /api/items; the new (still unplaced) item is added to the held items. */
   createItem: (body: ItemCreate) => Promise<Item>;
   // Layout editing (store/editor.ts): the layout shown may be ahead of the server's.
@@ -328,6 +331,12 @@ export const useData = create<DataState>()((set, get) => {
         const house = get().model?.snapshot.house ?? null;
         upsert(relocate([item], house)[0]!);
         return item;
+      }),
+
+    deleteItem: (id, etag) =>
+      enqueue(async () => {
+        await deleteItemRequest(id, etag);
+        remove(id);
       }),
 
     createItem: (body) =>

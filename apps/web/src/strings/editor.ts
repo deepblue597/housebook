@@ -78,6 +78,8 @@ export const EDITOR = {
         return `${s ?? 'the item'} is no longer on the plan`;
       case 'already_placed':
         return `${s ?? 'the item'} was placed elsewhere meanwhile`;
+      case 'note_deleted':
+        return 'its note was deleted';
       case 'grid_changed':
         return 'the house was resized elsewhere';
       case 'size_invalid':

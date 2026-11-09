@@ -177,6 +177,74 @@ describe('placements (place, move, rotate, remove)', () => {
   });
 });
 
+describe('items whose note this app deleted (D32)', () => {
+  const gone: ApplyContext = { ...ctx, noteDeleted: (id) => id === 'it_gone' };
+  const at = { floorId: 'fl', x: 2, y: 1, rotation: 0 } as const;
+
+  it('can’t be placed again (an undo after a delete fails instead of making a ghost)', () => {
+    const l = base();
+    const r = applyCommand(
+      l,
+      {
+        kind: 'placement',
+        itemId: 'it_gone',
+        to: { itemId: 'it_gone', ...at },
+        requires: 'unplaced',
+      },
+      gone,
+    );
+    expect(r.ok ? null : r.conflict).toEqual({ code: 'note_deleted', subject: 'it_gone' });
+  });
+
+  it('a placement already there can still be moved or removed, and repairs still apply', () => {
+    const l = base();
+    l.placements = [
+      ...l.placements!,
+      { itemId: 'it_gone', floorId: 'fl', x: 1, y: 1, rotation: 0 },
+    ];
+    const move = applyCommand(
+      l,
+      {
+        kind: 'placement',
+        itemId: 'it_gone',
+        to: { itemId: 'it_gone', ...at },
+        requires: 'placed',
+      },
+      gone,
+    );
+    expect(move.ok).toBe(true);
+    const remove = applyCommand(
+      l,
+      { kind: 'placement', itemId: 'it_gone', to: null, requires: 'placed' },
+      gone,
+    );
+    expect(remove.ok).toBe(true);
+    const repairUndo = applyCommand(
+      base(),
+      {
+        kind: 'placement',
+        itemId: 'it_gone',
+        to: { itemId: 'it_gone', ...at },
+        requires: 'unplaced',
+        repair: true,
+      },
+      gone,
+    );
+    expect(repairUndo.ok).toBe(true);
+  });
+
+  it('other items, including ghosts (note missing, not deleted here), place as before', () => {
+    expect(
+      ok(base(), {
+        kind: 'placement',
+        itemId: 'it_new',
+        to: { itemId: 'it_new', ...at },
+        requires: 'unplaced',
+      }).changed,
+    ).toBe(true);
+  });
+});
+
 describe('rooms', () => {
   it('add, rename, recolour, remove', () => {
     const added = roundTrip(base(), {

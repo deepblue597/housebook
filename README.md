@@ -11,7 +11,7 @@ events, live sync and the problems panel (milestone 4); and the **layout editor*
 edit mode for editors with paint/erase (rectangle drag), place/move/rotate items, rooms, resizing
 the house, undo/redo, debounced saving with replay on `412`, the Unplaced tray and ghost relinking,
 in 2D and 3D. Milestone 6 (in progress, see `docs/ROADMAP.md`): the **note editor** (edit an
-item's fields and notes in the app). See `apps/web/README.md`.
+item's fields and notes in the app) and **deleting items** (to the trash). See `apps/web/README.md`.
 
 ```
 contract/           shared by backend and frontend
