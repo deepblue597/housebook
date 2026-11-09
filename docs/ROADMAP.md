@@ -18,7 +18,7 @@ dependency between them can run in parallel (see the end).
 
 ## M6: Edit items in the app (~4–5 days) — done
 
-Shipped in pull requests #2 (note editor), #3 (delete item), #4 (attachments) and #5 (first
+Shipped in pull requests #2 (note editor), #3 (delete item), #4 (attachments) and #6 (first
 run); decisions D31–D34.
 
 Today an item's fields and text can only be changed by editing its `.md` file. The backend
