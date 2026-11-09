@@ -2,7 +2,8 @@
 
 The Housebook SPA: the 2D floor plan, a lazy-loaded 3D view (milestone 2), a
 Floor → Room → Item list, item and room details, client-side search, live sync and a problems
-panel (milestone 4), maintenance log entries, and the layout editor (milestone 5). React +
+panel (milestone 4), maintenance log entries, the layout editor (milestone 5), and the note
+editor (milestone 6). React +
 TypeScript + Vite, Zustand for state; three.js via react-three-fiber (+ drei) for 3D.
 
 ## Run
@@ -57,7 +58,8 @@ src/
     plan2d/    SVG plan, pan/zoom (mouse, wheel, touch pinch)
     scene3d/   lazy chunk: R3F scene, camera math (camera.ts, pure), layout, DOM overlays
     list/      list view with arrow-key navigation
-    details/   item and room panel, Markdown notes (lazy), attachments, PDF.js viewer (lazy)
+    details/   item and room panel, Markdown notes (lazy), attachments, PDF.js viewer (lazy),
+               note editor (noteForm.ts: pure rules; drafts.ts: unsaved edits per item)
     search/    search combobox
     problems/  ⚠ badge + lazy problems panel (GET /api/problems grouped by kind, Adopt)
     editor/    edit mode: tools as small state machines (tools.ts), pointer → tool forwarding
@@ -105,6 +107,11 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 - **Writes:** the role comes from `/api/me`; viewers (and an unknown role) see no write UI.
   Editors get "Add to maintenance log" in the item panel (`POST /api/items/{id}/log`, no
   If-Match; disabled while the note is unreadable).
+- **Note editor (milestone 6, D31):** "Edit note" in the item panel (editors) edits the common
+  fields and the Markdown body (with preview). A save sends only the changed keys
+  (`PATCH /api/items/{id}`, If-Match). If the note was saved elsewhere meanwhile, changes to
+  different fields are merged and saved; a field changed on both sides is shown as "theirs ·
+  yours" with "Use theirs". Unsaved edits survive closing the panel (not a reload; the page warns).
 - **Layout editor (milestone 5, DESIGN §7.3, D17, D23–D29):** "Edit" in the top bar (editors,
   writable layout) opens a side bar: tools Select/move (V), Paint (B), Erase (E), undo/redo,
   Resize house…, the save state, the room list (add, rename, recolour, paint with, delete when

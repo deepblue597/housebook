@@ -6,6 +6,7 @@ type Schemas = components['schemas'];
 export type Snapshot = Schemas['SnapshotOut'];
 export type Item = Schemas['ItemDetailOut'];
 export type ItemCreate = Schemas['ItemCreateIn'];
+export type ItemPatch = Schemas['ItemPatchIn'];
 export type House = Schemas['House'];
 export type Room = Schemas['Room'];
 export type Floor = Schemas['Floor'];
