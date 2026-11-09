@@ -65,9 +65,13 @@ jobs:
         run: pnpm size
 
   e2e:
-    name: Browser tests
+    name: Browser tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: apps/web
@@ -88,16 +92,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: cd ../api && uv sync --locked
       - run: pnpm exec playwright install --with-deps chromium
-      - run: pnpm e2e
+      # GitHub's runners have 4 cores (2 Playwright workers): a third of the tests each.
+      - run: pnpm e2e --shard=${{ matrix.shard }}/3
       - name: Keep the report and traces of failed tests
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
             apps/web/playwright-report
             apps/web/test-results
           retention-days: 14
+
+  # One stable check name for branch protection, whatever the number of shards.
+  e2e-result:
+    name: Browser tests
+    if: always()
+    needs: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - name: All shards passed
+        run: test "${{ needs.e2e.result }}" = success
 
   docker:
     name: Docker image
