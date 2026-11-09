@@ -125,10 +125,14 @@ describe('placement → 3D transform (contract/fixtures/placement_cases.json)', 
 describe('picking', () => {
   const cells = floorCells({ '0,0': 'a', '1,0': 'b' }, { width: 4, depth: 3 }, new Set(['a', 'b']));
   it('maps a floor point to its tile and room', () => {
-    expect(worldToCell(0.99, 0.01, 1)).toEqual({ x: 0, y: 0 });
-    expect(worldToCell(1, 0.5, 1)).toEqual({ x: 1, y: 0 });
-    expect(worldToCell(0.6, 1.1, 0.5)).toEqual({ x: 1, y: 2 });
-    expect(worldToCell(-0.1, 0, 1)).toEqual({ x: -1, y: 0 });
+    expect(worldToCell(0.99, 0.01, 1)).toMatchObject({ x: 0, y: 0 });
+    expect(worldToCell(1, 0.5, 1)).toMatchObject({ x: 1, y: 0 });
+    expect(worldToCell(0.6, 1.1, 0.5)).toMatchObject({ x: 1, y: 2 });
+    expect(worldToCell(-0.1, 0, 1)).toMatchObject({ x: -1, y: 0 });
+    // Where in the tile, for edge tools (D36).
+    const c = worldToCell(0.6, 1.1, 0.5);
+    expect(c.fx).toBeCloseTo(0.2);
+    expect(c.fy).toBeCloseTo(0.2);
     expect(roomAtPoint(cells, 1.5, 0.5, 1)).toBe('b');
     expect(roomAtPoint(cells, 2.5, 0.5, 1)).toBeUndefined();
   });

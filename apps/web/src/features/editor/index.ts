@@ -5,7 +5,8 @@ export { GhostActions, ItemLayoutActions } from './LayoutActions';
 export { LazyEditorPanels } from './LazyEditorPanels';
 export type { PreviewRect } from './preview';
 export { useEditorShortcuts } from './useEditorShortcuts';
-export { usePreviewRects } from './usePreview';
+export type { PreviewEdge } from './preview';
+export { usePreviewEdge, usePreviewRects } from './usePreview';
 export {
   type EditPointerHandlers,
   type PointerHandlers,

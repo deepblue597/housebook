@@ -266,6 +266,63 @@ export const lossIsEmpty = (loss: ResizeLoss): boolean =>
 export const openingKey = (o: Pick<LayoutOpening, 'floorId' | 'x' | 'y' | 'side'>): string =>
   `${o.floorId}:${o.x},${o.y},${o.side}`;
 
+// ---- doors and windows on tile edges (D36) ---------------------------------------------------
+
+/** A tile edge as house.json stores it: the north (`n`) or west (`w`) edge of tile (x, y). */
+export interface Edge {
+  x: number;
+  y: number;
+  side: 'n' | 'w';
+}
+
+/**
+ * The edge of the tile under the pointer that the pointer is closest to, as a stored edge (the
+ * south edge of a tile is the north edge of the one below it). Null without the position in
+ * the tile.
+ */
+export function nearestEdge(cell: { x: number; y: number; fx?: number; fy?: number }): Edge | null {
+  const { fx, fy } = cell;
+  if (fx === undefined || fy === undefined) return null;
+  const d = { n: fy, s: 1 - fy, w: fx, e: 1 - fx };
+  const side = (Object.keys(d) as (keyof typeof d)[]).reduce((a, b) => (d[b] < d[a] ? b : a));
+  if (side === 'n') return { x: cell.x, y: cell.y, side: 'n' };
+  if (side === 's') return { x: cell.x, y: cell.y + 1, side: 'n' };
+  if (side === 'w') return { x: cell.x, y: cell.y, side: 'w' };
+  return { x: cell.x + 1, y: cell.y, side: 'w' };
+}
+
+/** The two tiles an edge separates: north/west of it first. */
+export const edgeTiles = (e: Edge): [Cell, Cell] =>
+  e.side === 'n'
+    ? [
+        { x: e.x, y: e.y - 1 },
+        { x: e.x, y: e.y },
+      ]
+    : [
+        { x: e.x - 1, y: e.y },
+        { x: e.x, y: e.y },
+      ];
+
+/**
+ * Whether a door or window can go on an edge: it is on the grid and is a wall, i.e. the tiles on
+ * its two sides belong to different rooms or one of them is outside (no room).
+ */
+export function isWallEdge(
+  cells: Readonly<Record<string, string>> | undefined,
+  e: Edge,
+  grid: { width: number; depth: number },
+): boolean {
+  const onGrid =
+    e.side === 'n'
+      ? e.x >= 0 && e.x < grid.width && e.y >= 0 && e.y <= grid.depth
+      : e.x >= 0 && e.x <= grid.width && e.y >= 0 && e.y < grid.depth;
+  if (!onGrid) return false;
+  const [a, b] = edgeTiles(e);
+  const ra = cells?.[cellKey(a.x, a.y)];
+  const rb = cells?.[cellKey(b.x, b.y)];
+  return (ra !== undefined || rb !== undefined) && ra !== rb;
+}
+
 // ---- ids and names --------------------------------------------------------------------------
 
 const BASE36 = '0123456789abcdefghijklmnopqrstuvwxyz';

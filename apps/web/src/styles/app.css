@@ -1809,7 +1809,7 @@ code {
 .rail {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
 }
 .rail .tool {
   display: inline-flex;
@@ -1818,7 +1818,7 @@ code {
   gap: 4px;
   min-width: var(--target);
   min-height: var(--target);
-  padding: 4px 8px;
+  padding: 4px 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: none;
@@ -2060,7 +2060,9 @@ code {
 }
 .viewport[data-edit-tool='paint'],
 .viewport[data-edit-tool='erase'],
-.viewport[data-edit-tool='place'] {
+.viewport[data-edit-tool='place'],
+.viewport[data-edit-tool='door'],
+.viewport[data-edit-tool='window'] {
   cursor: crosshair;
 }
 .viewport[data-edit-tool='select'] {
@@ -2094,6 +2096,17 @@ code {
   fill: none;
   stroke: var(--accent);
   stroke-width: 2;
+}
+.edit-overlay .edit-edge {
+  stroke: var(--accent);
+  stroke-width: 7;
+  stroke-linecap: round;
+  opacity: 0.85;
+}
+.edit-overlay .edit-edge.bad {
+  stroke: var(--bad);
+  stroke-dasharray: 3 5;
+  opacity: 0.7;
 }
 .edit-overlay .edit-size {
   font-family: var(--mono);

@@ -123,6 +123,9 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   below the lowest, renames, moves floors up/down (levels) and deletes one with what is on it
   (confirmation lists tiles, items to the tray and doors/windows; never the last floor). Undo
   restores everything. While editing, the floor below is drawn dashed under the current one.
+- **Doors and windows (milestone 7, D36):** the Door (D) and Window (W) tools: click near a wall
+  edge to add one there, click it again to remove it, or with the other tool to swap it. Only on
+  walls (between rooms, or a room and the outside); the targeted edge is highlighted in 2D and 3D.
 - **First run (milestone 6, D34):** with no `house.json`, editors get "Set up your house" (floor
   name and size), which creates the layout and opens the editor with "Room 1" ready to paint.
   Existing items and notes still to adopt are counted. An unreadable `house.json` is never
