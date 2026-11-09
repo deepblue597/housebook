@@ -11,8 +11,12 @@ import { useUi } from '../../store/ui';
 import { useData } from '../../store/data';
 import { ItemLayoutActions } from '../editor';
 import { Attachments } from './Attachments';
+import { useDrafts } from './drafts';
 import { LogEntryForm } from './LogEntryForm';
+import { NoteEditor } from './NoteEditor';
+import { startDraft } from './noteForm';
 import { manualSearchUrl, resolveWikilink } from './links';
+import type { MarkdownBodyProps } from './MarkdownBody';
 import { Notes } from './Notes';
 
 function ExternalLink({
@@ -114,6 +118,12 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
   const manual = safeExternalHref(f.manual);
   const findManual = manualSearchUrl(f.brand, f.model);
   const support = safeExternalHref(f.support);
+  const draft = useDrafts((s) => s.drafts[item.id]);
+  const putDraft = useDrafts((s) => s.put);
+  // "Saved." after the editor closes, for this item only.
+  const [done, setDone] = useState<{ id: string; text: string } | null>(null);
+  const resolve: MarkdownBodyProps['resolve'] = (link) => resolveWikilink(model, item, link);
+  const navigate = (href: string) => select(selectionFromPath(href));
 
   const specs: [string, string | null | undefined][] = [
     ['Type', typeLabel(item.type)],
@@ -174,6 +184,86 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
         </ul>
       )}
 
+      {draft && editor ? (
+        <NoteEditor
+          item={item}
+          draft={draft}
+          resolve={resolve}
+          onNavigate={navigate}
+          onDone={(changed) =>
+            setDone(
+              changed === null
+                ? null
+                : {
+                    id: item.id,
+                    text: changed ? 'Saved.' : 'Nothing changed, so nothing was saved.',
+                  },
+            )
+          }
+        />
+      ) : (
+        <>
+          {editor && (
+            <div className="note-actions">
+              <button
+                type="button"
+                className="btn"
+                disabled={item.stale}
+                title={
+                  item.stale ? 'The note can’t be read; fix it in a text editor first' : undefined
+                }
+                onClick={() => {
+                  setDone(null);
+                  putDraft(item.id, startDraft(item));
+                }}
+              >
+                Edit note
+              </button>
+              <span className="msg" role="status">
+                {done?.id === item.id ? done.text : ''}
+              </span>
+            </div>
+          )}
+          <ItemDetailsView
+            item={item}
+            resolve={resolve}
+            onNavigate={navigate}
+            editor={editor}
+            pathRef={pathRef}
+            manual={manual}
+            support={support}
+            findManual={findManual}
+            specs={specs}
+          />
+        </>
+      )}
+    </article>
+  );
+}
+
+function ItemDetailsView({
+  item,
+  resolve,
+  onNavigate,
+  editor,
+  pathRef,
+  manual,
+  support,
+  findManual,
+  specs,
+}: {
+  item: Item;
+  resolve: MarkdownBodyProps['resolve'];
+  onNavigate: (href: string) => void;
+  editor: boolean;
+  pathRef: RefObject<HTMLElement | null>;
+  manual: string | null;
+  support: string | null;
+  findManual: string | null;
+  specs: [string, string | null | undefined][];
+}) {
+  return (
+    <>
       <ItemLayoutActions itemId={item.id} />
 
       <dl className="specs">
@@ -196,11 +286,7 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
       )}
 
       <section aria-label="Notes">
-        <Notes
-          body={item.body}
-          resolve={(link) => resolveWikilink(model, item, link)}
-          onNavigate={(href) => select(selectionFromPath(href))}
-        />
+        <Notes body={item.body} resolve={resolve} onNavigate={onNavigate} />
       </section>
 
       {editor && <LogEntryForm key={item.id} item={item} />}
@@ -216,6 +302,6 @@ export function ItemDetails({ item, model, headingRef, onClose }: Props) {
           {findManual && <ExternalLink href={findManual} label="Find manual online" />}
         </div>
       </footer>
-    </article>
+    </>
   );
 }

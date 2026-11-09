@@ -1,5 +1,5 @@
 import type { paths } from './schema.gen';
-import type { House, Item, ItemCreate, Snapshot } from './types';
+import type { House, Item, ItemCreate, ItemPatch, Snapshot } from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -7,13 +7,27 @@ export class ApiError extends Error {
   readonly detail: string | null;
   /** `reason` of a 409 (data contract §8). */
   readonly reason: string | null;
-  constructor(status: number, message: string, detail: string | null = null, reason?: string) {
+  /** The issues of a 422 (`{loc, msg}`), e.g. `loc: ["body", "frontmatter", "manual"]`. */
+  readonly issues: readonly ApiIssue[];
+  constructor(
+    status: number,
+    message: string,
+    detail: string | null = null,
+    reason?: string,
+    issues: readonly ApiIssue[] = [],
+  ) {
     super(message);
     this.status = status;
     this.detail = detail;
     this.reason = reason ?? null;
+    this.issues = issues;
     this.name = 'ApiError';
   }
+}
+
+export interface ApiIssue {
+  loc: readonly (string | number)[];
+  msg: string;
 }
 
 type JsonOf<P extends keyof paths> = paths[P] extends {
@@ -36,6 +50,15 @@ function detailText(body: unknown): string | null {
   return null;
 }
 
+function issuesOf(body: unknown): ApiIssue[] {
+  const d = (body as { detail?: unknown } | null)?.detail;
+  if (!Array.isArray(d)) return [];
+  return d.flatMap((e) => {
+    const { loc, msg } = (e ?? {}) as { loc?: unknown; msg?: unknown };
+    return Array.isArray(loc) && typeof msg === 'string' ? [{ loc, msg }] : [];
+  });
+}
+
 async function request(path: string, init: RequestInit = {}): Promise<Response> {
   const res = await fetch(path, {
     ...init,
@@ -55,6 +78,7 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
       `${init.method ?? 'GET'} ${path} failed: ${res.status} ${res.statusText}`,
       detailText(body),
       typeof reason === 'string' ? reason : undefined,
+      issuesOf(body),
     );
   }
   return res;
@@ -140,6 +164,21 @@ export const postLogEntry = (id: string, text: string, date?: string) =>
 
 /** POST /api/items/adopt: give a `not_adopted` note its housebook_id. */
 export const postAdopt = (path: string) => postJson<Item>('/api/items/adopt', { path });
+
+/**
+ * PATCH /api/items/{id} with `If-Match` (data contract §8.2): `frontmatter` is a JSON Merge
+ * Patch (`null` deletes a key), `body` replaces the body. A 412 means the note changed since
+ * `etag` was read.
+ */
+export async function patchItem(id: string, patch: ItemPatch, etag: string): Promise<Item> {
+  const res = await request(`/api/items/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json', 'If-Match': `"${unquoteEtag(etag)}"` },
+    body: JSON.stringify(patch),
+  });
+  return (await res.json()) as Item;
+}
 
 /** POST /api/items: create a note (D8: the client places it with PUT /api/house afterwards). */
 export const postItem = (body: ItemCreate) => postJson<Item>('/api/items', body);

@@ -14,6 +14,7 @@ import {
   fetchItem,
   fetchSnapshot,
   getJson,
+  patchItem,
   postAdopt,
   postItem,
   postLogEntry,
@@ -26,6 +27,7 @@ import type {
   ItemChangedEvent,
   ItemCreate,
   ItemDeletedEvent,
+  ItemPatch,
   Me,
   ProblemsChangedEvent,
   ResyncEvent,
@@ -67,6 +69,8 @@ interface DataState {
   // Writes (editors only; the server checks the role too).
   appendLog: (id: string, text: string, date?: string) => Promise<Item>;
   adopt: (path: string) => Promise<Item>;
+  /** PATCH /api/items/{id} against `etag` (the version the edit started from); 412 throws. */
+  updateItem: (id: string, patch: ItemPatch, etag: string) => Promise<Item>;
   /** POST /api/items; the new (still unplaced) item is added to the held items. */
   createItem: (body: ItemCreate) => Promise<Item>;
   // Layout editing (store/editor.ts): the layout shown may be ahead of the server's.
@@ -314,6 +318,15 @@ export const useData = create<DataState>()((set, get) => {
         const item = await postAdopt(path);
         upsert(item);
         set((s) => ({ problemsRev: s.problemsRev + 1 }));
+        return item;
+      }),
+
+    updateItem: (id, patch, etag) =>
+      enqueue(async () => {
+        const item = await patchItem(id, patch, etag);
+        // The layout shown may be ahead of the server's (unsaved editor edits).
+        const house = get().model?.snapshot.house ?? null;
+        upsert(relocate([item], house)[0]!);
         return item;
       }),
 

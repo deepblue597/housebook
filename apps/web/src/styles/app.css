@@ -379,6 +379,165 @@ code {
   color: var(--bad);
 }
 
+/* ---- note editor (D31) ------------------------------------------------------------ */
+.note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+}
+.note-actions .msg {
+  font-size: 12px;
+  color: var(--ok);
+}
+.note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 12px 0;
+}
+.ne-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+.ne-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.ne-field[data-field='name'],
+.ne-field[data-field='manual'],
+.ne-field[data-field='support'] {
+  grid-column: 1 / -1;
+}
+.ne-field label,
+.ne-body-head label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.ne-field.changed label::after,
+.ne-body.changed .ne-body-head label::after {
+  content: ' •';
+  color: var(--accent);
+}
+.ne-field input,
+.ne-field select,
+.ne-body textarea {
+  width: 100%;
+  min-height: var(--target);
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+.ne-field.bad input,
+.ne-field.bad select {
+  border-color: var(--bad);
+}
+.ne-field .hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.ne-field .hint.err {
+  color: var(--bad);
+}
+.ne-body-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ne-body textarea {
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ne-preview {
+  min-height: 120px;
+  padding: 6px 10px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+.ne-tabs {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ne-tabs button {
+  min-height: 28px;
+  padding: 2px 10px;
+  border: 0;
+  background: var(--paper);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.ne-tabs button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+.ne-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.note-editor .msg {
+  margin: 0;
+  font-size: 12px;
+}
+.note-editor .msg.err {
+  color: var(--bad);
+}
+.ne-conflict {
+  padding: 10px 12px;
+  border: 1px solid var(--warn);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  font-size: 13px;
+}
+.ne-conflict p {
+  margin: 0 0 8px;
+}
+.ne-conflict ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ne-conflict li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+.ne-conflict .k {
+  font-weight: 600;
+}
+.ne-conflict pre {
+  max-height: 200px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+@media (max-width: 480px) {
+  .ne-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ---- search ---------------------------------------------------------------------- */
 .search {
   position: relative;
