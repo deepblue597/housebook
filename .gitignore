@@ -9,3 +9,4 @@ apps/web/dist/
 
 # local dev data (make dev)
 /.dev-data/
+/compose.override.yaml
