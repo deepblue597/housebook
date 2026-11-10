@@ -25,6 +25,12 @@ export function PlanView({ floor }: { floor: FloorModel }) {
   const bounds = useMemo(() => planBounds({ width, depth }), [width, depth]);
   const { view, fit, zoomBy, handlers } = usePanZoom(viewport, bounds, floor.floor.id);
   const editTool = useEditor((s) => (s.mode === 'edit' ? s.tool : null));
+  // Editing an upper (or basement) floor: show the next floor down under it (D35).
+  const underlay = useMemo(() => {
+    if (!editTool) return null;
+    const i = model.floors.findIndex((f) => f.floor.id === floor.floor.id);
+    return i >= 0 ? (model.floors[i + 1] ?? null) : null; // highest level first
+  }, [editTool, model.floors, floor.floor.id]);
 
   // Edit mode: pointer position -> grid cell for the active tool (DESIGN §7.3).
   const svg = useRef<SVGSVGElement>(null);
@@ -109,6 +115,7 @@ export function PlanView({ floor }: { floor: FloorModel }) {
               matches={search.active ? search.matches : null}
               onItem={onItem}
               onRoom={onRoom}
+              underlay={underlay}
             />
             <EditOverlay floorId={floor.floor.id} grid={model.grid} />
           </g>

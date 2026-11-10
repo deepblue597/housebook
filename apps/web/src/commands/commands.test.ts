@@ -245,6 +245,111 @@ describe('items whose note this app deleted (D32)', () => {
   });
 });
 
+describe('floors (D35)', () => {
+  const upstairs = { id: 'fl_up', name: 'Upstairs', level: 1, cells: { '1,1': 'rm_a' } };
+
+  it('add, then undo, gives back the same layout; adding it again is a no-op', () => {
+    const l = base();
+    roundTrip(l, { kind: 'floor.add', floor: upstairs, index: 1 });
+    const r = ok(l, { kind: 'floor.add', floor: upstairs, index: 1 });
+    expect(r.layout.floors.map((f) => f.id)).toEqual(['fl', 'fl_up', 'fl2']);
+    expect(ok(r.layout, { kind: 'floor.add', floor: upstairs }).changed).toBe(false);
+    expect(
+      conflict(r.layout, { kind: 'floor.add', floor: { ...upstairs, name: 'Other' } }),
+    ).toEqual({
+      code: 'floor_exists',
+      subject: 'fl_up',
+    });
+  });
+
+  it('rename and level change undo exactly; a missing floor is a conflict', () => {
+    roundTrip(base(), { kind: 'floor.update', id: 'fl2', name: 'Loft', level: 3 });
+    const r = ok(base(), { kind: 'floor.update', id: 'fl2', level: -1 });
+    expect(r.layout.floors[1]).toEqual({ id: 'fl2', name: 'G', level: -1, cells: {} });
+    expect(conflict(base(), { kind: 'floor.update', id: 'nope', name: 'x' }).code).toBe(
+      'floor_missing',
+    );
+  });
+
+  it('remove takes tiles, placements and doors along; undo puts everything back in order', () => {
+    const l = base();
+    const confirmed = { tiles: 3, items: ['it_a', 'it_b'], openings: 1 };
+    const r = roundTrip(l, { kind: 'floor.remove', id: 'fl', confirmed });
+    expect(r.layout.floors.map((f) => f.id)).toEqual(['fl2']);
+    expect(r.layout.placements).toEqual([]);
+    expect(r.layout.openings).toEqual([]);
+  });
+
+  it('never removes the last floor, nor more than the user confirmed', () => {
+    const one = base();
+    one.floors = [one.floors[0]!];
+    expect(
+      conflict(one, {
+        kind: 'floor.remove',
+        id: 'fl',
+        confirmed: { tiles: 3, items: ['it_a', 'it_b'], openings: 1 },
+      }).code,
+    ).toBe('last_floor');
+    // Someone placed another item on it before this was saved.
+    expect(
+      conflict(base(), {
+        kind: 'floor.remove',
+        id: 'fl',
+        confirmed: { tiles: 3, items: ['it_a'], openings: 1 },
+      }).code,
+    ).toBe('more_lost');
+    expect(
+      conflict(base(), {
+        kind: 'floor.remove',
+        id: 'fl',
+        confirmed: { tiles: 2, items: ['it_a', 'it_b'], openings: 1 },
+      }).code,
+    ).toBe('more_lost');
+    // Already gone: a no-op.
+    expect(
+      ok(base(), {
+        kind: 'floor.remove',
+        id: 'nope',
+        confirmed: { tiles: 0, items: [], openings: 0 },
+      }).changed,
+    ).toBe(false);
+  });
+
+  it('undo of a remove refuses to put back an item placed elsewhere meanwhile', () => {
+    const removed = ok(base(), {
+      kind: 'floor.remove',
+      id: 'fl',
+      confirmed: { tiles: 3, items: ['it_a', 'it_b'], openings: 1 },
+    });
+    const moved = ok(removed.layout, {
+      kind: 'placement',
+      itemId: 'it_a',
+      to: { itemId: 'it_a', floorId: 'fl2', x: 0, y: 0, rotation: 0 },
+      requires: 'unplaced',
+    });
+    expect(conflict(moved.layout, removed.inverse)).toEqual({
+      code: 'already_placed',
+      subject: 'it_a',
+    });
+  });
+
+  it('a floor added in a grid that moved since is shifted with its contents', () => {
+    const removed = ok(base(), {
+      kind: 'floor.remove',
+      id: 'fl',
+      confirmed: { tiles: 3, items: ['it_a', 'it_b'], openings: 1 },
+    });
+    const shifted = shiftCommand(removed.inverse, 1, 2);
+    if (shifted.kind !== 'floor.add') throw new Error('expected floor.add');
+    expect(Object.keys(shifted.floor.cells!).sort()).toEqual(['1,2', '2,2', '5,5']);
+    expect(shifted.restore!.placements.map((p) => [p.placement.x, p.placement.y])).toEqual([
+      [1, 2],
+      [5, 5],
+    ]);
+    expect(shifted.restore!.openings.map((o) => [o.opening.x, o.opening.y])).toEqual([[6, 5]]);
+  });
+});
+
 describe('rooms', () => {
   it('add, rename, recolour, remove', () => {
     const added = roundTrip(base(), {

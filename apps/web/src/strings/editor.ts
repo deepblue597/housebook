@@ -66,6 +66,10 @@ export const EDITOR = {
     switch (code) {
       case 'floor_missing':
         return 'its floor was deleted elsewhere';
+      case 'floor_exists':
+        return 'a floor with the same id already exists';
+      case 'last_floor':
+        return 'a house needs at least one floor';
       case 'room_missing':
         return s ? `the room ${s} no longer exists` : 'the room no longer exists';
       case 'room_exists':
@@ -113,8 +117,48 @@ export const EDITOR = {
     roomRename: (from: string, to: string) => `rename ${from} to ${to}`,
     roomColor: (name: string) => `recolour ${name}`,
     roomRemove: (name: string) => `delete room ${name}`,
+    floorAdd: (name: string) => `add floor ${name}`,
+    floorRename: (from: string, to: string) => `rename ${from} to ${to}`,
+    floorMove: (name: string, dir: 'up' | 'down') => `move ${name} ${dir}`,
+    floorRemove: (name: string) => `delete floor ${name}`,
     resize: (w: number, d: number) => `resize the house to ${w} × ${d}`,
   },
+
+  // floors (D35)
+  floors: 'Floors',
+  floorAddAbove: 'Floor above',
+  floorAddBelow: 'Floor below',
+  floorDefaultName: (level: number) =>
+    level === 0
+      ? 'Ground floor'
+      : level > 0
+        ? `Floor ${level}`
+        : level === -1
+          ? 'Basement'
+          : `Basement ${-level}`,
+  floorName: (name: string) => `Name of ${name}`,
+  floorShow: (name: string) => `Show ${name}`,
+  floorUp: (name: string) => `Move ${name} up`,
+  floorDown: (name: string) => `Move ${name} down`,
+  floorDelete: (name: string) => `Delete ${name}`,
+  floorDeleteLast: 'A house needs at least one floor',
+  floorNameInvalid: 'A floor name needs 1 to 100 characters.',
+  floorLevelLimit: 'Floors go from 20 below ground to 200 above.',
+  floorContents: (tiles: number, items: number) =>
+    [plural(tiles, 'tile', 'tiles'), items ? plural(items, 'item', 'items') : null]
+      .filter(Boolean)
+      .join(' · '),
+  floorDeleteTitle: (name: string) => `Delete “${name}”?`,
+  floorDeleteLoses: 'This floor goes, with everything on it:',
+  floorLossTiles: (n: number, rooms: { name: string; n: number }[]) =>
+    rooms.length === 1
+      ? `${plural(n, 'tile', 'tiles')} of ${rooms[0]!.name}`
+      : `${plural(n, 'tile', 'tiles')}: ${rooms.map((r) => `${r.name} ${r.n}`).join(', ')}`,
+  floorLossItems: (names: string) => `from the plan, to the Unplaced tray (notes stay): ${names}`,
+  floorLossOpenings: (n: number) => plural(n, 'door or window', 'doors and windows'),
+  floorDeleteEmpty: 'The floor is empty.',
+  floorDeleteUndo: 'Undo (Ctrl+Z) brings it all back.',
+  floorDeleteConfirm: 'Delete floor',
 
   // rooms
   rooms: 'Rooms',
