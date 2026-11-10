@@ -88,7 +88,7 @@ def test_opening_boundaries(example: dict, opening: dict, ok: bool):
         lambda d: d["rooms"][0].update(color="red"),
         lambda d: d["placements"][0].update(rotation=45),
         lambda d: d["openings"][0].update(side="s"),
-        lambda d: d.update(schemaVersion=2),
+        lambda d: d.update(schemaVersion=3),
         lambda d: d.update(floors=[]),
     ],
 )

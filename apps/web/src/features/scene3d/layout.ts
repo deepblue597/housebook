@@ -14,6 +14,7 @@ import {
   type Heading,
   type OpeningLike,
   type OpeningPlacement,
+  type WallSides,
   boxesAbove,
   facingWalls,
   type ItemTransform,
@@ -159,7 +160,13 @@ export interface WallMeshes {
  * walls up, walls facing the camera keep a solid cut-height base, so rooms stay outlined, and
  * fade above it, so the rooms behind them stay visible (DESIGN §7.4, M2-03).
  */
-export function wallMeshes(layout: SceneLayout, cells: CellMap, heading: Heading): WallMeshes {
+export function wallMeshes(
+  layout: SceneLayout,
+  cells: CellMap,
+  heading: Heading,
+  /** Home look (D41): walls in halves, one per side, tagged with what each faces. */
+  sides?: WallSides,
+): WallMeshes {
   const ts = layout.tileSize;
   const openings = openingPlacements(
     layout.segments,
@@ -170,7 +177,9 @@ export function wallMeshes(layout: SceneLayout, cells: CellMap, heading: Heading
   );
   if (layout.wallHeight <= CUT_HEIGHT)
     return {
-      solid: layout.walls,
+      solid: sides
+        ? wallGeometry(layout.segments, layout.openings, ts, layout.wallHeight, sides).walls
+        : layout.walls,
       faded: [],
       glass: layout.glass,
       fadedGlass: [],
@@ -178,9 +187,9 @@ export function wallMeshes(layout: SceneLayout, cells: CellMap, heading: Heading
       fadedOpenings: new Set(),
     };
   const { facing, other } = facingWalls(layout.segments, cells, heading);
-  const back = wallGeometry(other, layout.openings, ts, layout.wallHeight);
-  const front = wallGeometry(facing, layout.openings, ts, layout.wallHeight);
-  const base = wallGeometry(facing, layout.openings, ts, CUT_HEIGHT);
+  const back = wallGeometry(other, layout.openings, ts, layout.wallHeight, sides);
+  const front = wallGeometry(facing, layout.openings, ts, layout.wallHeight, sides);
+  const base = wallGeometry(facing, layout.openings, ts, CUT_HEIGHT, sides);
   const onFacing = openingPlacements(facing, layout.openings, cells, ts, layout.wallHeight);
   return {
     solid: [...back.walls, ...base.walls],

@@ -95,12 +95,12 @@ def test_newer_unparseable_after_valid_keeps_last_layout_read_only(root: Path, m
     vb.write_house(root, vb.house())
     vb.item(root, "it_a", "name: A")
     c = make_client(root)
-    vb.write_house(root, vb.house(schemaVersion=2, grid="huge"))
+    vb.write_house(root, vb.house(schemaVersion=3, grid="huge"))
     c.app.state.ctx.indexer.scan()
     r = c.get("/api/house")
     assert r.status_code == 200 and r.headers["x-housebook-read-only"] == "true"
     snap = c.get("/api/snapshot").json()
-    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 2
+    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 3
     kinds = {k for k, _, _ in problems(c)}
     assert {"house_newer_version", "house_invalid"} <= kinds
 
@@ -152,7 +152,7 @@ def test_house_json_broken_after_valid_is_read_only_last_good(root: Path, make_c
 
 
 def test_house_json_newer_version_is_read_only(root: Path, make_client):
-    vb.write_house(root, vb.house(schemaVersion=2))
+    vb.write_house(root, vb.house(schemaVersion=3))
     c = make_client(root)
     assert c.get("/api/snapshot").json()["houseReadOnly"] is True
     assert [k for k, _, _ in problems(c)] == ["house_newer_version"]

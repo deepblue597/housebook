@@ -8,7 +8,7 @@ const ctx: ApplyContext = { footprintOf: () => [1, 1] };
 
 /** A hand-edited layout with every repairable problem (D30). */
 const broken = (): Layout => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   grid: { tileSize: 1, width: 4, depth: 3 },
   rooms: [{ id: 'rm_a', name: 'A', color: '#112233' }],
   floors: [

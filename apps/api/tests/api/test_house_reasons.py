@@ -140,7 +140,7 @@ def test_older_version_without_migration_is_bad_version(root: Path, make_client,
 
 
 def test_newer_version_displayable(root: Path, make_client):
-    vb.write_house(root, vb.house(schemaVersion=2))
+    vb.write_house(root, vb.house(schemaVersion=3))
     [p] = house_problems(make_client(root))
     assert p["kind"] == "house_newer_version" and p["detail"] == {"reason": "newer_version"}
 

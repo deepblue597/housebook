@@ -545,12 +545,12 @@ test.describe('saving, leaving and permissions', () => {
     });
     await paintAt(page, 'Kitchen', 2, 9);
     const h = readHouse(dataDir);
-    h.schemaVersion = 2; // written by a newer image: read-only (D13)
+    h.schemaVersion = 3; // written by a newer image: read-only (D13)
     writeHouse(dataDir, h);
     release();
     await expect(notices(page)).toContainText('read-only');
     await expect(sidebar(page)).toHaveCount(0);
-    expect(readHouse(dataDir).schemaVersion).toBe(2);
+    expect(readHouse(dataDir).schemaVersion).toBe(3);
     expect(cells(readHouse(dataDir))['2,9']).toBeUndefined();
   });
 

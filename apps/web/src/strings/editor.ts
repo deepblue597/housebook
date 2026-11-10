@@ -121,6 +121,10 @@ export const EDITOR = {
     roomAdd: (name: string) => `add room ${name}`,
     roomRename: (from: string, to: string) => `rename ${from} to ${to}`,
     roomColor: (name: string) => `recolour ${name}`,
+    roomFinish: (name: string) => `change the finish of ${name}`,
+    finishCopy: (name: string, n: number) =>
+      `copy the finish of ${name} to ${plural(n, 'room', 'rooms')}`,
+    exteriorWalls: 'change the outside walls',
     roomRemove: (name: string) => `delete room ${name}`,
     openingAdd: (kind: 'door' | 'window') => `add a ${kind}`,
     openingRemove: (kind: 'door' | 'window') => `remove a ${kind}`,
@@ -182,6 +186,25 @@ export const EDITOR = {
   roomTiles: (n: number) => plural(n, 'tile', 'tiles'),
   roomNameInvalid: 'A room name needs 1 to 100 characters.',
   noRooms: 'No rooms yet.',
+
+  // finishes (D41)
+  finish: (name: string) => `Finish of ${name}`,
+  finishFloor: 'Floor',
+  finishWalls: 'Walls',
+  finishNone: 'None',
+  finishNoneFloorHint: 'shown in the room’s plan colour',
+  finishPaint: 'Paint',
+  finishOtherColour: 'Other colour',
+  finishWallpaper: 'Wallpaper',
+  finishCopy: 'Copy to other rooms',
+  finishCopyButton: (n: number) => `Copy to ${plural(n, 'room', 'rooms')}`,
+  finishCopyHint: 'Gives the chosen rooms this room’s floor and walls, as one undo step.',
+  finishOutside: 'Outside walls (whole house)',
+  finishOutsideReset: 'Default',
+  finishSeeIt: 'Finishes show in the Home look.',
+  finishShowHome: 'Turn on Home look',
+  finishUnknown: (key: string) => `“${key}” isn’t a finish this version knows; pick another.`,
+  finishSharedFloors: 'A room has the same finish on every floor it is on.',
 
   // catalogue
   catalogue: 'Add item',

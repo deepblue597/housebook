@@ -7,6 +7,7 @@
  * and the list, which show the same rooms and items as focusable, labelled controls.
  */
 import { Canvas } from '@react-three/fiber';
+import { LookToggle } from '../../components/LookToggle';
 import {
   type KeyboardEvent,
   useCallback,
@@ -93,6 +94,8 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
   const model = useData((s) => s.model)!;
   const selection = useUi((s) => s.selection);
   const select = useUi((s) => s.select);
+  // The finishes look (D41); `look` here is the camera heading.
+  const appearance = useUi((s) => s.look);
   const setScene3dIssue = useUi((s) => s.setScene3dIssue);
   const search = useSearchResults();
   const theme = useResolvedTheme();
@@ -557,6 +560,7 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
           >
             Walls up
           </button>
+          <LookToggle />
         </div>
       </div>
       <p id="scene3d-alt" className="sr-only">
@@ -608,6 +612,7 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
               heading={look}
               snapshot={model.snapshot}
               palette={palette}
+              look={appearance}
               selectedItemId={selectedId}
               selectedRoomId={selectedRoomId}
               matches={search.active ? search.matches : null}

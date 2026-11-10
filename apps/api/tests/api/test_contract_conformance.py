@@ -39,7 +39,7 @@ def test_example_house_validates_against_committed_schema():
         pytest.param(lambda d: d.update(typo=1), id="unknown-top-level-key"),
         pytest.param(lambda d: d["rooms"][0].update(colour="#000000"), id="unknown-room-key"),
         pytest.param(lambda d: d["rooms"][0].update(color="red"), id="bad-color"),
-        pytest.param(lambda d: d.update(schemaVersion=2), id="schema-version-2"),
+        pytest.param(lambda d: d.update(schemaVersion=3), id="schema-version-3"),
         pytest.param(lambda d: d.update(floors=[]), id="no-floors"),
         pytest.param(lambda d: d["grid"].update(tileSize=0), id="tile-size-0"),
         pytest.param(lambda d: d["grid"].update(width=513), id="width-513"),

@@ -9,7 +9,7 @@ const ctx: ApplyContext = { footprintOf: () => [1, 1] };
 const example = (): Layout => structuredClone<Layout>(exampleHouse);
 
 const base = (): Layout => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   grid: { tileSize: 1, width: 5, depth: 4 },
   rooms: [
     { id: 'rm_a', name: 'A', color: '#112233' },
@@ -380,6 +380,60 @@ describe('rooms', () => {
     ).toBe('room_exists');
     // The same room again is a no-op (a save whose response got lost).
     expect(ok(base(), { kind: 'room.add', room: base().rooms![0]! }).changed).toBe(false);
+  });
+});
+
+describe('finishes (D41)', () => {
+  it('set, change and clear a room’s floor and walls; undo leaves no trace', () => {
+    const set = roundTrip(base(), {
+      kind: 'room.update',
+      id: 'rm_a',
+      floor: 'oak',
+      walls: '#b7c2a6',
+    });
+    expect(set.layout.rooms![0]).toMatchObject({ floor: 'oak', walls: '#b7c2a6' });
+    // Undo of a first finish removes the keys (null), not an empty value in the file.
+    expect(set.inverse).toEqual({ kind: 'room.update', id: 'rm_a', floor: null, walls: null });
+    const back = ok(set.layout, set.inverse).layout;
+    expect(Object.keys(back.rooms![0]!)).toEqual(['id', 'name', 'color']);
+
+    const changed = roundTrip(set.layout, { kind: 'room.update', id: 'rm_a', walls: 'stripes' });
+    expect(changed.layout.rooms![0]).toMatchObject({ floor: 'oak', walls: 'stripes' });
+    expect(changed.inverse).toEqual({ kind: 'room.update', id: 'rm_a', walls: '#b7c2a6' });
+
+    const cleared = roundTrip(set.layout, { kind: 'room.update', id: 'rm_a', floor: null });
+    expect('floor' in cleared.layout.rooms![0]!).toBe(false);
+    expect(cleared.inverse).toEqual({ kind: 'room.update', id: 'rm_a', floor: 'oak' });
+  });
+
+  it('setting the same finish again is a no-op', () => {
+    const set = ok(base(), { kind: 'room.update', id: 'rm_a', floor: 'oak' }).layout;
+    expect(ok(set, { kind: 'room.update', id: 'rm_a', floor: 'oak' }).changed).toBe(false);
+    expect(ok(base(), { kind: 'room.update', id: 'rm_a', floor: null }).changed).toBe(false);
+  });
+
+  it('outside walls: set, change, clear', () => {
+    const set = roundTrip(base(), { kind: 'house.update', exteriorWallColor: '#e6e1d8' });
+    expect(set.layout.exteriorWallColor).toBe('#e6e1d8');
+    expect(set.inverse).toEqual({ kind: 'house.update', exteriorWallColor: null });
+    expect('exteriorWallColor' in ok(set.layout, set.inverse).layout).toBe(false);
+    roundTrip(set.layout, { kind: 'house.update', exteriorWallColor: '#333333' });
+    expect(ok(base(), { kind: 'house.update' }).changed).toBe(false);
+  });
+
+  it('copy to other rooms is one undo step (a batch)', () => {
+    const batch = roundTrip(base(), {
+      kind: 'batch',
+      commands: ['rm_a', 'rm_b'].map((id) => ({
+        kind: 'room.update' as const,
+        id,
+        floor: 'tiles_white',
+        walls: 'linen',
+      })),
+    });
+    expect(batch.layout.rooms!.every((r) => r.floor === 'tiles_white' && r.walls === 'linen')).toBe(
+      true,
+    );
   });
 });
 

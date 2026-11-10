@@ -5,8 +5,9 @@ parts live in [`/contract`](../contract):
 
 | File | What |
 |---|---|
-| `contract/house.schema.json` | JSON Schema of `house.json` v1, generated from the Pydantic model (`uv run housebook schema --out ../../contract/house.schema.json`). A test fails if it is stale. |
+| `contract/house.schema.json` | JSON Schema of `house.json` v2, generated from the Pydantic model (`uv run housebook schema --out ../../contract/house.schema.json`). A test fails if it is stale. |
 | `contract/catalog.json` | Item type catalogue |
+| `contract/finishes.json` | Floor and wall finishes and the paint palette (§6.1) |
 | `contract/fixtures/status_cases.json` | Golden cases for status rules, "today" and `check_every` parsing |
 | `contract/fixtures/search_cases.json` | Golden cases for folding, error-code extraction and search ranking |
 | `contract/fixtures/house_validation_cases.json` | Layouts `PUT /api/house` rejects (with the expected error `type`/`loc`) or accepts (§2.1, §8.1), including `inherited` cases judged against a given file on disk (D30) |
@@ -38,14 +39,16 @@ Ignored everywhere: dot-files and dot-dirs (`.housebook`, `.obsidian`, `.trash`,
 Symlinks are followed only if they resolve inside the data root; others are ignored and
 reported (`symlink_outside_root`).
 
-## 2. `house.json` v1
+## 2. `house.json` v2
 
 ```json
 {
   "$schema": "../../contract/house.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "grid": { "tileSize": 1.0, "width": 16, "depth": 10 },
-  "rooms":  [ { "id": "rm_kit", "name": "Kitchen", "color": "#E3A94B" } ],
+  "exteriorWallColor": "#E6E1D8",
+  "rooms":  [ { "id": "rm_kit", "name": "Kitchen", "color": "#E3A94B",
+                "floor": "tiles_white", "walls": "#B7C2A6" } ],
   "floors": [ { "id": "fl_0", "name": "Apartment", "level": 0, "cells": { "7,1": "rm_kit" } } ],
   "placements": [ { "itemId": "it_7f3k2a", "floorId": "fl_0", "x": 10, "y": 2, "rotation": 90 } ],
   "openings":   [ { "floorId": "fl_0", "x": 8, "y": 5, "side": "n", "kind": "door" } ]
@@ -55,10 +58,11 @@ reported (`symlink_outside_root`).
 | Field | Type | Rules |
 |---|---|---|
 | `$schema` | string, optional | Kept as is. Points editors (VS Code) at the JSON Schema |
-| `schemaVersion` | integer | `1`. See §2.3 |
+| `schemaVersion` | integer | `2`. See §2.3 |
 | `grid.tileSize` | number, metres | `0 < tileSize ≤ 10`, default 1 |
 | `grid.width`, `grid.depth` | integer | 1–512 tiles along x / y |
-| `rooms[]` | `{id, name, color}` | Global, shared by all floors. `color` is `#RRGGBB` |
+| `exteriorWallColor` | string, optional | `#RRGGBB`: the outside walls of the whole house in the home look (default from §6.1) |
+| `rooms[]` | `{id, name, color, floor?, walls?}` | Global, shared by all floors. `color` is `#RRGGBB` (the plan colour). `floor`: a floor finish key (§6.1). `walls`: a paint `#RRGGBB` or a wallpaper key (§6.1). Keys match `^[a-z][a-z0-9_]{0,39}$`; an unknown key is a `house_unknown_finish` warning, drawn as if unset. A room has the same finish on every floor it is on |
 | `floors[]` | `{id, name, level, cells}` | At least one. `level` −20…200. `cells` maps `"x,y"` → room id |
 | `placements[]` | `{itemId, floorId, x, y, rotation, footprint?}` | `rotation` ∈ {0, 90, 180, 270}. `footprint` `[w, d]` (each 1–512) overrides the catalogue |
 | `openings[]` | `{floorId, x, y, side, kind}` | Doors and windows on tile edges. `side` ∈ {`n`, `w`}, `kind` ∈ {`door`, `window`} |
@@ -138,7 +142,10 @@ A missing `house.json` is not read-only (there is nothing to protect; first run 
   `apps/api/src/housebook/migrations/house/`, registered as `from_version → function`. They run
   when the file is read; the upgraded file is written on the next save, which first copies the
   original to `.housebook/history/house.v<n>.<stamp>.json` (never rotated).
-- The frontend only ever sees the current version.
+- v1 → v2 (D41) only adds the optional finish keys: the step sets `schemaVersion: 2`.
+- The frontend only ever sees the current version. A `PUT` with an older `schemaVersion` (a
+  browser still running the previous app after an upgrade) is upgraded the same way before it is
+  validated; a newer one is a `422`.
 - A file with a **newer** `schemaVersion` than the image supports (after a rollback) is
   **read-only**, decided from `schemaVersion` alone before any other validation. It is then
   loaded leniently (unknown keys dropped); if even that fails, the last valid layout (or none)
@@ -368,6 +375,25 @@ Shared by `GET /api/items?q=` and the client-side search over the snapshot.
   boiler, router), overridable per note.
 - 3D model paths and note templates are added in milestones 3 and 6.
 
+### 6.1 Finishes (`contract/finishes.json`, D41)
+
+```json
+{ "floors":     [ { "key": "oak", "label": "Oak", "group": "Wood", "color": "#b98a56" } ],
+  "wallpapers": [ { "key": "stripes", "label": "Stripes", "color": "#dfe3e6" } ],
+  "paints":     [ { "label": "Sage", "color": "#b7c2a6" } ],
+  "exteriorDefault": "#e6e1d8" }
+```
+
+- `floors[].key` and `wallpapers[].key` are what `rooms[].floor` and `rooms[].walls` store: a
+  public contract like item type keys, **never renamed**. `color` is the finish's average colour,
+  used by the flat home look and as the fallback for its texture. `paints` is the preset palette
+  (any `#RRGGBB` is allowed in `walls`); `exteriorDefault` colours the outside walls when the
+  house has no `exteriorWallColor`.
+- Finishes are a second way to look at the house ("Home look", a per-browser setting); the plan
+  colours stay the default. A room without a floor finish keeps its plan colour; walls without a
+  finish are drawn in the first paint (white). Each side of a wall shows the finish of the room on
+  that side; sides facing no room use the outside colour.
+
 ## 7. Problems (`GET /api/problems`)
 
 `{ kind, severity, message, path?, itemId?, detail? }`, sorted by severity then path. Every fix
@@ -379,6 +405,7 @@ is an explicit user action; nothing is repaired silently.
 | `house_invalid` | error | unusable `house.json`, read-only (last valid kept); `detail.reason` |
 | `house_newer_version` | warning | read-only, see §2.3; `detail.reason` |
 | `house_duplicate_id`, `house_bad_cell`, `house_outside_grid`, `house_unknown_room`, `house_unknown_floor`, `house_duplicate_placement` | warning | semantic rule broken (§2.1) |
+| `house_unknown_finish` | warning | a room's `floor` or `walls` names a finish not in `contract/finishes.json` (§6.1); never blocks a `PUT` |
 | `note_parse_error` | error | note that can't be parsed or breaks a limit (last good kept if known) |
 | `read_error` | error | note or folder that can't be read (last good kept) |
 | `note_invalid_id` | error | bad `housebook_id`; note ignored |

@@ -5,7 +5,7 @@ import { previewRects } from './preview';
 import { type ToolContext, toolDown, toolMove, toolUp } from './tools';
 
 const layout: Layout = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   grid: { tileSize: 1, width: 6, depth: 4 },
   rooms: [{ id: 'rm_a', name: 'A', color: '#112233' }],
   floors: [{ id: 'fl', name: 'F', level: 0, cells: {} }],

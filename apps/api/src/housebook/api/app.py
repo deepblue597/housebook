@@ -20,6 +20,7 @@ from housebook.api.routes import api, calendar_feed, health
 from housebook.api.spa import mount_spa
 from housebook.config import Settings
 from housebook.domain.catalog import load_catalog
+from housebook.domain.finishes import load_finishes
 from housebook.lock import LockHeld, ProcessLock, network_fs_type
 from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer
@@ -104,7 +105,7 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
     catalog = load_catalog(settings.catalog_path)
     data = settings.data_dir
     house_repo, notes = FsHouseRepo(data), MarkdownNoteRepo(data, settings.notes_dir)
-    indexer = Indexer(house_repo, notes, catalog)
+    indexer = Indexer(house_repo, notes, catalog, load_finishes(settings.finishes_path))
     hub = Hub()
     now = clock or (lambda: datetime.now(UTC))
     ctx = AppContext(

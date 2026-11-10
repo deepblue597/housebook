@@ -1,5 +1,5 @@
 /**
- * The layout (`house.json` v1) as plain data, and the pure grid operations the editor needs:
+ * The layout (`house.json` v2) as plain data, and the pure grid operations the editor needs:
  * rectangles of tiles, occupancy (the footprint anchor rule and stacking), and resizing the grid
  * on any side (D17b). Structurally the same as the API's `House`; no imports from other layers.
  *
@@ -20,6 +20,10 @@ export interface LayoutRoom {
   id: string;
   name: string;
   color: string;
+  /** Floor finish key (contract/finishes.json, D41); absent = none chosen. */
+  floor?: string | null;
+  /** Wall finish: a paint colour `#RRGGBB` or a wallpaper key. */
+  walls?: string | null;
 }
 export interface LayoutFloor {
   id: string;
@@ -44,8 +48,10 @@ export interface LayoutOpening {
 }
 export interface Layout {
   $schema?: string | null;
-  schemaVersion: 1;
+  schemaVersion: 2;
   grid: LayoutGrid;
+  /** Outside walls of the whole house (D41). */
+  exteriorWallColor?: string | null;
   rooms?: LayoutRoom[];
   floors: LayoutFloor[];
   placements?: LayoutPlacement[];
@@ -359,7 +365,7 @@ export function firstLayout(
   const ok = (n: number) => Number.isInteger(n) && n >= MIN_GRID && n <= MAX_GRID;
   if (!name || !ok(width) || !ok(depth)) return null;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     grid: { tileSize: 1, width, depth },
     rooms: [],
     floors: [{ id: newFloorId(new Set(), random), name, level: 0, cells: {} }],

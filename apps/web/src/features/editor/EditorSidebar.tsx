@@ -13,6 +13,7 @@ import { useData } from '../../store/data';
 import { type Tool, applyContext, useEditor } from '../../store/editor';
 import { useUi } from '../../store/ui';
 import { DeleteFloorDialog } from './DeleteFloorDialog';
+import { FinishDialog } from './FinishDialog';
 import { TRAY_MIME } from './useToolPointer';
 
 const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase', 'door', 'window'];
@@ -353,6 +354,7 @@ function RoomList() {
   const recolor = useEditor((s) => s.recolorRoom);
   const addRoom = useEditor((s) => s.addRoom);
   const deleteRoom = useEditor((s) => s.deleteRoom);
+  const [finishing, setFinishing] = useState<string | null>(null);
   const tiles = useMemo(() => {
     const n = new Map<string, number>();
     for (const f of house?.floors ?? [])
@@ -388,6 +390,24 @@ function RoomList() {
                 <button
                   type="button"
                   className="icon-btn"
+                  aria-label={EDITOR.finish(r.name)}
+                  title={EDITOR.finish(r.name)}
+                  onClick={() => setFinishing(r.id)}
+                >
+                  {/* A tile split corner to corner: floor and wall. */}
+                  <svg
+                    className="ico"
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 4h16v16H4zM4 20 20 4M12 4v4M16 12h4" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
                   aria-pressed={painting}
                   aria-label={EDITOR.roomPaint(r.name)}
                   title={EDITOR.roomPaint(r.name)}
@@ -418,6 +438,7 @@ function RoomList() {
           })}
         </ul>
       )}
+      {finishing && <FinishDialog roomId={finishing} onClose={() => setFinishing(null)} />}
     </section>
   );
 }

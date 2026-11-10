@@ -24,6 +24,7 @@ class ProblemKind(StrEnum):
     house_unknown_floor = "house_unknown_floor"
     house_outside_grid = "house_outside_grid"
     house_duplicate_placement = "house_duplicate_placement"
+    house_unknown_finish = "house_unknown_finish"
     # notes
     note_parse_error = "note_parse_error"
     read_error = "read_error"

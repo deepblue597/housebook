@@ -22,6 +22,7 @@ from pydantic import ValidationError
 
 from housebook.domain.attachments import FileIndex, LinkError, resolve_link, sibling_files
 from housebook.domain.catalog import Catalog, ItemType
+from housebook.domain.finishes import Finishes
 from housebook.domain.frontmatter import FrontmatterError, is_housebook_tagged, parse
 from housebook.domain.house import CURRENT_SCHEMA_VERSION, House, HouseIssue, house_issues, normalise_cells, room_at
 from housebook.domain.item import ItemFields, error_codes, last_log_date, parse_fields
@@ -103,10 +104,13 @@ class IndexState:
 
 
 class Indexer:
-    def __init__(self, house_repo: HouseRepo, notes: NoteRepo, catalog: Catalog) -> None:
+    def __init__(
+        self, house_repo: HouseRepo, notes: NoteRepo, catalog: Catalog, finishes: Finishes | None = None
+    ) -> None:
         self.house_repo = house_repo
         self.notes = notes
         self.catalog = catalog
+        self.finishes = finishes  # None: finish names aren't checked
         self.state: IndexState | None = None
         self._lock = threading.Lock()
 
@@ -289,6 +293,25 @@ class _Scan:
         for issue in (*state.cell_issues, *house_issues(state.house)):
             kind = ProblemKind(issue.code)
             self.problem(kind, Severity.warning, issue.message, path="house.json")
+        finishes = self.ix.finishes
+        if finishes is None:
+            return
+        # Unknown finish names (a typo, or a newer catalogue): drawn in the plan colour (D41).
+        for room in state.house.rooms:
+            if room.floor and room.floor not in finishes.floor_keys:
+                self.problem(
+                    ProblemKind.house_unknown_finish,
+                    Severity.warning,
+                    f"room '{room.id}': unknown floor finish '{room.floor}'; shown in the plan colour",
+                    path="house.json",
+                )
+            if room.walls and not room.walls.startswith("#") and room.walls not in finishes.wallpaper_keys:
+                self.problem(
+                    ProblemKind.house_unknown_finish,
+                    Severity.warning,
+                    f"room '{room.id}': unknown wallpaper '{room.walls}'; shown in the plain wall colour",
+                    path="house.json",
+                )
 
     # --- notes --------------------------------------------------------------------------
 

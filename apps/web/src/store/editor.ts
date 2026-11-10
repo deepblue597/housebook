@@ -142,6 +142,12 @@ interface EditorState {
   addRoom: () => string | null;
   renameRoom: (roomId: string, name: string) => boolean;
   recolorRoom: (roomId: string, color: string) => void;
+  /** Floor and/or wall finish of a room (D41); null removes it. One undo step. */
+  setRoomFinish: (roomId: string, change: { floor?: string | null; walls?: string | null }) => void;
+  /** Give other rooms this room's floor and wall finish, as one undo step. */
+  copyFinish: (fromId: string, toIds: readonly string[]) => void;
+  /** Colour of the outside walls (D41); null: the default. */
+  setExteriorWallColor: (color: string | null) => void;
   deleteRoom: (roomId: string) => void;
   /** Doors/windows (D36): add `kind` on a wall edge, swap the other kind, or remove the same. */
   toggleOpening: (floorId: string, edge: Edge, kind: 'door' | 'window') => boolean;
@@ -714,6 +720,36 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
         return;
       }
       run({ kind: 'room.update', id: roomId, color }, EDITOR.label.roomColor(cur.name));
+    },
+
+    setRoomFinish: (roomId, change) => {
+      run(
+        { kind: 'room.update', id: roomId, ...change },
+        EDITOR.label.roomFinish(roomName(roomId)),
+      );
+    },
+
+    copyFinish: (fromId, toIds) => {
+      const from = (house()?.rooms ?? []).find((r) => r.id === fromId);
+      const targets = toIds.filter((id) => id !== fromId);
+      if (!from || targets.length === 0) return;
+      run(
+        {
+          kind: 'batch',
+          commands: targets.map((id) => ({
+            kind: 'room.update' as const,
+            id,
+            floor: from.floor ?? null,
+            walls: from.walls ?? null,
+          })),
+        },
+        EDITOR.label.finishCopy(from.name, targets.length),
+      );
+    },
+
+    setExteriorWallColor: (color) => {
+      if (color !== null && !isRoomColor(color)) return;
+      run({ kind: 'house.update', exteriorWallColor: color }, EDITOR.label.exteriorWalls);
     },
 
     deleteRoom: (roomId) => {

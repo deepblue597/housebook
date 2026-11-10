@@ -1,4 +1,4 @@
-"""house.json v1: the layout. See docs/data-contract.md for conventions.
+"""house.json v2: the layout (v2 adds floor and wall finishes, D41). See docs/data-contract.md for conventions.
 
 Two layers of validation:
 - structural (types, ranges, patterns): always enforced by Pydantic;
@@ -24,11 +24,16 @@ from pydantic import (
 )
 from pydantic.alias_generators import to_camel
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 
 ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
 CELL_KEY_RE = re.compile(r"^(0|[1-9][0-9]*),(0|[1-9][0-9]*)$")
 MAX_GRID = 512
+# A finish from contract/finishes.json (an unknown key is a problem, not an error: the room is
+# drawn in its plan colour). Wall finishes are a paint colour or a wallpaper key.
+FINISH_KEY = r"^[a-z][a-z0-9_]{0,39}$"
+HEX_COLOR = r"^#[0-9A-Fa-f]{6}$"
+WALL_FINISH = r"^(#[0-9A-Fa-f]{6}|[a-z][a-z0-9_]{0,39})$"
 
 Rotation = Literal[0, 90, 180, 270]
 # Footprint sides in tiles: at least 1, at most the largest grid.
@@ -61,7 +66,16 @@ class Grid(_Model):
 class Room(_Model):
     id: str = Field(pattern=ID_PATTERN)
     name: str = Field(min_length=1, max_length=100)
-    color: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
+    color: str = Field(pattern=HEX_COLOR)
+    floor: str | None = Field(
+        None, pattern=FINISH_KEY, description="Floor finish key (contract/finishes.json)", exclude_if=_is_none
+    )
+    walls: str | None = Field(
+        None,
+        pattern=WALL_FINISH,
+        description="Wall finish: a paint colour #RRGGBB or a wallpaper key (contract/finishes.json)",
+        exclude_if=_is_none,
+    )
 
 
 class Floor(_Model):
@@ -105,8 +119,11 @@ class Opening(_Model):
 
 class House(_Model):
     schema_: str | None = Field(None, alias="$schema", exclude_if=_is_none)
-    schema_version: Literal[1] = Field(alias="schemaVersion")
+    schema_version: Literal[2] = Field(alias="schemaVersion")
     grid: Grid
+    exterior_wall_color: str | None = Field(
+        None, pattern=HEX_COLOR, description="Outside walls, the whole house (#RRGGBB)", exclude_if=_is_none
+    )
     rooms: list[Room] = Field(default_factory=list)
     floors: list[Floor] = Field(min_length=1)
     placements: list[Placement] = Field(default_factory=list)

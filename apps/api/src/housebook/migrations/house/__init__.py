@@ -1,7 +1,7 @@
 """house.json migrations: ordered, pure dict -> dict functions (DESIGN 15.4, D13).
 
-To add v2: create `v1_to_v2.py` with `def migrate(data: dict) -> dict`, register it in
-`MIGRATIONS` as `1: v1_to_v2.migrate`, bump `CURRENT_SCHEMA_VERSION` in domain/house.py and
+To add v3: create `v2_to_v3.py` with `def migrate(data: dict) -> dict`, register it in
+`MIGRATIONS` as `2: v2_to_v3.migrate`, bump `CURRENT_SCHEMA_VERSION` in domain/house.py and
 update the Pydantic model. Each function must set `schemaVersion` to the new version.
 
 A file with a newer `schemaVersion` than this image supports (after a rollback) is served
@@ -14,11 +14,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from housebook.domain.house import CURRENT_SCHEMA_VERSION
+from housebook.migrations.house import v1_to_v2
 
 Migration = Callable[[dict[str, Any]], dict[str, Any]]
 
 # from_version -> function producing from_version + 1
-MIGRATIONS: dict[int, Migration] = {}
+MIGRATIONS: dict[int, Migration] = {1: v1_to_v2.migrate}
 
 
 class MigrationError(ValueError):

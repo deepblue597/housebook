@@ -275,7 +275,7 @@ def test_preconditions_and_read_only_come_before_the_semantic_422(editor: TestCl
     assert put_house(editor, data).status_code == 422
     del data["placements"][0]["rotation"]
     path = example_root / "house.json"
-    path.write_text(path.read_text().replace('"schemaVersion": 1', '"schemaVersion": 2'))
+    path.write_text(path.read_text().replace('"schemaVersion": 2', '"schemaVersion": 3'))
     editor.app.state.ctx.indexer.scan()
     r = put_house(editor, data, "*")
     assert r.status_code == 409 and r.json()["reason"] == "newer_version"
@@ -330,7 +330,7 @@ def test_put_house_bad_json_and_size(editor: TestClient):
 
 def test_newer_schema_version_is_never_written(example_root: Path, make_client: ClientFactory):
     path = example_root / "house.json"
-    path.write_text(path.read_text().replace('"schemaVersion": 1', '"schemaVersion": 2, "newThing": []'))
+    path.write_text(path.read_text().replace('"schemaVersion": 2', '"schemaVersion": 3, "newThing": []'))
     before = path.read_bytes()
     c = make_client(example_root, anon_role="editor")
     r = c.get("/api/house")
@@ -685,7 +685,7 @@ def test_adopt_nfd_file_by_its_nfc_path(editor: TestClient, example_root: Path):
 
 def test_newer_version_survives_rescans(example_root: Path, make_client: ClientFactory):
     path = example_root / "house.json"
-    path.write_text(path.read_text().replace('"schemaVersion": 1', '"schemaVersion": 2'))
+    path.write_text(path.read_text().replace('"schemaVersion": 2', '"schemaVersion": 3'))
     c = make_client(example_root, anon_role="editor")
     for _ in range(3):
         c.app.state.ctx.indexer.scan()

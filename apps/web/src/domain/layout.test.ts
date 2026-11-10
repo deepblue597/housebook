@@ -31,7 +31,7 @@ const fp11 = () => [1, 1] as const;
 const example: Layout = exampleHouse;
 
 const small = (): Layout => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   grid: { tileSize: 1, width: 4, depth: 3 },
   rooms: [{ id: 'rm_a', name: 'A', color: '#112233' }],
   floors: [
@@ -275,7 +275,7 @@ describe('same size, but the house moved (M5-07)', () => {
 
 describe('a shift needs tiles or openings to confirm it (M5-11)', () => {
   const bare: Layout = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     grid: { tileSize: 1, width: 6, depth: 4 },
     rooms: [],
     floors: [{ id: 'fl', name: 'F', level: 0, cells: {} }],
@@ -310,7 +310,7 @@ describe('firstLayout (first run, D34)', () => {
   it('one empty floor at level 0 on a grid of 1 m tiles', () => {
     const l = firstLayout('  Ground   floor ', 16, 10, () => 0);
     expect(l).toEqual({
-      schemaVersion: 1,
+      schemaVersion: 2,
       grid: { tileSize: 1, width: 16, depth: 10 },
       rooms: [],
       floors: [{ id: 'fl_000000', name: 'Ground floor', level: 0, cells: {} }],

@@ -9,6 +9,7 @@ import { useUi } from '../../store/ui';
 import { FloorTabs } from '../../components/FloorTabs';
 import { EditOverlay } from './EditOverlay';
 import { S, planBounds } from './geometry';
+import { LookToggle } from '../../components/LookToggle';
 import { PlanSvg } from './PlanSvg';
 import { usePanZoom } from './usePanZoom';
 
@@ -16,6 +17,7 @@ export function PlanView({ floor }: { floor: FloorModel }) {
   const model = useData((s) => s.model)!;
   const selection = useUi((s) => s.selection);
   const select = useUi((s) => s.select);
+  const look = useUi((s) => s.look);
   const search = useSearchResults();
   const theme = useResolvedTheme();
   const viewport = useRef<HTMLDivElement>(null);
@@ -86,6 +88,7 @@ export function PlanView({ floor }: { floor: FloorModel }) {
           <button type="button" className="fit" onClick={fit}>
             Fit
           </button>
+          <LookToggle />
         </div>
       </div>
       {/* The viewport is focusable so keyboard users can zoom with + / − / 0. */}
@@ -117,6 +120,7 @@ export function PlanView({ floor }: { floor: FloorModel }) {
               onItem={onItem}
               onRoom={onRoom}
               underlay={underlay}
+              look={look}
             />
             <EditOverlay floorId={floor.floor.id} grid={model.grid} />
           </g>
