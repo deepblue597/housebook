@@ -419,7 +419,8 @@ test.describe('saving and conflicts', () => {
     for (const f of h.floors)
       for (const [k, v] of Object.entries(f.cells)) if (v === 'rm_sto') delete f.cells[k];
     writeHouse(dataDir, h);
-    const notice = page.locator('.ed-notice');
+    // Storage is a basement room, so painting it here also says so (#14): look for the drop.
+    const notice = page.locator('.ed-notice').filter({ hasText: 'was dropped' });
     await expect(notice).toContainText(
       /“paint 1 tile Storage” was dropped: the room .* no longer exists/,
     );

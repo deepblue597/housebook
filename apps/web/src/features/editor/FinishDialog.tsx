@@ -13,6 +13,7 @@ import {
   wallpaperFinishes,
 } from '../../catalog/finishes';
 import { Dialog } from '../../components/Dialog';
+import { roomFloors } from '../../domain/layout';
 import { EDITOR } from '../../strings/editor';
 import { useData } from '../../store/data';
 import { useEditor } from '../../store/editor';
@@ -104,9 +105,11 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
     wall?.kind === 'paint' &&
     !paints.some((p) => p.color.toLowerCase() === wall.color.toLowerCase());
   const others = rooms.filter((r) => r.id !== roomId);
+  const floors = house ? roomFloors(house, roomId).map((f) => f.name) : [];
 
   return (
     <Dialog title={EDITOR.finish(room.name)} onClose={onClose} className="finish-dialog">
+      {floors.length > 1 && <p className="finish-shared">{EDITOR.finishShared(floors)}</p>}
       {look !== 'home' && (
         <p className="finish-hint">
           {EDITOR.finishSeeIt}{' '}
@@ -252,7 +255,7 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
           </button>
         </div>
       </fieldset>
-      <p className="muted">{EDITOR.finishSharedFloors}</p>
+      {floors.length <= 1 && <p className="muted">{EDITOR.finishSharedFloors}</p>}
     </Dialog>
   );
 }

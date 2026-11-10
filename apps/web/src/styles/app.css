@@ -2156,6 +2156,14 @@ code {
   grid-area: count;
   padding-left: 7px;
 }
+/* #14: a room on more than one floor; changing it changes it on all of them. */
+.rooms .count.shared {
+  color: var(--warn);
+}
+.finish-shared {
+  border-left: 3px solid var(--warn);
+  padding-left: 8px;
+}
 .rooms .icon-btn:nth-last-of-type(3) {
   grid-area: finish;
 }

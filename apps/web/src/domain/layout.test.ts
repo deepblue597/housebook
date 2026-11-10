@@ -25,6 +25,7 @@ import {
   resizedSize,
   rotatedPlacement,
   sizeAllowed,
+  roomFloors,
 } from './layout';
 
 const fp11 = () => [1, 1] as const;
@@ -348,5 +349,20 @@ describe('edges for doors and windows (D36)', () => {
     expect(isWallEdge(cells, { x: 0, y: 1, side: 'n' }, grid)).toBe(true); // outside below
     expect(isWallEdge(cells, { x: 3, y: 1, side: 'n' }, grid)).toBe(false); // nothing on either side
     expect(isWallEdge(cells, { x: 9, y: 0, side: 'w' }, grid)).toBe(false); // off the grid
+  });
+});
+
+describe('roomFloors (#14)', () => {
+  it('lists the floors a room has tiles on, highest first', () => {
+    const l: Pick<Layout, 'floors'> = {
+      floors: [
+        { id: 'g', name: 'Ground', level: 0, cells: { '0,0': 'a', '1,0': 'b' } },
+        { id: 'u', name: 'Upstairs', level: 1, cells: { '0,0': 'a' } },
+        { id: 'b', name: 'Basement', level: -1, cells: {} },
+      ],
+    };
+    expect(roomFloors(l, 'a').map((f) => f.name)).toEqual(['Upstairs', 'Ground']);
+    expect(roomFloors(l, 'b').map((f) => f.name)).toEqual(['Ground']);
+    expect(roomFloors(l, 'c')).toEqual([]);
   });
 });

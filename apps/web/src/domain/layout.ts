@@ -698,3 +698,13 @@ export function addsProblems(next: Layout, disk: Layout, footprintOf: FootprintO
   for (const [k, v] of problemCounts(next, footprintOf)) if (v > (before.get(k) ?? 0)) return true;
   return false;
 }
+
+/**
+ * The floors a room has tiles on, highest first (#14): rooms are shared by every floor, so a
+ * rename or a finish changes the room on all of them.
+ */
+export function roomFloors(layout: Pick<Layout, 'floors'>, roomId: string): LayoutFloor[] {
+  return layout.floors
+    .filter((f) => Object.values(f.cells ?? {}).includes(roomId))
+    .sort((a, b) => b.level - a.level);
+}

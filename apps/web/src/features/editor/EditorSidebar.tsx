@@ -6,7 +6,7 @@
 import { type KeyboardEvent, useMemo, useState } from 'react';
 import { itemTypes, typeLabel } from '../../catalog/catalog';
 import { repairFixes } from '../../commands';
-import { layoutIssues } from '../../domain/layout';
+import { layoutIssues, roomFloors } from '../../domain/layout';
 import { TypeIcon } from '../../catalog/TypeIcon';
 import { EDITOR } from '../../strings/editor';
 import { useData } from '../../store/data';
@@ -361,6 +361,17 @@ function RoomList() {
       for (const id of Object.values(f.cells ?? {})) n.set(id, (n.get(id) ?? 0) + 1);
     return n;
   }, [house]);
+  // #14: which floors each room is on (rooms are shared by every floor).
+  const floorsOf = useMemo(
+    () =>
+      new Map(
+        (house?.rooms ?? []).map((r) => [
+          r.id,
+          house ? roomFloors(house, r.id).map((f) => f.name) : [],
+        ]),
+      ),
+    [house],
+  );
   const rooms = house?.rooms ?? [];
   return (
     <section className="ed-section" aria-labelledby="ed-rooms">
@@ -386,7 +397,9 @@ function RoomList() {
                   onChange={(e) => recolor(r.id, e.target.value)}
                 />
                 <RoomName key={`${r.id}:${r.name}`} id={r.id} name={r.name} />
-                <span className="count">{EDITOR.roomTiles(n)}</span>
+                <span className={`count${(floorsOf.get(r.id)?.length ?? 0) > 1 ? ' shared' : ''}`}>
+                  {EDITOR.roomTilesOn(n, floorsOf.get(r.id) ?? [])}
+                </span>
                 <button
                   type="button"
                   className="icon-btn"

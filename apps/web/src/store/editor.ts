@@ -49,6 +49,7 @@ import {
   newRoomId,
   rectBetween,
   rectCells,
+  roomFloors,
   resizedSize,
   rotatedPlacement,
 } from '../domain/layout';
@@ -555,12 +556,24 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
       // Only the tiles that change count (and are labelled).
       const floor = house()?.floors.find((f) => f.id === floorId);
       const changing = cells.filter((c) => (floor?.cells?.[cellKey(c.x, c.y)] ?? null) !== roomId);
-      run(
+      // #14: the first tiles of a room on this floor, while it is on other floors already.
+      const elsewhere =
+        roomId && house() ? roomFloors(house()!, roomId).filter((f) => f.id !== floorId) : [];
+      const first = elsewhere.length > 0 && !Object.values(floor?.cells ?? {}).includes(roomId!);
+      const ok = run(
         { kind: 'cells', floorId, set: cells.map((c) => [c.x, c.y, roomId]) },
         erase
           ? EDITOR.label.erase(changing.length)
           : EDITOR.label.paint(changing.length, roomName(roomId!)),
       );
+      if (ok && first && changing.length > 0)
+        notify(
+          'info',
+          EDITOR.sharedRoomPaint(
+            roomName(roomId!),
+            elsewhere.map((f) => f.name),
+          ),
+        );
     },
 
     moveItem: (itemId, dx, dy) => {
@@ -680,10 +693,20 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
       }
       const from = roomName(roomId);
       if (clean === from) return true;
-      return run(
+      const ok = run(
         { kind: 'room.update', id: roomId, name: clean },
         EDITOR.label.roomRename(from, clean),
       );
+      const floors = roomFloors(house() ?? { floors: [] }, roomId);
+      if (ok && floors.length > 1)
+        notify(
+          'info',
+          EDITOR.sharedRoomRenamed(
+            clean,
+            floors.map((f) => f.name),
+          ),
+        );
+      return ok;
     },
 
     recolorRoom: (roomId, color) => {
@@ -719,7 +742,17 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
         schedule();
         return;
       }
-      run({ kind: 'room.update', id: roomId, color }, EDITOR.label.roomColor(cur.name));
+      const ok = run({ kind: 'room.update', id: roomId, color }, EDITOR.label.roomColor(cur.name));
+      // Once per recolour, not for every move of the picker (those fold into the step above).
+      const floors = roomFloors(house() ?? { floors: [] }, roomId);
+      if (ok && floors.length > 1)
+        notify(
+          'info',
+          EDITOR.sharedRoomRecoloured(
+            cur.name,
+            floors.map((f) => f.name),
+          ),
+        );
     },
 
     setRoomFinish: (roomId, change) => {
