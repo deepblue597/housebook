@@ -3,62 +3,146 @@
 // No dependencies: the files are simple (v / vn / f / usemtl, Kd colours), so a tiny writer is
 // enough and keeps converter tooling out of package.json. One primitive per material.
 //
-//   node scripts/obj-to-glb.mjs <in.obj> <out.glb>
+//   node scripts/obj-to-glb.mjs <in.obj> <out.glb> [--keep x0:x1,y0:y1,z0:z1] [--add <b.obj>@dx,dy,dz]...
+//
+// --keep  keeps only the connected parts (faces sharing vertices, per material) whose bounds lie
+//         inside the box, in the OBJ's own units: e.g. the window out of a wall-with-window piece,
+//         or a door leaf without its frame.
+// --add   merges another OBJ (same MTL colours by material name), moved by dx,dy,dz: e.g. a
+//         keyboard and mouse in front of a screen. Repeatable. --keep applies to <in.obj> only.
 //
 // The geometry is written as authored; orientation and size are normalised at load time
 // (src/features/scene3d/models/normalise.ts) using the manifest in src/assets/models.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 
-const [input, output] = process.argv.slice(2);
-if (!input || !output) {
-  console.error('usage: obj-to-glb.mjs <in.obj> <out.glb>');
+const args = process.argv.slice(2);
+const [input, output] = args;
+const usage =
+  'usage: obj-to-glb.mjs <in.obj> <out.glb> [--keep x0:x1,y0:y1,z0:z1] [--add b.obj@dx,dy,dz]';
+if (!input || !output || input.startsWith('--') || output.startsWith('--')) {
+  console.error(usage);
   process.exit(2);
 }
-
-const obj = readFileSync(input, 'utf8');
-const mtlName = /^mtllib\s+(.+?)\s*$/m.exec(obj)?.[1];
-const colours = new Map();
-if (mtlName) {
-  let current = null;
-  for (const line of readFileSync(join(dirname(input), mtlName), 'utf8').split(/\r?\n/)) {
-    const [k, ...rest] = line.trim().split(/\s+/);
-    if (k === 'newmtl') current = rest.join(' ');
-    else if (k === 'Kd' && current) colours.set(current, rest.slice(0, 3).map(Number));
+let keep = null;
+const adds = [];
+for (let i = 2; i < args.length; i += 2) {
+  const [flag, value] = [args[i], args[i + 1]];
+  if (flag === '--keep' && value) {
+    keep = value.split(',').map((r) => r.split(':').map(Number));
+    if (keep.length !== 3 || keep.flat().some((n) => !Number.isFinite(n))) {
+      console.error(`bad --keep box: ${value}`);
+      process.exit(2);
+    }
+  } else if (flag === '--add' && value) {
+    const [file, at = '0,0,0'] = value.split('@');
+    const d = at.split(',').map(Number);
+    if (d.length !== 3 || d.some((n) => !Number.isFinite(n))) {
+      console.error(`bad --add offset: ${value}`);
+      process.exit(2);
+    }
+    adds.push({ file, d });
+  } else {
+    console.error(usage);
+    process.exit(2);
   }
 }
 
-const pos = [];
-const nrm = [];
+const colours = new Map();
+function readColours(objPath, obj) {
+  const mtlName = /^mtllib\s+(.+?)\s*$/m.exec(obj)?.[1];
+  if (!mtlName) return;
+  let current = null;
+  for (const line of readFileSync(join(dirname(objPath), mtlName), 'utf8').split(/\r?\n/)) {
+    const [k, ...rest] = line.trim().split(/\s+/);
+    if (k === 'newmtl') current = rest.join(' ');
+    else if (k === 'Kd' && current && !colours.has(current))
+      colours.set(current, rest.slice(0, 3).map(Number));
+  }
+}
+
+/** Faces of an OBJ as { mat, corners: [{ v, p, n }] }, positions moved by `d`. */
+function readFaces(objPath, d = [0, 0, 0]) {
+  const obj = readFileSync(objPath, 'utf8');
+  readColours(objPath, obj);
+  const pos = [];
+  const nrm = [];
+  const faces = [];
+  let mat = '_default';
+  for (const line of obj.split(/\r?\n/)) {
+    const [k, ...a] = line.trim().split(/\s+/);
+    if (k === 'v') pos.push(a.slice(0, 3).map((x, j) => Number(x) + d[j]));
+    else if (k === 'vn') nrm.push(a.slice(0, 3).map(Number));
+    else if (k === 'usemtl') mat = a.join(' ');
+    else if (k === 'f') {
+      const corners = a.map((tok) => {
+        const [vi, , ni] = tok.split('/');
+        const v = Number(vi) < 0 ? pos.length + Number(vi) : Number(vi) - 1;
+        const n = ni ? (Number(ni) < 0 ? nrm.length + Number(ni) : Number(ni) - 1) : -1;
+        return { v, p: pos[v], n: n >= 0 ? nrm[n] : [0, 1, 0], key: `${v}/${n}` };
+      });
+      faces.push({ mat, corners });
+    }
+  }
+  return faces;
+}
+
+/** The faces of the connected parts (per material, by shared vertex) inside `box`. */
+function keepInside(faces, box) {
+  const parent = new Map();
+  const find = (a) => {
+    while (parent.get(a) !== a) a = parent.get(a);
+    return a;
+  };
+  const id = (f, c) => `${f.mat}|${c.p.map((x) => x.toFixed(4)).join(',')}`;
+  for (const f of faces)
+    for (const c of f.corners) if (!parent.has(id(f, c))) parent.set(id(f, c), id(f, c));
+  for (const f of faces) {
+    const root = find(id(f, f.corners[0]));
+    for (const c of f.corners.slice(1)) parent.set(find(id(f, c)), root);
+  }
+  const inside = new Map();
+  for (const f of faces) {
+    const root = find(id(f, f.corners[0]));
+    const ok = f.corners.every((c) => c.p.every((x, j) => x >= box[j][0] && x <= box[j][1]));
+    inside.set(root, (inside.get(root) ?? true) && ok);
+  }
+  return faces.filter((f) => inside.get(find(id(f, f.corners[0]))));
+}
+
+let faces = readFaces(input);
+if (keep) faces = keepInside(faces, keep);
+adds.forEach((a, i) =>
+  faces.push(
+    ...readFaces(a.file, a.d).map((f) => ({
+      ...f,
+      corners: f.corners.map((c) => ({ ...c, key: `a${i}:${c.key}` })),
+    })),
+  ),
+);
+if (faces.length === 0) {
+  console.error('nothing left to write (check --keep)');
+  process.exit(1);
+}
+
 const groups = new Map(); // material -> { verts: Map<key, index>, p: [], n: [], idx: [] }
-let mat = '_default';
 const group = (m) => {
   if (!groups.has(m)) groups.set(m, { verts: new Map(), p: [], n: [], idx: [] });
   return groups.get(m);
 };
-for (const line of obj.split(/\r?\n/)) {
-  const [k, ...a] = line.trim().split(/\s+/);
-  if (k === 'v') pos.push(a.slice(0, 3).map(Number));
-  else if (k === 'vn') nrm.push(a.slice(0, 3).map(Number));
-  else if (k === 'usemtl') mat = a.join(' ');
-  else if (k === 'f') {
-    const g = group(mat);
-    const ids = a.map((tok) => {
-      const [vi, , ni] = tok.split('/');
-      const v = Number(vi) < 0 ? pos.length + Number(vi) : Number(vi) - 1;
-      const n = ni ? (Number(ni) < 0 ? nrm.length + Number(ni) : Number(ni) - 1) : -1;
-      const key = `${v}/${n}`;
-      let i = g.verts.get(key);
-      if (i === undefined) {
-        i = g.p.length / 3;
-        g.verts.set(key, i);
-        g.p.push(...pos[v]);
-        g.n.push(...(n >= 0 ? nrm[n] : [0, 1, 0]));
-      }
-      return i;
-    });
-    for (let j = 1; j + 1 < ids.length; j++) g.idx.push(ids[0], ids[j], ids[j + 1]);
-  }
+for (const f of faces) {
+  const g = group(f.mat);
+  const ids = f.corners.map((c) => {
+    let i = g.verts.get(c.key);
+    if (i === undefined) {
+      i = g.p.length / 3;
+      g.verts.set(c.key, i);
+      g.p.push(...c.p);
+      g.n.push(...c.n);
+    }
+    return i;
+  });
+  for (let j = 1; j + 1 < ids.length; j++) g.idx.push(ids[0], ids[j], ids[j + 1]);
 }
 
 // sRGB display colour (MTL Kd) -> linear glTF baseColorFactor.

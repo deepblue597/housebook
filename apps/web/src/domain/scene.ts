@@ -14,7 +14,7 @@ import {
   cellKey,
   occupiedRect,
 } from './coords';
-import type { CellMap, Walls } from './plan';
+import { type CellMap, type Walls, doorSwingsIntoKeyedTile } from './plan';
 
 /** The compass direction the camera looks. */
 export type Heading = 'north' | 'east' | 'south' | 'west';
@@ -273,6 +273,79 @@ export function wallGeometry(
       for (const p of pieces) if (p.y1 > p.y0) out.walls.push(toBox(p, t));
       for (const p of glass) out.glass.push(toBox(p, t * 0.3));
     }
+  }
+  return out;
+}
+
+/**
+ * Where a door or window model goes (D37). Its own frame: origin on the wall line at floor
+ * level in the middle of the gap, local +x along the wall (towards larger x or y), local +z
+ * across it. Turn by `rotationY` to get to the house: 0 for an `n` edge (local +z is south),
+ * −90° for a `w` edge (local +x is south, local +z is west).
+ */
+export interface OpeningPlacement {
+  /** `x,y,side`: unique per floor. */
+  key: string;
+  kind: 'door' | 'window';
+  /** On an exterior wall (front door model, thicker wall). */
+  exterior: boolean;
+  /** Centre of the gap on the wall line. */
+  x: number;
+  z: number;
+  rotationY: number;
+  /** Gap length along the wall and the wall's thickness. */
+  width: number;
+  thickness: number;
+  /** Height range the model fills: the whole door, or the window between sill and head. */
+  y0: number;
+  y1: number;
+  /** Doors: which way across the wall the leaf opens (local z), as in the 2D plan. */
+  swing: 1 | -1;
+}
+
+/**
+ * The opening models of one floor, for the openings that are on a wall (the gaps `wallGeometry`
+ * cuts). A door is always full height (a cut-away view clips it to the wall); a window fills the
+ * pane `wallGeometry` leaves, which a low wall shrinks to its upper half.
+ */
+export function openingPlacements(
+  w: Walls,
+  openings: readonly OpeningLike[],
+  cells: CellMap,
+  tileSize: number,
+  height: number,
+): OpeningPlacement[] {
+  const onWall = (o: OpeningLike, segs: Segment[]) =>
+    segs.some((s) => {
+      const horizontal = s.y1 === s.y2;
+      const lo = Math.min(horizontal ? s.x1 : s.y1, horizontal ? s.x2 : s.y2);
+      const hi = Math.max(horizontal ? s.x1 : s.y1, horizontal ? s.x2 : s.y2);
+      return horizontal
+        ? o.side === 'n' && o.y === s.y1 && o.x >= lo && o.x < hi
+        : o.side === 'w' && o.x === s.x1 && o.y >= lo && o.y < hi;
+    });
+  const out: OpeningPlacement[] = [];
+  for (const o of openings) {
+    if (o.kind !== 'door' && o.kind !== 'window') continue;
+    const exterior = onWall(o, w.exterior);
+    if (!exterior && !onWall(o, w.interior)) continue;
+    const n = o.side === 'n';
+    const sill = height > WINDOW_SILL ? WINDOW_SILL : height / 2;
+    const into = doorSwingsIntoKeyedTile(o, cells) ? 1 : -1;
+    out.push({
+      key: `${o.x},${o.y},${o.side}`,
+      kind: o.kind,
+      exterior,
+      x: (n ? o.x + 0.5 : o.x) * tileSize,
+      z: (n ? o.y : o.y + 0.5) * tileSize,
+      rotationY: n ? 0 : -Math.PI / 2,
+      width: (1 - 2 * OPENING_INSET) * tileSize,
+      thickness: wallThickness(exterior ? 'exterior' : 'interior', tileSize),
+      y0: o.kind === 'door' ? 0 : sill,
+      y1: o.kind === 'door' ? DOOR_HEAD : Math.min(height, WINDOW_HEAD),
+      // The keyed tile is south of an `n` edge (local +z) and east of a `w` edge (local −z).
+      swing: n ? into : (-into as 1 | -1),
+    });
   }
   return out;
 }
