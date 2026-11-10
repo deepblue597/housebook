@@ -94,6 +94,13 @@ export function modelStatus(type: string | null | undefined): ModelStatus {
   return s.status === 'ready' ? s.template.kind : s.status === 'failed' ? 'box' : 'loading';
 }
 
+/** A GLB that isn't an item type (door and window parts), loading it on first use. */
+export function useGlb(src: GlbSource): ModelState {
+  const state = useSyncExternalStore(subscribe, () => states.get(src.url) ?? LOADING);
+  useEffect(() => ensureLoaded(src), [src]);
+  return state;
+}
+
 /** The model for `type`, loading it on first use. */
 export function useModel(type: string | null | undefined): ModelState {
   const src = modelSource(type);

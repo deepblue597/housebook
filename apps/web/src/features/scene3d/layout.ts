@@ -13,6 +13,7 @@ import {
   CUT_HEIGHT,
   type Heading,
   type OpeningLike,
+  type OpeningPlacement,
   boxesAbove,
   facingWalls,
   type ItemTransform,
@@ -20,6 +21,7 @@ import {
   type Vec3,
   cellBounds,
   itemTransform,
+  openingPlacements,
   wallGeometry,
 } from '../../domain/scene';
 import { type FloorModel, type Model, itemFootprint, occupiedTiles } from '../../store/model';
@@ -141,9 +143,15 @@ export function sceneLayout(model: Model, floor: FloorModel, wallHeight: number)
 export interface WallMeshes {
   /** One opaque mesh: every wall that hides nothing, and the low base of those that would. */
   solid: Box[];
-  /** One translucent mesh: the upper part (and panes) of walls facing the camera. */
+  /** One translucent mesh: the upper part of walls facing the camera. */
   faded: Box[];
+  /** Plain panes, drawn until the window model has loaded (and if it fails). */
   glass: Box[];
+  /** Panes in faded walls: part of the faded mesh until the window model has loaded. */
+  fadedGlass: Box[];
+  /** Doors and windows to draw: their models fade with the wall they are in (by key). */
+  openings: OpeningPlacement[];
+  fadedOpenings: ReadonlySet<string>;
 }
 
 /**
@@ -152,17 +160,35 @@ export interface WallMeshes {
  * fade above it, so the rooms behind them stay visible (DESIGN §7.4, M2-03).
  */
 export function wallMeshes(layout: SceneLayout, cells: CellMap, heading: Heading): WallMeshes {
-  if (layout.wallHeight <= CUT_HEIGHT)
-    return { solid: layout.walls, faded: [], glass: layout.glass };
   const ts = layout.tileSize;
+  const openings = openingPlacements(
+    layout.segments,
+    layout.openings,
+    cells,
+    ts,
+    layout.wallHeight,
+  );
+  if (layout.wallHeight <= CUT_HEIGHT)
+    return {
+      solid: layout.walls,
+      faded: [],
+      glass: layout.glass,
+      fadedGlass: [],
+      openings,
+      fadedOpenings: new Set(),
+    };
   const { facing, other } = facingWalls(layout.segments, cells, heading);
   const back = wallGeometry(other, layout.openings, ts, layout.wallHeight);
   const front = wallGeometry(facing, layout.openings, ts, layout.wallHeight);
   const base = wallGeometry(facing, layout.openings, ts, CUT_HEIGHT);
+  const onFacing = openingPlacements(facing, layout.openings, cells, ts, layout.wallHeight);
   return {
     solid: [...back.walls, ...base.walls],
-    faded: [...boxesAbove(front.walls, CUT_HEIGHT), ...front.glass],
+    faded: boxesAbove(front.walls, CUT_HEIGHT),
     glass: back.glass,
+    fadedGlass: front.glass,
+    openings,
+    fadedOpenings: new Set(onFacing.map((o) => o.key)),
   };
 }
 
