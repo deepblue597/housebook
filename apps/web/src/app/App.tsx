@@ -7,6 +7,8 @@ import {
   NoFloorPlan,
   useEditorShortcuts,
 } from '../features/editor';
+import { AttentionView } from '../features/attention/AttentionView';
+import { attentionCount } from '../features/attention/entries';
 import { ProblemsButton } from '../features/problems/ProblemsButton';
 import { ListView } from '../features/list/ListView';
 import { PlanView } from '../features/plan2d/PlanView';
@@ -25,9 +27,12 @@ import { webglAvailable } from './webgl';
 function ViewToggle() {
   const view = useUi((s) => s.view);
   const setView = useUi((s) => s.setView);
+  const snapshot = useData((s) => s.model?.snapshot);
+  const due = snapshot ? attentionCount(snapshot) : 0;
   const options: [View, string][] = [
     ['plan', 'Plan'],
     ['list', 'List'],
+    ['attention', 'Attention'],
   ];
   return (
     <div className="seg" role="group" aria-label="View">
@@ -40,6 +45,10 @@ function ViewToggle() {
           onClick={() => setView(v)}
         >
           {label}
+          {v === 'attention' && due > 0 && (
+            // Part of the name ("Attention 5"), as seen: the name must contain the visible text.
+            <span className="count">{due}</span>
+          )}
         </button>
       ))}
     </div>
@@ -225,6 +234,7 @@ function Main() {
   }
 
   if (view === 'list') return <ListView />;
+  if (view === 'attention') return <AttentionView />;
   const floor = (floorId && model.floorById.get(floorId)) || model.floors[0];
   if (!floor) return <NoFloorPlan />;
   return shows3d ? <Scene3dSlot floor={floor} /> : <PlanView floor={floor} />;
