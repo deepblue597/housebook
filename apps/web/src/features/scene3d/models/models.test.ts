@@ -17,7 +17,7 @@ import {
   itemTransform,
 } from '../../../domain/scene';
 import { ensureLoaded, modelState, modelStatus, setSceneLoaderForTests } from './library';
-import { GLB_MODELS, type GlbSource, modelSource } from './manifest';
+import { GLB_MODELS, type GlbSource, OPENING_MODELS, modelSource } from './manifest';
 import { type Bounds, fitModel, fittedBounds, yawBounds, yawPoint } from './normalise';
 import { PROCEDURAL_TYPES, proceduralModel } from './procedural';
 import { type ModelTemplate, templateFromScene } from './template';
@@ -128,7 +128,7 @@ describe('catalogue → model', () => {
   it('ships exactly the GLBs the manifest uses, each credited as CC0', () => {
     const files = Object.keys(FILES).sort();
     expect(files).toEqual(
-      Object.keys(GLB_MODELS)
+      [...Object.keys(GLB_MODELS), ...Object.values(OPENING_MODELS).map((m) => m.type)]
         .map((k) => `${k}.glb`)
         .sort(),
     );
@@ -241,5 +241,33 @@ describe('library', () => {
     expect(modelStatus('valve')).toBe('procedural');
     expect(modelState('valve')).toBe(modelState('valve'));
     expect(modelStatus('jacuzzi')).toBe('procedural');
+  });
+});
+
+describe('door and window models (D37)', () => {
+  const tpl = async (src: GlbSource) =>
+    templateFromScene(await parseGlb(`${src.type}.glb`), src.yaw);
+
+  it('the leaves sit inside the frame, hinged on the low-x side, handle at the other end', async () => {
+    const frame = (await tpl(OPENING_MODELS.doorFrame)).bounds;
+    for (const src of [OPENING_MODELS.doorLeaf, OPENING_MODELS.frontDoorLeaf]) {
+      const leaf = await tpl(src);
+      const b = leaf.bounds;
+      expect(b.min.x).toBeGreaterThan(frame.min.x);
+      expect(b.max.x).toBeLessThan(frame.max.x);
+      expect(b.max.y).toBeLessThan(frame.max.y);
+      // The handles (material `metal`) are nearer the far end than the hinge.
+      const handle = leaf.parts.find((p) => p.name === 'metal')!.geometry;
+      handle.computeBoundingBox();
+      const mid = (handle.boundingBox!.min.x + handle.boundingBox!.max.x) / 2;
+      expect(mid - b.min.x).toBeGreaterThan(b.max.x - mid);
+    }
+  });
+
+  it('the window is only the frame and its pane, no wall', async () => {
+    const w = await tpl(OPENING_MODELS.window);
+    expect(w.parts.map((p) => p.name).sort()).toEqual(['glass', 'wood']);
+    // Taller than wide, like the kit's window (the wall piece around it was 10 × 12.9).
+    expect(w.bounds.max.x - w.bounds.min.x).toBeLessThan(5);
   });
 });

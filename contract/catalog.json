@@ -13,6 +13,8 @@
     { "key": "radiator", "label": "Radiator", "defaultName": "Radiator", "footprint": [1, 1], "mount": "wall", "critical": false, "aliases": [] },
     { "key": "tv", "label": "TV", "defaultName": "TV", "footprint": [1, 1], "mount": "wall", "critical": false, "aliases": ["television"] },
     { "key": "router", "label": "Router", "defaultName": "Router", "footprint": [1, 1], "mount": "floor", "critical": true, "aliases": ["modem"] },
+    { "key": "computer", "label": "Computer", "defaultName": "Computer", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": ["desktop", "pc"] },
+    { "key": "laptop", "label": "Laptop", "defaultName": "Laptop", "footprint": [1, 1], "mount": "floor", "critical": false, "aliases": ["notebook"] },
     { "key": "valve", "label": "Water valve", "defaultName": "Main water valve", "footprint": [1, 1], "mount": "floor", "critical": true, "aliases": ["water_valve"] },
     { "key": "gas_valve", "label": "Gas valve", "defaultName": "Main gas valve", "footprint": [1, 1], "mount": "wall", "critical": true, "aliases": [] },
     { "key": "fuse", "label": "Fuse box", "defaultName": "Fuse box", "footprint": [1, 1], "mount": "wall", "critical": true, "aliases": ["fuse_box", "breaker_panel"] },
