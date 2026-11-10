@@ -121,6 +121,9 @@ class Compression:
 HOUSE_BODY_LIMIT = 17 * 1024 * 1024
 WRITE_BODY_LIMIT = 25 * 1024 * 1024
 _SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
+# Writes any signed-in role may make: a person's own calendar link (D40). Still authenticated,
+# and their routes still require a JSON body.
+VIEWER_WRITES = frozenset({"/api/calendar/link"})
 
 
 async def _send_json(send: Send, status: int, detail: str) -> None:
@@ -136,7 +139,8 @@ async def _send_json(send: Send, status: int, detail: str) -> None:
 
 
 class WriteGuard:
-    """For every write under /api: authenticate and require the editor role, then bound the body
+    """For every write under /api: authenticate and require the editor role (except the few
+    VIEWER_WRITES, which only need a login), then bound the body
     (Content-Length up front, the streamed byte count for chunked bodies), all before the route
     reads or parses anything. A viewer's 150 MB upload is refused without being buffered."""
 
@@ -153,7 +157,7 @@ class WriteGuard:
         except HTTPException as e:
             await _send_json(send, e.status_code, str(e.detail))
             return
-        if identity.role != "editor":
+        if identity.role != "editor" and scope["path"] not in VIEWER_WRITES:
             await _send_json(send, 403, "Editor role required")
             return
         limit = HOUSE_BODY_LIMIT if scope["path"] == "/api/house" else WRITE_BODY_LIMIT

@@ -1,5 +1,5 @@
 import type { paths } from './schema.gen';
-import type { House, Item, ItemCreate, ItemPatch, Snapshot } from './types';
+import type { CalendarLink, House, Item, ItemCreate, ItemPatch, Snapshot } from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -161,6 +161,20 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 /** POST /api/items/{id}/log: append `- YYYY-MM-DD text` under "## Maintenance log". */
 export const postLogEntry = (id: string, text: string, date?: string) =>
   postJson<Item>(`/api/items/${encodeURIComponent(id)}/log`, date ? { text, date } : { text });
+
+/** The caller's calendar link (D40): whether there is one. Its URL is shown only when made. */
+export async function getCalendarLink(): Promise<CalendarLink> {
+  const res = await request('/api/calendar/link', { cache: 'no-store' });
+  return (await res.json()) as CalendarLink;
+}
+
+/** A new calendar link (the old one stops working); the answer carries the URL, once. */
+export const createCalendarLink = () => postJson<CalendarLink>('/api/calendar/link', {});
+
+/** Turn the caller's calendar link off. */
+export async function deleteCalendarLink(): Promise<void> {
+  await request('/api/calendar/link', { method: 'DELETE' });
+}
 
 /** POST /api/items/adopt: give a `not_adopted` note its housebook_id. */
 export const postAdopt = (path: string) => postJson<Item>('/api/items/adopt', { path });

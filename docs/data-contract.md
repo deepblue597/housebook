@@ -30,6 +30,7 @@ fixture first.
     lock                     single-process flock
     history/                 previous house.json versions: house-<UTC stamp>.json, last 50 kept
     trash/                   deleted notes: <UTC stamp>-<id>/, purged after 90 days (at startup)
+    calendar-links.json      calendar link fingerprints, one per person (§10)
 ```
 
 Ignored everywhere: dot-files and dot-dirs (`.housebook`, `.obsidian`, `.trash`, `.stversions`,
@@ -415,7 +416,8 @@ primary cause.
 
 ## 8. Write API
 
-All writes need the `editor` role (`403` otherwise, checked before the body is read) and, when they have a body,
+All writes need the `editor` role (`403` otherwise, checked before the body is read; the one
+exception is a person's own calendar link, §10, which any signed-in role may make) and, when they have a body,
 `Content-Type: application/json` (`application/merge-patch+json` is accepted too; anything else is
 `415`: a cross-site form or no-cors fetch can't send it, which is the CSRF guard). One write runs at
 a time (single process, D10). After every write the index is rescanned, so the response and the
@@ -591,3 +593,32 @@ data: {}
 - **Errors:** `EventSource` can't see a `401` or a redirect to the login page. On `error`, call
   `GET /api/me`; on `401`, reload the page. After repeated errors fall back to polling
   `/api/snapshot` with `If-None-Match` (DESIGN 15.7).
+
+## 10. Calendar feed (D40)
+
+Calendar apps can't log in, so the feed is read with a private link instead of a session.
+
+| Method | Path | Body | Response |
+|---|---|---|---|
+| `GET` | `/api/calendar/link` | – | `200`, `{exists, createdAt, url: null}` for the caller |
+| `POST` | `/api/calendar/link` | `{}` (JSON, §8) | `201`, `{exists: true, createdAt, url}`; the caller's old link stops working |
+| `DELETE` | `/api/calendar/link` | – | `204` (also when there was none) |
+| `GET` | `/api/calendar.ics?token=` | – | `200` `text/calendar; charset=utf-8`, `ETag` (`If-None-Match` → `304`); `404` for an unknown, replaced or missing code |
+
+- **Links.** One per person: the `proxy` user name, or one shared by the household in `none` mode
+  (key `""`). The three `/api/calendar/link` routes need a login like the rest of `/api` but any
+  role. `url` is `<origin>/api/calendar.ics?token=<code>`, the code 43 random URL-safe characters;
+  it is returned **only** by the `POST`. `.housebook/calendar-links.json` keeps
+  `{version: 1, links: {<user>: {hash, createdAt, origin}}}`, `hash` = SHA-256 of the code (hex),
+  `origin` = the request's `Origin` header (else its base URL), used for the item links in the feed.
+  An unreadable file means no link works until a new one is made. Codes are replaced by
+  `[redacted]` in the logs.
+- **The feed** needs no login: the code is the key (with `proxy` auth, let this one path through
+  the proxy). Per item, an all-day event on the next check date (explicit or derived, §4) and one
+  on `warranty_until`, whatever their state (past dates stay in the past):
+  `UID` `<item id>-check@housebook` / `<item id>-warranty@housebook` (stable, so a changed date
+  moves the event), `SUMMARY` `Check: <name>` / `Warranty ends: <name>`, `DESCRIPTION` room · floor,
+  brand and model, "Every <check_every>, …" for derived checks, and the item link; `URL` the item
+  link (`<origin>/i/<id>`); `TRANSP:TRANSPARENT`. `DTSTAMP` is the time of the last scan.
+  `X-WR-CALNAME:Housebook`, `REFRESH-INTERVAL` and `X-PUBLISHED-TTL` of 6 hours (a hint; Google
+  refreshes on its own schedule). RFC 5545 text escaping, CRLF lines folded at 75 octets.

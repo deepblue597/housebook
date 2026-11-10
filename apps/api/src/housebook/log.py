@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 import sys
 from datetime import UTC, datetime
 
@@ -22,9 +23,29 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(out, default=str, ensure_ascii=False)
 
 
+# The calendar feed's code is a password in the URL (D40): never write it to the logs.
+_TOKEN = re.compile(r"([?&]token=)[^&\s]*")
+
+
+def redact(text: str) -> str:
+    return _TOKEN.sub(r"\1[redacted]", text)
+
+
+class RedactTokens(logging.Filter):
+    """Uvicorn's access log passes the path with its query as an argument."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(redact(a) if isinstance(a, str) else a for a in record.args)
+        if isinstance(record.msg, str):
+            record.msg = redact(record.msg)
+        return True
+
+
 def setup_logging(level: str = "INFO") -> None:
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
+    handler.addFilter(RedactTokens())
     root = logging.getLogger()
     root.handlers[:] = [handler]
     root.setLevel(level)

@@ -84,3 +84,39 @@ test('on a phone: no horizontal scroll, entries keep 44 px targets @phone', asyn
   for (const b of await attention(page).getByRole('button').all())
     expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(44);
 });
+
+test('calendar link (D40): a viewer makes one; the feed has the dates; a new link replaces it', async ({
+  page,
+  backend,
+}) => {
+  const { url } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'viewer' });
+  await page.goto(url);
+  await views(page)
+    .getByRole('button', { name: /^Attention/ })
+    .click();
+  await attention(page).getByRole('button', { name: 'Add to your calendar' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Add to your calendar' });
+  await dialog.getByRole('button', { name: 'Make my calendar link' }).click();
+  const link = await dialog.getByLabel('Calendar link').inputValue();
+  expect(link).toMatch(new RegExp(`^${url}/api/calendar.ics\\?token=[\\w-]{40,}$`));
+  await expectNoA11yViolations(page);
+
+  // What a calendar app gets: no cookies, no login.
+  const feed = await page.request.get(link);
+  expect(feed.status()).toBe(200);
+  expect(feed.headers()['content-type']).toBe('text/calendar; charset=utf-8');
+  const ics = (await feed.text()).replace(/\r\n /g, '');
+  expect(ics).toContain('SUMMARY:Warranty ends: Dishwasher');
+  expect(ics).toContain('DTSTART;VALUE=DATE:20270510');
+  expect(ics).toContain(`URL:${url}/i/${DISHWASHER}`);
+
+  // Reopened: the link isn't shown again; a new one replaces it.
+  await dialog.getByRole('button', { name: 'Close' }).click();
+  await attention(page).getByRole('button', { name: 'Add to your calendar' }).click();
+  await expect(dialog).toContainText('It can’t be shown again');
+  await dialog.getByRole('button', { name: 'Make a new link' }).click();
+  const newer = await dialog.getByLabel('Calendar link').inputValue();
+  expect(newer).not.toBe(link);
+  expect((await page.request.get(link)).status()).toBe(404);
+  expect((await page.request.get(newer)).status()).toBe(200);
+});

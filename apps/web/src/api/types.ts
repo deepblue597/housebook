@@ -15,6 +15,7 @@ export type Placement = Schemas['Placement'];
 export type Attachment = Schemas['AttachmentOut'];
 export type ItemStatus = Schemas['Status'];
 export type Me = Schemas['MeOut'];
+export type CalendarLink = Schemas['CalendarLinkOut'];
 export type Problem = Schemas['Problem'];
 export type HouseProblemReason = Schemas['HouseProblemReason'];
 export type ProblemKind = Schemas['ProblemKind'];
