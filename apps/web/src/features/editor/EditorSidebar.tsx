@@ -15,12 +15,15 @@ import { useUi } from '../../store/ui';
 import { DeleteFloorDialog } from './DeleteFloorDialog';
 import { TRAY_MIME } from './useToolPointer';
 
-const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase'];
+const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase', 'door', 'window'];
 
 const TOOL_ICON: Record<Exclude<Tool, 'place'>, string> = {
   select: 'M5 3l12 9-5 1 3 6-2 1-3-6-4 4z',
   paint: 'M4 20c3 0 4-2 4-4l9-9-3-3-9 9c-2 0-4 1-4 4zM13 5l3 3',
   erase: 'M4 16l9-9 6 6-7 7H7zM10 20h10M9 11l5 5',
+  // A wall with a door swinging open; a wall with a window (two panes).
+  door: 'M3 20h18M6 20V4h9v16M15 4l4 3v13M12 12h.01',
+  window: 'M3 12h3M18 12h3M6 6h12v12H6zM12 6v12M6 12h12',
 };
 
 function SaveStatus() {
@@ -185,6 +188,7 @@ function ToolHint() {
     const room = paintRoomId ? rooms?.get(paintRoomId)?.name : null;
     text = room ? EDITOR.toolHint.paint(room) : EDITOR.toolHint.paintNoRoom;
   } else if (tool === 'erase') text = EDITOR.toolHint.erase;
+  else if (tool === 'door' || tool === 'window') text = EDITOR.toolHint[tool];
   else if (tool === 'place' && place)
     text =
       place.kind === 'type'

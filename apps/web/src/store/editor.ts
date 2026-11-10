@@ -32,6 +32,7 @@ import {
 } from '../commands';
 import { type Cell, cellKey } from '../domain/coords';
 import {
+  type Edge,
   type Layout,
   type LayoutIssue,
   type LayoutPlacement,
@@ -39,6 +40,7 @@ import {
   addsProblems,
   canonicalLayout,
   inferShift,
+  isWallEdge,
   cleanRoomName,
   isRoomColor,
   isValidId,
@@ -59,7 +61,7 @@ const MAX_HISTORY = 200;
 const MAX_SAVE_ATTEMPTS = 5;
 const RETRY_MS = [2_000, 5_000, 10_000, 30_000];
 
-export type Tool = 'select' | 'paint' | 'erase' | 'place';
+export type Tool = 'select' | 'paint' | 'erase' | 'place' | 'door' | 'window';
 /** What the place tool puts down: a new note of a catalogue type, or an unplaced item. */
 export type PlaceSource = { kind: 'type'; type: string } | { kind: 'item'; itemId: string };
 export type SaveState = 'saved' | 'pending' | 'saving' | 'error';
@@ -68,7 +70,8 @@ export type SaveState = 'saved' | 'pending' | 'saving' | 'error';
 export type Gesture =
   | { kind: 'rect'; erase: boolean; floorId: string; from: Cell; to: Cell }
   | { kind: 'move'; itemId: string; floorId: string; from: Cell; to: Cell }
-  | { kind: 'place'; floorId: string; cell: Cell };
+  | { kind: 'place'; floorId: string; cell: Cell }
+  | { kind: 'edge'; floorId: string; edge: Edge; opening: 'door' | 'window' };
 
 export interface Notice {
   id: number;
@@ -96,7 +99,8 @@ interface EditorState {
   paintRoomId: string | null;
   place: PlaceSource | null;
   gesture: Gesture | null;
-  hover: { floorId: string; cell: Cell } | null;
+  /** Where the active tool would act: a tile, and for doors/windows the nearest edge (D36). */
+  hover: { floorId: string; cell: Cell; edge?: Edge | null } | null;
   draft: NewItemDraft | null;
   undo: HistoryEntry[];
   redo: HistoryEntry[];
@@ -116,7 +120,7 @@ interface EditorState {
   /** Esc: drop the gesture, then the armed item/type. */
   cancel: () => void;
   setGesture: (g: Gesture | null) => void;
-  setHover: (h: { floorId: string; cell: Cell } | null) => void;
+  setHover: (h: EditorState['hover']) => void;
   setDraft: (d: NewItemDraft | null) => void;
 
   run: (cmd: Command, label: string) => boolean;
@@ -139,6 +143,8 @@ interface EditorState {
   renameRoom: (roomId: string, name: string) => boolean;
   recolorRoom: (roomId: string, color: string) => void;
   deleteRoom: (roomId: string) => void;
+  /** Doors/windows (D36): add `kind` on a wall edge, swap the other kind, or remove the same. */
+  toggleOpening: (floorId: string, edge: Edge, kind: 'door' | 'window') => boolean;
   /** A new empty floor above the top one or below the lowest (D35); shows it. Its id. */
   addFloor: (where: 'above' | 'below') => string | null;
   renameFloor: (floorId: string, name: string) => boolean;
@@ -519,7 +525,10 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
           hover &&
           cur.floorId === hover.floorId &&
           cur.cell.x === hover.cell.x &&
-          cur.cell.y === hover.cell.y)
+          cur.cell.y === hover.cell.y &&
+          cur.edge?.x === hover.edge?.x &&
+          cur.edge?.y === hover.edge?.y &&
+          cur.edge?.side === hover.edge?.side)
       )
         return;
       set({ hover });
@@ -715,6 +724,26 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
         const sel = useUi.getState().selection;
         if (sel?.kind === 'room' && sel.roomId === roomId) useUi.getState().select(null);
       }
+    },
+
+    toggleOpening: (floorId, edge, kind) => {
+      const h = house();
+      const floor = h?.floors.find((f) => f.id === floorId);
+      if (!h || !floor) return false;
+      if (!isWallEdge(floor.cells, edge, h.grid)) {
+        notify('warn', EDITOR.openingNotWall);
+        return false;
+      }
+      const here = (h.openings ?? []).find(
+        (o) => o.floorId === floorId && o.x === edge.x && o.y === edge.y && o.side === edge.side,
+      );
+      if (here?.kind === kind)
+        return run({ kind: 'openings', add: [], remove: [here] }, EDITOR.label.openingRemove(kind));
+      const opening = { floorId, x: edge.x, y: edge.y, side: edge.side, kind };
+      return run(
+        { kind: 'openings', add: [opening], remove: [] },
+        here ? EDITOR.label.openingSwap(here.kind, kind) : EDITOR.label.openingAdd(kind),
+      );
     },
 
     addFloor: (where) => {

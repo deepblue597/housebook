@@ -22,22 +22,25 @@ export function EditorNotices() {
 
   return (
     <div className="ed-notices" aria-label={EDITOR.noticesLabel} role="region">
-      {/* Always in the page, so screen readers announce what is added to it. */}
-      <ul role="log" aria-live="polite">
-        {notices.map((n) => (
-          <li key={n.id} className={`ed-notice ${n.tone}`} data-tone={n.tone}>
-            <p>{n.text}</p>
-            <button
-              type="button"
-              className="icon-btn"
-              aria-label={EDITOR.dismiss}
-              onClick={() => dismiss(n.id)}
-            >
-              ✕
-            </button>
-          </li>
-        ))}
-      </ul>
+      {/* Always in the page, so screen readers announce what is added to it. The log role is
+          on a wrapper: on the <ul> itself it would replace the list role (axe: listitem). */}
+      <div role="log" aria-live="polite">
+        <ul>
+          {notices.map((n) => (
+            <li key={n.id} className={`ed-notice ${n.tone}`} data-tone={n.tone}>
+              <p>{n.text}</p>
+              <button
+                type="button"
+                className="icon-btn"
+                aria-label={EDITOR.dismiss}
+                onClick={() => dismiss(n.id)}
+              >
+                ✕
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }

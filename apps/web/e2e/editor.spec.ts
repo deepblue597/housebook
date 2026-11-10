@@ -514,6 +514,26 @@ test.describe('3D tools', () => {
       [x, y],
     );
 
+  test('add a door on a wall in 3D (milestone 7, D36)', async ({ page, backend }) => {
+    const { url, dataDir } = await backend({}, EDITOR_ENV);
+    await page.goto(url);
+    await settle(page);
+    await editButton(page).click();
+    await expect(sidebar(page)).toBeVisible();
+    await settle(page);
+    await sidebar(page).getByRole('button', { name: 'Door' }).click();
+    // Near the west edge of tile (7,1): the wall between the living room and the kitchen.
+    // cellToScreen takes tile coordinates and adds half a tile.
+    const p = await cell3d(page, 7.08 - 0.5, 1.5 - 0.5);
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.click(p.x, p.y);
+    await saved(page);
+    const door = readHouse(dataDir).openings!.find(
+      (o) => o.floorId === 'fl_0' && o.x === 7 && o.y === 1 && o.side === 'w',
+    );
+    expect(door?.kind).toBe('door');
+  });
+
   test('paint a rectangle and move an item in 3D', async ({ page, backend }) => {
     const { url, dataDir } = await backend({}, EDITOR_ENV);
     await page.goto(url);

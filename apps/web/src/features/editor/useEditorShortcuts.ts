@@ -1,6 +1,6 @@
 /**
  * Keyboard shortcuts in edit mode (DESIGN 15.12): Ctrl/⌘+Z undo, Ctrl/⌘+Shift+Z or Ctrl+Y redo,
- * V/B/E tools, R rotates and Delete removes the selected item from the plan, Esc cancels the
+ * V/B/E/D/W tools, R rotates and Delete removes the selected item from the plan, Esc cancels the
  * gesture or the armed tool. Ignored while typing in a field or with a dialog open.
  */
 import { useEffect } from 'react';
@@ -29,6 +29,8 @@ export function useEditorShortcuts(): void {
       else if (key === 'v') ed.setTool('select');
       else if (key === 'b') ed.setTool('paint');
       else if (key === 'e') ed.setTool('erase');
+      else if (key === 'd') ed.setTool('door');
+      else if (key === 'w') ed.setTool('window');
       else if (key === 'r' && selectedId) ed.rotateItem(selectedId);
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId)
         ed.unplaceItem(selectedId);

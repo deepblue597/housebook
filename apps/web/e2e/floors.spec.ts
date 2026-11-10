@@ -11,13 +11,14 @@ import {
   expectNoA11yViolations,
   floorTab,
   gotoPlan,
+  planView,
   test,
 } from './support/fixtures';
 
 interface House {
   floors: { id: string; name: string; level: number; cells: Record<string, string> }[];
   placements: { itemId: string; floorId: string }[];
-  openings: { floorId: string }[];
+  openings: { floorId: string; x: number; y: number; side: string; kind: string }[];
 }
 const readHouse = (dir: string) =>
   JSON.parse(readFileSync(join(dir, 'house.json'), 'utf8')) as House;
@@ -100,5 +101,66 @@ test.describe('floors', () => {
     await expect(tabs(page)).toHaveText(['Apartment', 'Basement']);
     await saved(page);
     expect(readHouse(dataDir)).toEqual(before);
+  });
+});
+
+const S = 40; // plan units per tile (features/plan2d/geometry.ts)
+/** A point on the 2D plan, in tiles (fractions allowed). */
+async function at(page: Page, x: number, y: number) {
+  const box = (await page.locator('svg.plan').boundingBox())!;
+  const v = await planView(page);
+  return { x: box.x + v.tx + x * S * v.k, y: box.y + v.ty + y * S * v.k };
+}
+const kitchenWall = (h: House) =>
+  h.openings.find((o) => o.floorId === 'fl_0' && o.x === 7 && o.y === 1 && o.side === 'w');
+
+test.describe('doors and windows', () => {
+  test('click a wall to add a door, swap it to a window, remove it; not inside a room', async ({
+    page,
+    backend,
+  }) => {
+    const { url, dataDir } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'editor' });
+    await startEditing(page, url);
+    const rail = sidebar(page);
+    // The wall between the living room (6,1) and the kitchen (7,1): near the west edge of (7,1).
+    const wall = await at(page, 7.08, 1.5);
+
+    await rail.getByRole('button', { name: 'Door' }).click();
+    await page.mouse.move(wall.x, wall.y);
+    await expect(page.locator('.edit-edge')).toHaveAttribute('data-preview', 'door');
+    await page.mouse.click(wall.x, wall.y);
+    await saved(page);
+    expect(kitchenWall(readHouse(dataDir))).toEqual({
+      floorId: 'fl_0',
+      x: 7,
+      y: 1,
+      side: 'w',
+      kind: 'door',
+    });
+    await expect(page.locator('.plan .door')).toHaveCount(9);
+
+    await page.keyboard.press('w'); // window tool
+    await page.mouse.click(wall.x, wall.y);
+    await saved(page);
+    expect(kitchenWall(readHouse(dataDir))?.kind).toBe('window');
+
+    await page.mouse.click(wall.x, wall.y); // same kind again: removed
+    await saved(page);
+    expect(kitchenWall(readHouse(dataDir))).toBeUndefined();
+
+    // Inside the living room there is no wall.
+    const inside = await at(page, 3.05, 2.5);
+    const before = readFileSync(join(dataDir, 'house.json'), 'utf8');
+    await page.mouse.move(inside.x, inside.y);
+    await expect(page.locator('.edit-edge')).toHaveAttribute('data-preview', 'not-a-wall');
+    await page.mouse.click(inside.x, inside.y);
+    await expect(page.locator('.ed-notice').last()).toContainText('Doors and windows go on walls');
+    expect(readFileSync(join(dataDir, 'house.json'), 'utf8')).toBe(before);
+
+    // Undo brings back the window, then the door.
+    await page.keyboard.press('Control+z');
+    await saved(page);
+    expect(kitchenWall(readHouse(dataDir))?.kind).toBe('window');
+    await expectNoA11yViolations(page);
   });
 });

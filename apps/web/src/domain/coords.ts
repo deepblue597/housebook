@@ -19,6 +19,13 @@ export interface Cell {
   y: number;
 }
 
+/** A tile under the pointer, with where in it the pointer is (0–1 from the north-west
+ *  corner), when the view knows: tools that act on tile edges need it (doors, windows). */
+export interface PointerCell extends Cell {
+  fx?: number;
+  fy?: number;
+}
+
 export interface Rect {
   x: number;
   y: number;

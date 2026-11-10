@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { house as exampleHouse } from '../test/exampleHouse';
 import {
+  isWallEdge,
+  nearestEdge,
   firstLayout,
   type Layout,
   type LayoutPlacement,
@@ -325,5 +327,26 @@ describe('firstLayout (first run, D34)', () => {
     expect(firstLayout('F', 10.5, 10)).toBeNull();
     expect(firstLayout('F', Number.NaN, 10)).toBeNull();
     expect(firstLayout('F', 512, 1)).not.toBeNull();
+  });
+});
+
+describe('edges for doors and windows (D36)', () => {
+  it('nearestEdge picks the closest side and stores it as n/w', () => {
+    expect(nearestEdge({ x: 2, y: 3, fx: 0.5, fy: 0.1 })).toEqual({ x: 2, y: 3, side: 'n' });
+    expect(nearestEdge({ x: 2, y: 3, fx: 0.5, fy: 0.9 })).toEqual({ x: 2, y: 4, side: 'n' }); // south
+    expect(nearestEdge({ x: 2, y: 3, fx: 0.1, fy: 0.5 })).toEqual({ x: 2, y: 3, side: 'w' });
+    expect(nearestEdge({ x: 2, y: 3, fx: 0.9, fy: 0.5 })).toEqual({ x: 3, y: 3, side: 'w' }); // east
+    expect(nearestEdge({ x: 2, y: 3 })).toBeNull();
+  });
+
+  it('isWallEdge: between rooms or a room and outside, on the grid', () => {
+    const cells = { '0,0': 'a', '1,0': 'a', '2,0': 'b' };
+    const grid = { width: 4, depth: 2 };
+    expect(isWallEdge(cells, { x: 1, y: 0, side: 'w' }, grid)).toBe(false); // inside room a
+    expect(isWallEdge(cells, { x: 2, y: 0, side: 'w' }, grid)).toBe(true); // a | b
+    expect(isWallEdge(cells, { x: 0, y: 0, side: 'n' }, grid)).toBe(true); // outside above
+    expect(isWallEdge(cells, { x: 0, y: 1, side: 'n' }, grid)).toBe(true); // outside below
+    expect(isWallEdge(cells, { x: 3, y: 1, side: 'n' }, grid)).toBe(false); // nothing on either side
+    expect(isWallEdge(cells, { x: 9, y: 0, side: 'w' }, grid)).toBe(false); // off the grid
   });
 });

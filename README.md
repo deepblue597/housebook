@@ -12,8 +12,8 @@ edit mode for editors with paint/erase (rectangle drag), place/move/rotate items
 the house, undo/redo, debounced saving with replay on `412`, the Unplaced tray and ghost relinking,
 in 2D and 3D. Milestone 6 (see `docs/ROADMAP.md`): **first-run setup** on an empty data folder, the **note editor** (edit an
 item's fields and notes in the app) **deleting items** (to the trash) and
-**uploading attachments** (photos lose their GPS data; HEIC becomes JPEG). Milestone 7 (in progress): **editing
-floors** (add, rename, reorder, delete; the floor below shown while drawing). See `apps/web/README.md`.
+**uploading attachments** (photos lose their GPS data; HEIC becomes JPEG). Milestone 7: **editing floors** (add,
+rename, reorder, delete; the floor below shown while drawing) and **door and window tools**. See `apps/web/README.md`.
 
 ```
 contract/           shared by backend and frontend

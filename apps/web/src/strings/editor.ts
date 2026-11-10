@@ -22,6 +22,8 @@ export const EDITOR = {
     paint: { label: 'Paint room', key: 'B' },
     erase: { label: 'Erase tiles', key: 'E' },
     place: { label: 'Place item', key: 'P' },
+    door: { label: 'Door', key: 'D' },
+    window: { label: 'Window', key: 'W' },
   },
   toolHint: {
     select:
@@ -31,6 +33,9 @@ export const EDITOR = {
     erase: 'Click or drag a rectangle to clear tiles.',
     placeType: (type: string) => `Click a tile to add a new ${type}.`,
     placeItem: (name: string) => `Click a tile to place ${name}.`,
+    door: 'Click a wall to add a door there; click a door to remove it, a window to make it a door.',
+    window:
+      'Click a wall to add a window there; click a window to remove it, a door to make it a window.',
     cancel: 'Esc cancels.',
   },
   undo: 'Undo',
@@ -117,12 +122,17 @@ export const EDITOR = {
     roomRename: (from: string, to: string) => `rename ${from} to ${to}`,
     roomColor: (name: string) => `recolour ${name}`,
     roomRemove: (name: string) => `delete room ${name}`,
+    openingAdd: (kind: 'door' | 'window') => `add a ${kind}`,
+    openingRemove: (kind: 'door' | 'window') => `remove a ${kind}`,
+    openingSwap: (from: 'door' | 'window', to: 'door' | 'window') => `make a ${from} a ${to}`,
     floorAdd: (name: string) => `add floor ${name}`,
     floorRename: (from: string, to: string) => `rename ${from} to ${to}`,
     floorMove: (name: string, dir: 'up' | 'down') => `move ${name} ${dir}`,
     floorRemove: (name: string) => `delete floor ${name}`,
     resize: (w: number, d: number) => `resize the house to ${w} × ${d}`,
   },
+
+  openingNotWall: 'Doors and windows go on walls: between two rooms, or a room and the outside.',
 
   // floors (D35)
   floors: 'Floors',

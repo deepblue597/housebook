@@ -5,7 +5,7 @@
  */
 import { useEffect, useMemo } from 'react';
 import { BufferAttribute, BufferGeometry } from 'three';
-import { type PreviewRect, usePreviewRects } from '../editor';
+import { type PreviewEdge, type PreviewRect, usePreviewEdge, usePreviewRects } from '../editor';
 import { useEditor } from '../../store/editor';
 import type { ScenePalette } from './palette';
 
@@ -66,6 +66,28 @@ function PreviewBox({ p, ts, palette }: { p: PreviewRect; ts: number; palette: S
   );
 }
 
+/** The wall edge a door or window would go on (D36): a thin upright bar along it. */
+function EdgeBar({ e, ts, palette }: { e: PreviewEdge; ts: number; palette: ScenePalette }) {
+  const { x, y, side } = e.edge;
+  const along = side === 'n';
+  const height = 1.2;
+  return (
+    <mesh
+      name={`preview:edge:${e.ok ? e.kind : 'not-a-wall'}`}
+      position={[(along ? x + 0.5 : x) * ts, height / 2, (along ? y : y + 0.5) * ts]}
+      raycast={noRaycast}
+    >
+      <boxGeometry args={[along ? ts * 0.9 : 0.08, height, along ? 0.08 : ts * 0.9]} />
+      <meshBasicMaterial
+        color={e.ok ? palette.accent : ERASE}
+        transparent
+        opacity={0.6}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
 export function EditPreview({
   floorId,
   grid,
@@ -79,6 +101,7 @@ export function EditPreview({
 }) {
   const editing = useEditor((s) => s.mode === 'edit');
   const rects = usePreviewRects(floorId);
+  const edge = usePreviewEdge(floorId);
   if (!editing) return null;
   return (
     <group name="edit-preview">
@@ -86,6 +109,7 @@ export function EditPreview({
       {rects.map((p, i) => (
         <PreviewBox key={i} p={p} ts={ts} palette={palette} />
       ))}
+      {edge && <EdgeBar e={edge} ts={ts} palette={palette} />}
     </group>
   );
 }

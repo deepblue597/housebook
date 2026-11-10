@@ -4,8 +4,8 @@
  * Both views (2D plan, 3D scene) translate pointer positions to cells and forward them here
  * through `useToolPointer`. Pure: no React, no stores.
  */
-import type { Cell } from '../../domain/coords';
-import { clampToGrid, cycleStack, insideGrid } from '../../domain/layout';
+import type { Cell, PointerCell } from '../../domain/coords';
+import { type Edge, clampToGrid, cycleStack, insideGrid, nearestEdge } from '../../domain/layout';
 import type { Gesture, Tool } from '../../store/editor';
 
 export interface ToolContext {
@@ -23,7 +23,8 @@ export type ToolEffect =
   | { type: 'rect'; floorId: string; from: Cell; to: Cell; erase: boolean }
   | { type: 'move'; itemId: string; dx: number; dy: number }
   | { type: 'select'; itemId: string }
-  | { type: 'place'; floorId: string; cell: Cell };
+  | { type: 'place'; floorId: string; cell: Cell }
+  | { type: 'opening'; floorId: string; edge: Edge; kind: 'door' | 'window' };
 
 /** Top of the stack first: what a click sees. */
 const topFirst = (stack: readonly string[]) => [...stack].reverse();
@@ -35,7 +36,7 @@ const topFirst = (stack: readonly string[]) => [...stack].reverse();
  */
 export function toolDown(
   ctx: ToolContext,
-  cell: Cell | null,
+  cell: PointerCell | null,
   picked: string | null = null,
 ): Gesture | null {
   if (ctx.tool === 'select') {
@@ -53,12 +54,17 @@ export function toolDown(
   }
   if (!cell || !insideGrid(cell, ctx.grid)) return null;
   if (ctx.tool === 'place') return { kind: 'place', floorId: ctx.floorId, cell };
+  if (ctx.tool === 'door' || ctx.tool === 'window') {
+    // The edge nearest to where the press landed (D36); the view must say where in the tile.
+    const edge = nearestEdge(cell);
+    return edge ? { kind: 'edge', floorId: ctx.floorId, edge, opening: ctx.tool } : null;
+  }
   return { kind: 'rect', erase: ctx.tool === 'erase', floorId: ctx.floorId, from: cell, to: cell };
 }
 
 /** Pointer move during a gesture: follow the pointer, staying on the grid. */
 export function toolMove(g: Gesture, cell: Cell | null, grid: ToolContext['grid']): Gesture {
-  if (!cell) return g;
+  if (!cell || g.kind === 'edge') return g; // a door or window stays where it was pressed
   const c = clampToGrid(cell, grid);
   if (g.kind === 'place') return c.x === g.cell.x && c.y === g.cell.y ? g : { ...g, cell: c };
   return c.x === g.to.x && c.y === g.to.y ? g : { ...g, to: c };
@@ -71,6 +77,8 @@ export function toolUp(ctx: ToolContext, g: Gesture): ToolEffect | null {
       return { type: 'rect', floorId: g.floorId, from: g.from, to: g.to, erase: g.erase };
     case 'place':
       return { type: 'place', floorId: g.floorId, cell: g.cell };
+    case 'edge':
+      return { type: 'opening', floorId: g.floorId, edge: g.edge, kind: g.opening };
     case 'move': {
       const dx = g.to.x - g.from.x;
       const dy = g.to.y - g.from.y;

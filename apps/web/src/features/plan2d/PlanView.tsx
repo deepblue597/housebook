@@ -43,10 +43,11 @@ export function PlanView({ floor }: { floor: FloorModel }) {
     if (!el) return null;
     const r = el.getBoundingClientRect();
     const v = viewRef.current;
-    return {
-      x: Math.floor((clientX - r.left - v.tx) / v.k / S),
-      y: Math.floor((clientY - r.top - v.ty) / v.k / S),
-    };
+    const gx = (clientX - r.left - v.tx) / v.k / S;
+    const gy = (clientY - r.top - v.ty) / v.k / S;
+    const x = Math.floor(gx);
+    const y = Math.floor(gy);
+    return { x, y, fx: gx - x, fy: gy - y }; // where in the tile: doors and windows (D36)
   }, []);
   const pointer = useToolPointer({
     floorId: floor.floor.id,

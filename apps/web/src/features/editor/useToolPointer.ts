@@ -9,8 +9,8 @@
  */
 import type { DragEvent, MouseEvent, PointerEvent, RefObject } from 'react';
 import { useRef } from 'react';
-import type { Cell } from '../../domain/coords';
-import { insideGrid, itemsAt } from '../../domain/layout';
+import type { PointerCell } from '../../domain/coords';
+import { insideGrid, itemsAt, nearestEdge } from '../../domain/layout';
 import { useData } from '../../store/data';
 import { applyContext, useEditor } from '../../store/editor';
 import { useUi } from '../../store/ui';
@@ -41,8 +41,8 @@ interface Options {
   floorId: string;
   /** The element the handlers go on (pointer capture). */
   target: RefObject<HTMLElement | null>;
-  /** Client (CSS px) position → the grid cell under it; may be outside the grid. */
-  toCell: (clientX: number, clientY: number) => Cell | null;
+  /** Client (CSS px) position → the grid cell under it (and where in it); may be outside. */
+  toCell: (clientX: number, clientY: number) => PointerCell | null;
   /** The view's own pan/zoom handlers. */
   pan: PointerHandlers;
   /** The item the view's own picking has under the pointer (3D), if any. */
@@ -85,6 +85,9 @@ function apply(fx: ToolEffect) {
     case 'place':
       ed.placeAt(fx.floorId, fx.cell);
       break;
+    case 'opening':
+      ed.toggleOpening(fx.floorId, fx.edge, fx.kind);
+      break;
   }
 }
 
@@ -111,8 +114,12 @@ export function useToolPointer({
 
   const cellAt = (e: { clientX: number; clientY: number }) => toCell(e.clientX, e.clientY);
   const grid = () => useData.getState().model?.grid ?? { width: 0, depth: 0 };
-  const hoverAt = (cell: Cell | null) =>
-    useEditor.getState().setHover(cell && insideGrid(cell, grid()) ? { floorId, cell } : null);
+  const hoverAt = (cell: PointerCell | null) => {
+    const ed = useEditor.getState();
+    if (!cell || !insideGrid(cell, grid())) return ed.setHover(null);
+    const edge = ed.tool === 'door' || ed.tool === 'window' ? nearestEdge(cell) : undefined;
+    ed.setHover({ floorId, cell: { x: cell.x, y: cell.y }, ...(edge !== undefined && { edge }) });
+  };
   const toPan = (e: PointerEvent) => {
     panning.current.add(e.pointerId);
     pan.onPointerDown(e);

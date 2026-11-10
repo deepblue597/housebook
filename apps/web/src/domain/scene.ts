@@ -5,7 +5,15 @@
  * World units are metres. Mapping (data contract §2.2, coords.ts): house x → three x,
  * house y → three z, up is three y; a tile (x, y) covers [x, x+1) × [y, y+1) × tileSize.
  */
-import { type Cell, type Rect, type Segment, backEdge, cellKey, occupiedRect } from './coords';
+import {
+  type Cell,
+  type PointerCell,
+  type Rect,
+  type Segment,
+  backEdge,
+  cellKey,
+  occupiedRect,
+} from './coords';
 import type { CellMap, Walls } from './plan';
 
 /** The compass direction the camera looks. */
@@ -116,10 +124,13 @@ export function itemTransform(
 // ---- picking -------------------------------------------------------------------------
 
 /** The tile under a world point on the floor plane. */
-export const worldToCell = (x: number, z: number, tileSize: number): Cell => ({
-  x: Math.floor(x / tileSize),
-  y: Math.floor(z / tileSize),
-});
+export function worldToCell(x: number, z: number, tileSize: number): PointerCell {
+  const gx = x / tileSize;
+  const gy = z / tileSize;
+  const cx = Math.floor(gx);
+  const cy = Math.floor(gy);
+  return { x: cx, y: cy, fx: gx - cx, fy: gy - cy };
+}
 
 /** The room under a world point, if any. */
 export function roomAtPoint(

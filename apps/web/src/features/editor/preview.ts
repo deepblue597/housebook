@@ -6,9 +6,11 @@
 import { placementSpec } from '../../catalog/catalog';
 import type { Rect } from '../../domain/coords';
 import {
+  type Edge,
   type FootprintOf,
   type Layout,
   insideGrid,
+  isWallEdge,
   movedPlacement,
   placementRect,
   rectBetween,
@@ -29,7 +31,7 @@ export interface PreviewInput {
   footprintOf: FootprintOf;
   tool: Tool;
   gesture: Gesture | null;
-  hover: { floorId: string; cell: { x: number; y: number } } | null;
+  hover: { floorId: string; cell: { x: number; y: number }; edge?: Edge | null } | null;
   place: PlaceSource | null;
   paintColor: string | null;
 }
@@ -51,7 +53,8 @@ export function previewRects(p: PreviewInput): PreviewRect[] {
         pl && movedPlacement(pl, g.to.x - g.from.x, g.to.y - g.from.y, layout.grid, p.footprintOf);
       return to ? [{ rect: placementRect(to, p.footprintOf), tone: 'item' }] : [];
     }
-    return [{ rect: placeRect(p, g.cell), tone: 'item' }];
+    if (g.kind === 'place') return [{ rect: placeRect(p, g.cell), tone: 'item' }];
+    return [];
   }
   const h = p.hover;
   if (!h || h.floorId !== p.floorId || !insideGrid(h.cell, layout.grid)) return [];
@@ -75,4 +78,26 @@ function placeRect(p: PreviewInput, cell: { x: number; y: number }): Rect {
     w,
     h,
   };
+}
+
+/** The wall edge a door or window would go on (D36): from the press, else the hover. */
+export interface PreviewEdge {
+  edge: Edge;
+  kind: 'door' | 'window';
+  /** On a wall (else the tool refuses it). */
+  ok: boolean;
+}
+
+export function previewEdge(p: PreviewInput): PreviewEdge | null {
+  if (p.tool !== 'door' && p.tool !== 'window') return null;
+  const g = p.gesture;
+  const edge =
+    g?.kind === 'edge' && g.floorId === p.floorId
+      ? g.edge
+      : p.hover?.floorId === p.floorId
+        ? (p.hover.edge ?? null)
+        : null;
+  if (!edge) return null;
+  const floor = p.layout.floors.find((f) => f.id === p.floorId);
+  return { edge, kind: p.tool, ok: isWallEdge(floor?.cells, edge, p.layout.grid) };
 }
