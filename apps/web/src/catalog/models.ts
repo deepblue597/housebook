@@ -32,6 +32,8 @@ const MODELS: Record<string, ModelSpec> = {
   radiator: { height: 0.6, depth: 0.1, tint: HEAT },
   tv: { height: 0.55, depth: 0.15, tint: '#2f3a40' },
   router: { height: 0.2, tint: TECH, fill: 0.35 },
+  computer: { height: 0.5, tint: TECH, fill: 0.7 },
+  laptop: { height: 0.25, tint: TECH, fill: 0.45 },
   valve: { height: 0.15, tint: '#4f86c6', fill: 0.3 },
   gas_valve: { height: 0.15, depth: 0.12, tint: '#e0b03c', fill: 0.3 },
   fuse: { height: 0.5, depth: 0.12, tint: TECH, fill: 0.45 },

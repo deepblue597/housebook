@@ -89,6 +89,20 @@ const ICONS: Record<string, ReactElement> = {
       <circle cx="10" cy="16" r=".6" />
     </>
   ),
+  computer: (
+    <>
+      <rect x="4" y="3" width="16" height="11" rx="1.5" />
+      <path d="M12 14v3M9 17h6" />
+      <rect x="5" y="19" width="11" height="2" rx=".5" />
+      <path d="M18.5 19.5v1" />
+    </>
+  ),
+  laptop: (
+    <>
+      <rect x="5" y="5" width="14" height="10" rx="1.5" />
+      <path d="M2.5 18h19l-1.5 2h-16z" />
+    </>
+  ),
   valve: <path d="M3 14h5M16 14h5M8 10v8l8-8v8zM12 14V7M9 7h6" />,
   gas_valve: (
     <>
