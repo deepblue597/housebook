@@ -1,7 +1,7 @@
 /** UI state: view, plan style (2D/3D), floor, selection, search query and theme. */
 import { create } from 'zustand';
 
-export type View = 'plan' | 'list';
+export type View = 'plan' | 'list' | 'attention';
 /** How the plan is drawn. 2D is the default and the accessible baseline (D15). */
 export type PlanStyle = '2d' | '3d';
 /** Why the 3D view is not showing although it was chosen (this session only). */
@@ -52,7 +52,7 @@ const store = (key: string, value: string) => {
 };
 
 export const useUi = create<UiState>()((set) => ({
-  view: stored('housebook.view', ['plan', 'list'], 'plan'),
+  view: stored('housebook.view', ['plan', 'list', 'attention'], 'plan'),
   planStyle: stored('housebook.planStyle', ['2d', '3d'], '2d'),
   scene3dIssue: null,
   scene3dFocus: false,

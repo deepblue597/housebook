@@ -223,3 +223,23 @@ describe('2D plan footprints (data contract §2.2, same rule as 3D)', () => {
     expect(dish.getAttribute('transform')).toBe('translate(60,20)');
   });
 });
+
+describe('Attention view (D38)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(`${snapshot.today}T12:00:00Z`));
+    seedStore();
+  });
+  afterEach(() => vi.useRealTimers());
+
+  it('the view switch counts the items that need attention and opens the list', async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const views = screen.getByRole('group', { name: 'View' });
+    const button = within(views).getByRole('button', { name: /^Attention\s*1$/ });
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('region', { name: 'What needs attention' })).toBeInTheDocument();
+    expect(localStorage.getItem('housebook.view')).toBe('attention');
+  });
+});
