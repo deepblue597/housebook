@@ -1,23 +1,23 @@
 {
   "version": 1,
   "floors": [
-    { "key": "oak_light", "label": "Light oak", "group": "Wood", "color": "#d8bd92" },
-    { "key": "oak", "label": "Oak", "group": "Wood", "color": "#b98a56" },
-    { "key": "walnut", "label": "Walnut", "group": "Wood", "color": "#6f4a30" },
-    { "key": "herringbone", "label": "Herringbone", "group": "Wood", "color": "#a87c4f" },
-    { "key": "tiles_white", "label": "White tiles", "group": "Tiles", "color": "#ecebe7" },
-    { "key": "tiles_grey", "label": "Grey large tiles", "group": "Tiles", "color": "#a3a5a6" },
-    { "key": "terracotta", "label": "Terracotta", "group": "Tiles", "color": "#b8694a" },
-    { "key": "checker", "label": "Black and white checker", "group": "Tiles", "color": "#8a8a8a" },
-    { "key": "stone", "label": "Stone", "group": "Stone and concrete", "color": "#bdb4a5" },
-    { "key": "concrete", "label": "Concrete", "group": "Stone and concrete", "color": "#9c9b97" },
-    { "key": "carpet", "label": "Carpet", "group": "Soft", "color": "#8f8c86" }
+    { "key": "oak_light", "label": "Light oak", "group": "Wood", "color": "#b68755", "texture": "oak_light.jpg", "size": [1.9, 1.9] },
+    { "key": "oak", "label": "Oak", "group": "Wood", "color": "#9b7b5d", "texture": "oak.jpg", "size": [1.8, 1.8] },
+    { "key": "walnut", "label": "Walnut", "group": "Wood", "color": "#5c3c28", "texture": "walnut.jpg", "size": [1.8, 1.8] },
+    { "key": "herringbone", "label": "Herringbone", "group": "Wood", "color": "#916c43", "texture": "herringbone.jpg", "size": [1.9, 1.9] },
+    { "key": "tiles_white", "label": "White tiles", "group": "Tiles", "color": "#f8f8f7", "texture": "tiles_white.jpg", "size": [1.0, 1.0] },
+    { "key": "tiles_grey", "label": "Grey large tiles", "group": "Tiles", "color": "#b6b5b2", "texture": "tiles_grey.jpg", "size": [1.1, 0.55] },
+    { "key": "terracotta", "label": "Terracotta", "group": "Tiles", "color": "#b26242", "texture": "terracotta.jpg", "size": [1.2, 1.2] },
+    { "key": "checker", "label": "Black and white checker", "group": "Tiles", "color": "#868481", "texture": "checker.jpg", "size": [1.2, 1.2] },
+    { "key": "stone", "label": "Stone", "group": "Stone and concrete", "color": "#b49f89", "texture": "stone.jpg", "size": [2.0, 2.0] },
+    { "key": "concrete", "label": "Concrete", "group": "Stone and concrete", "color": "#cbcbc5", "texture": "concrete.jpg", "size": [2.4, 2.4] },
+    { "key": "carpet", "label": "Carpet", "group": "Soft", "color": "#bcb093", "texture": "carpet.jpg", "size": [1.7, 1.7] }
   ],
   "wallpapers": [
-    { "key": "stripes", "label": "Stripes", "color": "#dfe3e6" },
-    { "key": "floral", "label": "Floral", "color": "#e9e1d3" },
-    { "key": "geometric", "label": "Geometric", "color": "#d6d9cf" },
-    { "key": "linen", "label": "Linen", "color": "#e6dfd2" }
+    { "key": "stripes", "label": "Stripes", "color": "#dce2e6", "texture": "wallpaper-stripes.jpg", "size": [0.5, 0.5] },
+    { "key": "floral", "label": "Floral", "color": "#e9e0d0", "texture": "wallpaper-floral.jpg", "size": [0.5, 0.5] },
+    { "key": "geometric", "label": "Geometric", "color": "#d7dacf", "texture": "wallpaper-geometric.jpg", "size": [0.5, 0.5] },
+    { "key": "linen", "label": "Linen", "color": "#e5ded1", "texture": "wallpaper-linen.jpg", "size": [0.5, 0.5] }
   ],
   "paints": [
     { "label": "White", "color": "#f4f3ef" },

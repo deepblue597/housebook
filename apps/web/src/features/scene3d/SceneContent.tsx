@@ -19,7 +19,8 @@ import {
   tilesMesh,
 } from '../../domain/scene';
 import type { Look } from '../../store/ui';
-import { floorColor, groupByColor, wallSideColors } from './finishColors';
+import { type Surface, floorSurface, groupBySurface, wallSideSurfaces } from './finishColors';
+import { useFinishTexture } from './textures';
 import type { CellMap } from '../../domain/plan';
 import { type Highlight, ItemModel } from './ItemModel';
 import { type SceneGhost, type SceneItem, type SceneLayout, wallMeshes } from './layout';
@@ -62,6 +63,7 @@ function toGeometry(m: MeshData): BufferGeometry {
   const g = new BufferGeometry();
   g.setAttribute('position', new BufferAttribute(new Float32Array(m.positions), 3));
   g.setAttribute('normal', new BufferAttribute(new Float32Array(m.normals), 3));
+  if (m.uvs?.length) g.setAttribute('uv', new BufferAttribute(new Float32Array(m.uvs), 2));
   g.setIndex(m.indices);
   g.computeBoundingSphere();
   return g;
@@ -112,6 +114,7 @@ function Grid({
 function RoomFloor({
   tiles,
   color,
+  surface,
   lit = false,
   selected,
   accent,
@@ -121,6 +124,8 @@ function RoomFloor({
 }: {
   tiles: SceneLayout['rooms'][number]['tiles'];
   color: string;
+  /** Home look: the floor finish (its texture once loaded; `color` until then). */
+  surface?: Surface;
   /** Home look: lit like the walls and items; plan look: unlit, exactly the room's colour. */
   lit?: boolean;
   selected: boolean;
@@ -132,11 +137,29 @@ function RoomFloor({
   const accentMix = useMemo(() => mix(color, accent, 0.25), [color, accent]);
   const data = useMemo(() => tilesMesh(tiles, ts), [tiles, ts]);
   const g = useGeometry(data);
-  const shown = selected ? accentMix : color;
+  const texture = useFinishTexture(surface?.texture);
+  // A texture shows its own colours (white base); selection tints it towards the accent.
+  const shown = texture
+    ? selected
+      ? mix('#ffffff', accent, 0.35)
+      : '#ffffff'
+    : selected
+      ? accentMix
+      : color;
   return (
-    <mesh name={`floor:${roomId}`} geometry={g} onClick={onClick} userData={{ color: shown }}>
+    <mesh
+      name={`floor:${roomId}`}
+      geometry={g}
+      onClick={onClick}
+      userData={{ color: shown, texture: texture ? surface?.key : undefined }}
+    >
       {lit ? (
-        <meshLambertMaterial color={shown} side={DoubleSide} />
+        <meshLambertMaterial
+          key={texture ? 'tex' : 'flat'}
+          color={shown}
+          map={texture}
+          side={DoubleSide}
+        />
       ) : (
         // Unlit, so the floor shows exactly the room's (softened) colour, as in 2D.
         <meshBasicMaterial color={shown} side={DoubleSide} />
@@ -145,34 +168,38 @@ function RoomFloor({
   );
 }
 
-/** One wall colour of the home look: its boxes as one mesh. */
+/** One wall surface of the home look (a paint or a wallpaper): its boxes as one mesh. */
 function WallGroup({
   boxes,
-  color,
+  surface,
   faded,
 }: {
   boxes: readonly Box[];
-  color: string;
+  surface: Surface;
   faded: boolean;
 }) {
   const data = useMemo(() => boxesMesh(boxes), [boxes]);
   const g = useGeometry(data);
+  const texture = useFinishTexture(surface.texture);
+  const color = texture ? '#ffffff' : surface.color;
   return (
     <mesh
-      name={`${faded ? 'walls-faded' : 'walls'}:${color}`}
+      name={`${faded ? 'walls-faded' : 'walls'}:${surface.key}`}
       geometry={g}
       raycast={() => null}
-      userData={{ color }}
+      userData={{ color: surface.color, texture: texture ? surface.key : undefined }}
     >
       {faded ? (
         <meshLambertMaterial
+          key={texture ? 'tex' : 'flat'}
           color={color}
+          map={texture}
           transparent
           opacity={FADED_WALL_OPACITY}
           depthWrite={false}
         />
       ) : (
-        <meshLambertMaterial color={color} />
+        <meshLambertMaterial key={texture ? 'tex' : 'flat'} color={color} map={texture} />
       )}
     </mesh>
   );
@@ -342,10 +369,10 @@ function SceneContentImpl({
   const roomsById = useMemo(() => new Map((house?.rooms ?? []).map((r) => [r.id, r])), [house]);
   const wallGroups = useMemo(() => {
     if (!home) return null;
-    const colorOf = wallSideColors(house?.rooms ?? [], house?.exteriorWallColor);
+    const surfaceOf = wallSideSurfaces(house?.rooms ?? [], house?.exteriorWallColor);
     return {
-      solid: groupByColor(wm.solid, colorOf),
-      faded: groupByColor(windows ? wm.faded : [...wm.faded, ...wm.fadedGlass], colorOf),
+      solid: groupBySurface(wm.solid, surfaceOf),
+      faded: groupBySurface(windows ? wm.faded : [...wm.faded, ...wm.fadedGlass], surfaceOf),
     };
   }, [home, house, wm, windows]);
 
@@ -371,7 +398,8 @@ function SceneContentImpl({
           roomId={r.roomId}
           tiles={r.tiles}
           ts={ts}
-          color={(home && floorColor(roomsById.get(r.roomId))) || palette.floor(r.color)}
+          color={(home && floorSurface(roomsById.get(r.roomId))?.color) || palette.floor(r.color)}
+          surface={home ? floorSurface(roomsById.get(r.roomId)) : undefined}
           lit={home}
           selected={r.roomId === selectedRoomId}
           accent={palette.accent}
@@ -380,10 +408,10 @@ function SceneContentImpl({
       ))}
 
       {wallGroups?.solid.map((g) => (
-        <WallGroup key={`s:${g.color}`} boxes={g.boxes} color={g.color} faded={false} />
+        <WallGroup key={`s:${g.surface.key}`} boxes={g.boxes} surface={g.surface} faded={false} />
       ))}
       {wallGroups?.faded.map((g) => (
-        <WallGroup key={`f:${g.color}`} boxes={g.boxes} color={g.color} faded />
+        <WallGroup key={`f:${g.surface.key}`} boxes={g.boxes} surface={g.surface} faded />
       ))}
       {!home && wm.solid.length > 0 && (
         <mesh name="walls" geometry={wallGeo} raycast={() => null}>

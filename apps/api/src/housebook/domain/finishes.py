@@ -3,8 +3,9 @@ room's `floor` and `walls`. Like item types, keys are a public contract: never r
 
 import json
 from pathlib import Path
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from pydantic.alias_generators import to_camel
 
 from housebook.domain.house import FINISH_KEY, HEX_COLOR
@@ -19,6 +20,16 @@ class Finish(_Model):
     label: str
     group: str | None = None
     color: str = Field(pattern=HEX_COLOR, description="Average colour: the flat look and the fallback")
+    texture: str | None = Field(
+        None, pattern=r"^[a-z0-9_-]{1,60}\.(jpg|png|webp)$", description="File in apps/web/src/assets/textures (D42)"
+    )
+    size: tuple[float, float] | None = Field(None, description="Metres the texture covers before it repeats [x, y]")
+
+    @model_validator(mode="after")
+    def _size_positive(self) -> Self:
+        if self.size and not all(0 < s <= 20 for s in self.size):
+            raise ValueError("size must be in metres, 0 < size <= 20")
+        return self
 
 
 class Paint(_Model):

@@ -378,15 +378,19 @@ Shared by `GET /api/items?q=` and the client-side search over the snapshot.
 ### 6.1 Finishes (`contract/finishes.json`, D41)
 
 ```json
-{ "floors":     [ { "key": "oak", "label": "Oak", "group": "Wood", "color": "#b98a56" } ],
-  "wallpapers": [ { "key": "stripes", "label": "Stripes", "color": "#dfe3e6" } ],
+{ "floors":     [ { "key": "oak", "label": "Oak", "group": "Wood", "color": "#9b7b5d",
+                    "texture": "oak.jpg", "size": [1.8, 1.8] } ],
+  "wallpapers": [ { "key": "stripes", "label": "Stripes", "color": "#dce2e6",
+                    "texture": "wallpaper-stripes.jpg", "size": [0.5, 0.5] } ],
   "paints":     [ { "label": "Sage", "color": "#b7c2a6" } ],
   "exteriorDefault": "#e6e1d8" }
 ```
 
 - `floors[].key` and `wallpapers[].key` are what `rooms[].floor` and `rooms[].walls` store: a
-  public contract like item type keys, **never renamed**. `color` is the finish's average colour,
-  used by the flat home look and as the fallback for its texture. `paints` is the preset palette
+  public contract like item type keys, **never renamed**. `texture` is a file in
+  `apps/web/src/assets/textures/` (credits and how they are built in its `LICENSES.md`, D42) and
+  `size` the metres `[x, y]` it covers before it repeats. `color` is the texture's average colour,
+  drawn while the texture loads or if it fails. `paints` is the preset palette
   (any `#RRGGBB` is allowed in `walls`); `exteriorDefault` colours the outside walls when the
   house has no `exteriorWallColor`.
 - Finishes are a second way to look at the house ("Home look", a per-browser setting); the plan

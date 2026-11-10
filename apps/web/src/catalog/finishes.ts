@@ -6,16 +6,45 @@ export interface Finish {
   key: string;
   label: string;
   group?: string;
-  /** Average colour: the flat home look, and what a texture falls back to. */
+  /** Average colour of the texture: what is drawn while it loads, or if it fails. */
   color: string;
+  /** File in src/assets/textures (D42). */
+  texture?: string;
+  /** Metres the texture covers before it repeats, [x, y]. */
+  size?: [number, number];
 }
+
+/** A finish's texture: its URL (fetched only when drawn) and real-world repeat. */
+export interface FinishTexture {
+  url: string;
+  size: readonly [number, number];
+}
+
+// URLs only: Vite content-hashes the files; nothing is fetched until a view uses one.
+const TEXTURE_URLS: Record<string, string> = Object.fromEntries(
+  Object.entries(
+    import.meta.glob<string>('../assets/textures/*.jpg', {
+      query: '?url',
+      import: 'default',
+      eager: true,
+    }),
+  ).map(([path, url]) => [path.split('/').pop()!, url]),
+);
+
+export function finishTexture(f: Finish | undefined): FinishTexture | undefined {
+  const url = f?.texture ? TEXTURE_URLS[f.texture] : undefined;
+  return url && f?.size ? { url, size: f.size } : undefined;
+}
+
+/** Tests only: the texture files shipped. */
+export const shippedTextures = (): readonly string[] => Object.keys(TEXTURE_URLS);
 
 export interface Paint {
   label: string;
   color: string;
 }
 
-const data = finishesJson as {
+const data = finishesJson as unknown as {
   floors: Finish[];
   wallpapers: Finish[];
   paints: Paint[];

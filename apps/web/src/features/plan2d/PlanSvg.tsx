@@ -5,7 +5,7 @@
 import { type KeyboardEvent, memo, useMemo } from 'react';
 import type { Item, Opening, Placement } from '../../api/types';
 import { typeLabel } from '../../catalog/catalog';
-import { floorFinish } from '../../catalog/finishes';
+import { finishTexture, floorFinish } from '../../catalog/finishes';
 import { typeIconPaths } from '../../catalog/icons';
 import { PALETTE } from '../../app/theme';
 import { LEVEL_TEXT, currentStatus } from '../../components/status';
@@ -95,6 +95,37 @@ function OpeningMark({ o, floor }: { o: Opening; floor: FloorModel }) {
   );
 }
 
+const patternId = (key: string) => `finish-${key}`;
+
+/**
+ * Floor finishes as SVG patterns for the home look (D42): each finish's texture repeated at its
+ * real size, in plan units (S per tile). Only the finishes used by some room are defined.
+ */
+function FinishPatterns({ model, tileSize }: { model: Model; tileSize: number }) {
+  const used = new Map(
+    [...model.rooms.values()].flatMap((r) => {
+      const f = floorFinish(r.floor);
+      const t = finishTexture(f);
+      return f && t ? [[f.key, t] as const] : [];
+    }),
+  );
+  if (used.size === 0) return null;
+  const perMetre = S / tileSize;
+  return (
+    <defs>
+      {[...used].map(([key, t]) => {
+        const w = t.size[0] * perMetre;
+        const h = t.size[1] * perMetre;
+        return (
+          <pattern key={key} id={patternId(key)} patternUnits="userSpaceOnUse" width={w} height={h}>
+            <image href={t.url} width={w} height={h} preserveAspectRatio="none" />
+          </pattern>
+        );
+      })}
+    </defs>
+  );
+}
+
 function PlanSvgImpl({
   model,
   floor,
@@ -164,6 +195,7 @@ function PlanSvgImpl({
         width={W * S + 2 * MARGIN}
         height={H * S + MARGIN + FOOTER}
       />
+      {look === 'home' && <FinishPatterns model={model} tileSize={model.tileSize} />}
       <path className="grid" d={geometry.grid} />
       {geometry.underlay && (
         <path className="underlay" d={geometry.underlay} data-underlay={underlay?.floor.id}>
@@ -179,7 +211,13 @@ function PlanSvgImpl({
           <g
             key={roomId}
             className={`room${roomId === selectedRoomId ? ' sel' : ''}${finish ? ' finished' : ''}`}
-            fill={finish?.color ?? room.color}
+            fill={
+              finish
+                ? finishTexture(finish)
+                  ? `url(#${patternId(finish.key)})`
+                  : finish.color
+                : room.color
+            }
             data-finish={finish?.key}
             onClick={() => onRoom(roomId)}
           >

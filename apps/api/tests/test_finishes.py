@@ -95,3 +95,15 @@ def test_unknown_finish_names_are_warnings_not_errors(editor: TestClient):
     found = [m for k, m in problems(editor) if k == "house_unknown_finish"]
     assert len(found) == 2
     assert any("marble_from_the_future" in m for m in found) and any("tartan" in m for m in found)
+
+
+def test_every_finish_has_a_shipped_texture_and_a_real_size():
+    textures = CONTRACT.parent / "apps" / "web" / "src" / "assets" / "textures"
+    f = load_finishes(CONTRACT / "finishes.json")
+    shipped = {p.name for p in textures.iterdir() if p.suffix == ".jpg"}
+    used = set()
+    for finish in (*f.floors, *f.wallpapers):
+        assert finish.texture in shipped, finish.key
+        assert finish.size and all(0.1 <= s <= 5 for s in finish.size), finish.key
+        used.add(finish.texture)
+    assert used == shipped  # no texture shipped that nothing uses
