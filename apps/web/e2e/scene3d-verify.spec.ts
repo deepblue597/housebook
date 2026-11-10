@@ -854,15 +854,32 @@ const TOWARD_CAMERA = { north: [0, 1], west: [1, 0], south: [0, -1], east: [-1, 
 /**
  * Tiles of `floorId` that nothing but walls could hide at `heading`: no item on or next to the
  * tile, and none up to three tiles towards the camera (a 1.8 m fridge hides 1.8 m behind it).
+ * An open door leaf (D37) covers the tile it swings into; with walls up (`tallDoors`, 2.1 m) it
+ * hides like an item standing there.
  */
-function openTiles(house: HouseJson, floorId: string, heading: (typeof HEADINGS)[number]) {
+function openTiles(
+  house: HouseJson,
+  floorId: string,
+  heading: (typeof HEADINGS)[number],
+  tallDoors: boolean,
+) {
   const floor = house.floors.find((f) => f.id === floorId)!;
   const items = new Set(
     house.placements.filter((p) => p.floorId === floorId).map((p) => `${p.x},${p.y}`),
   );
+  const doors = new Set<string>();
+  for (const o of house.openings ?? []) {
+    if (o.floorId !== floorId || o.kind !== 'door') continue;
+    // As doorSwingsIntoKeyedTile: the keyed tile if it is in a room, else the other one.
+    const other = o.side === 'n' ? `${o.x},${o.y - 1}` : `${o.x - 1},${o.y}`;
+    const swing =
+      `${o.x},${o.y}` in floor.cells || !(other in floor.cells) ? `${o.x},${o.y}` : other;
+    (tallDoors ? items : doors).add(swing);
+  }
   const [dx, dy] = TOWARD_CAMERA[heading];
   return Object.entries(floor.cells).flatMap(([k, room]) => {
     const [x, y] = k.split(',').map(Number) as [number, number];
+    if (doors.has(k)) return [];
     for (let a = -1; a <= 1; a++)
       for (let b = -1; b <= 1; b++) if (items.has(`${x + a},${y + b}`)) return [];
     for (let t = 1; t <= 3; t++)
@@ -884,7 +901,8 @@ async function hiddenTiles(
   nearestRoom = true,
 ) {
   const heading = (await camera(page)).heading as (typeof HEADINGS)[number];
-  const tiles = openTiles(house, floorId, heading);
+  const walls = await viewport3d(page).getAttribute('data-walls');
+  const tiles = openTiles(house, floorId, heading, walls === 'up');
   const colour = new Map(house.rooms.map((r) => [r.id, r.color]));
   const seen = await pixels(page, await Promise.all(tiles.map((t) => cellPoint(page, t.x, t.y))));
   return {

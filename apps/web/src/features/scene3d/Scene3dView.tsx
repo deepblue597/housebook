@@ -589,6 +589,8 @@ export default function Scene3dView({ floor }: { floor: FloorModel }) {
             gl={{ antialias: true, alpha: true }}
             onCreated={({ gl }) => {
               renderer.current = gl;
+              // Doors are clipped to a cut-away wall's height (OpeningModels).
+              gl.localClippingEnabled = true;
               const el = gl.domElement;
               canvasEl.current = el;
               el.setAttribute('role', 'img');

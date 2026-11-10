@@ -7,7 +7,9 @@ import type { Page, Route } from '@playwright/test';
 import { expect, floorTab, gotoPlan, test } from './support/fixtures';
 
 const GLB = '**/assets/*.glb';
-const typeOf = (url: string) => /\/assets\/([a-z]+)-[\w-]+\.glb$/.exec(new URL(url).pathname)?.[1];
+// Vite names a file `<name>-<8-character hash>.glb`; names may contain dashes (door-frame).
+const typeOf = (url: string) =>
+  /\/assets\/([a-z-]+)-[\w-]{8}\.glb$/.exec(new URL(url).pathname)?.[1];
 
 const ID = {
   fridge: 'it_4f8k2q',
@@ -59,9 +61,21 @@ test('no model is fetched before 3D opens; then one request per GLB type on the 
   await page.waitForLoadState('networkidle');
   expect(got).toEqual([]);
   await open3d(page);
-  // Apartment: fridge, oven, washer, microwave, tv (no dryer in the example house).
+  // Apartment: fridge, oven, washer, microwave, tv (no dryer in the example house), and the
+  // door and window parts (D37): interior and exterior doors, windows.
   await expect.poll(async () => Object.values(await models(page)).includes('loading')).toBe(false);
-  expect(got.sort()).toEqual(['fridge', 'microwave', 'oven', 'tv', 'washer']);
+  await expect.poll(() => got.length).toBe(9);
+  expect(got.sort()).toEqual([
+    'door-frame',
+    'door-leaf',
+    'fridge',
+    'front-door-leaf',
+    'microwave',
+    'oven',
+    'tv',
+    'washer',
+    'window',
+  ]);
   const m = await models(page);
   for (const t of ['fridge', 'oven', 'washer', 'microwave', 'tv']) expect(m[t], t).toBe('glb');
   // Basement's chest freezer is a fridge: no second fetch; toggling 2D↔3D refetches nothing.
@@ -69,7 +83,7 @@ test('no model is fetched before 3D opens; then one request per GLB type on the 
   await page.getByRole('group', { name: 'Plan style' }).getByRole('button', { name: '2D' }).click();
   await open3d(page);
   await page.waitForLoadState('networkidle');
-  expect(got).toHaveLength(5);
+  expect(got).toHaveLength(9);
 });
 
 const failures: [string, (route: Route) => Promise<void>, number][] = [

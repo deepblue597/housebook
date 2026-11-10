@@ -8,10 +8,20 @@ import { memo, useEffect, useMemo } from 'react';
 import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, EdgesGeometry } from 'three';
 import type { Snapshot } from '../../api/types';
 import { blend, parseHex, toHex } from '../../domain/color';
-import { type Heading, type MeshData, boxesMesh, roomAtPoint, tilesMesh } from '../../domain/scene';
+import {
+  DOOR_HEAD,
+  type Heading,
+  type MeshData,
+  boxesMesh,
+  roomAtPoint,
+  tilesMesh,
+} from '../../domain/scene';
 import type { CellMap } from '../../domain/plan';
 import { type Highlight, ItemModel } from './ItemModel';
 import { type SceneGhost, type SceneItem, type SceneLayout, wallMeshes } from './layout';
+import { useGlb } from './models/library';
+import { OPENING_MODELS } from './models/manifest';
+import { OpeningModels } from './OpeningModels';
 import type { ScenePalette } from './palette';
 
 /** Walls facing the camera, with walls up: enough to see the room shape, not to hide it. */
@@ -263,9 +273,14 @@ function SceneContentImpl({
 }: SceneContentProps) {
   const ts = layout.tileSize;
   const wm = useMemo(() => wallMeshes(layout, cells, heading), [layout, cells, heading]);
+  // Once the window model is in, it brings its own pane: the plain ones would show through.
+  const windows = useGlb(OPENING_MODELS.window).status === 'ready';
   const wallData = useMemo(() => boxesMesh(wm.solid), [wm]);
-  const fadedData = useMemo(() => boxesMesh(wm.faded), [wm]);
-  const glassData = useMemo(() => boxesMesh(wm.glass), [wm]);
+  const fadedData = useMemo(
+    () => boxesMesh(windows ? wm.faded : [...wm.faded, ...wm.fadedGlass]),
+    [wm, windows],
+  );
+  const glassData = useMemo(() => boxesMesh(windows ? [] : wm.glass), [wm, windows]);
   const wallGeo = useGeometry(wallData);
   const fadedGeo = useGeometry(fadedData);
   const glassGeo = useGeometry(glassData);
@@ -305,7 +320,7 @@ function SceneContentImpl({
           <meshLambertMaterial color={palette.wall} />
         </mesh>
       )}
-      {wm.faded.length > 0 && (
+      {fadedData.indices.length > 0 && (
         <mesh name="walls-faded" geometry={fadedGeo} raycast={() => null}>
           <meshLambertMaterial
             color={palette.wall}
@@ -315,7 +330,7 @@ function SceneContentImpl({
           />
         </mesh>
       )}
-      {wm.glass.length > 0 && (
+      {glassData.indices.length > 0 && (
         <mesh name="glass" geometry={glassGeo} raycast={() => null}>
           <meshLambertMaterial
             color={palette.glass}
@@ -325,6 +340,13 @@ function SceneContentImpl({
           />
         </mesh>
       )}
+
+      <OpeningModels
+        openings={wm.openings}
+        faded={wm.fadedOpenings}
+        fadedOpacity={FADED_WALL_OPACITY}
+        clipY={layout.wallHeight < DOOR_HEAD ? layout.wallHeight : null}
+      />
 
       {layout.items.map((it) => {
         const highlight: Highlight =
