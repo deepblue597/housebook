@@ -15,6 +15,7 @@ from housebook.config import Settings
 from housebook.domain.catalog import Catalog
 from housebook.domain.status import today_in
 from housebook.lock import ProcessLock
+from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer, IndexState
 from housebook.services.sync import Hub, Sync
 from housebook.services.writer import Writer
@@ -34,6 +35,7 @@ class AppContext:
     hub: Hub
     sync: Sync
     writer: Writer
+    calendar_links: CalendarLinks
     clock: Callable[[], datetime] = _utcnow
     loop: asyncio.AbstractEventLoop | None = None  # set at startup; signal handlers post to it
     # (scan time, today) -> (body, etag); the snapshot is rebuilt only when either changes

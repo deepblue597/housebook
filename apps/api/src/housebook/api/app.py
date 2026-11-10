@@ -16,11 +16,12 @@ from housebook import __version__
 from housebook.adapters.fs import FsAttachmentStore, FsHouseRepo, MarkdownNoteRepo
 from housebook.api.context import AppContext
 from housebook.api.middleware import Compression, HeadAsGet, WriteGuard
-from housebook.api.routes import api, health
+from housebook.api.routes import api, calendar_feed, health
 from housebook.api.spa import mount_spa
 from housebook.config import Settings
 from housebook.domain.catalog import load_catalog
 from housebook.lock import LockHeld, ProcessLock, network_fs_type
+from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer
 from housebook.services.sync import Hub, Sync, watch
 from housebook.services.writer import WriteError, Writer
@@ -115,6 +116,7 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
         hub=hub,
         sync=Sync(indexer, hub),
         writer=Writer(house_repo, notes, indexer, catalog, settings, now),
+        calendar_links=CalendarLinks(data),
     )
     if clock:
         ctx.clock = clock
@@ -142,6 +144,7 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
         return response
 
     app.include_router(health)
+    app.include_router(calendar_feed)  # its own code instead of a login (D40)
     app.include_router(api)
     mount_spa(app, settings.static_dir)  # last: catch-all
     # Outermost last: HEAD is turned into GET before gzip decides on headers.

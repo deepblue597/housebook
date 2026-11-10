@@ -102,6 +102,21 @@ class MeOut(ApiModel):
     auth_mode: Literal["none", "proxy"]
 
 
+class CalendarLinkIn(ApiModel):
+    """Empty: the body only has to be JSON, which a cross-site form can't send (DESIGN 15.13)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class CalendarLinkOut(ApiModel):
+    """The caller's calendar link (D40). `url` only in the answer that made it: the code is
+    stored hashed, so it can't be shown again."""
+
+    exists: bool
+    created_at: datetime | None = None
+    url: str | None = Field(None, description="Subscribe to this; shown once")
+
+
 class HealthOut(ApiModel):
     status: str
     checks: dict[str, bool] = Field(default_factory=dict)

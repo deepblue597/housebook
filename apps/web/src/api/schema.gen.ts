@@ -39,6 +39,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calendar.ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Calendar Feed Ics
+         * @description Every item's next check and warranty end as all-day events (iCalendar). No login: the
+         *     code is the key, so an unknown code is a plain 404.
+         */
+        get: operations["calendar_feed_ics_api_calendar_ics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/house": {
         parameters: {
             query?: never;
@@ -298,6 +319,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/calendar/link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Calendar Link
+         * @description Whether the caller has a calendar link, and since when. The link itself is shown only when
+         *     it is made.
+         */
+        get: operations["get_calendar_link_api_calendar_link_get"];
+        put?: never;
+        /**
+         * Create Calendar Link
+         * @description A new calendar link for the caller; their old one stops working. `url` is in this answer
+         *     only. Item links in the feed point at the origin the app was opened on.
+         */
+        post: operations["create_calendar_link_api_calendar_link_post"];
+        /**
+         * Delete Calendar Link
+         * @description Turn the caller's calendar link off (nothing to do if there is none).
+         */
+        delete: operations["delete_calendar_link_api_calendar_link_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -323,6 +374,27 @@ export interface components {
             listed: boolean;
             /** Url */
             url: string;
+        };
+        /**
+         * CalendarLinkIn
+         * @description Empty: the body only has to be JSON, which a cross-site form can't send (DESIGN 15.13).
+         */
+        CalendarLinkIn: Record<string, never>;
+        /**
+         * CalendarLinkOut
+         * @description The caller's calendar link (D40). `url` only in the answer that made it: the code is
+         *     stored hashed, so it can't be shown again.
+         */
+        CalendarLinkOut: {
+            /** Exists */
+            exists: boolean;
+            /** Createdat */
+            createdAt?: string | null;
+            /**
+             * Url
+             * @description Subscribe to this; shown once
+             */
+            url?: string | null;
         };
         /** Catalog */
         Catalog: {
@@ -961,6 +1033,54 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    calendar_feed_ics_api_calendar_ics_get: {
+        parameters: {
+            query?: {
+                /** @description The code from the calendar link */
+                token?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/calendar": unknown;
+                };
+            };
+            /** @description Not Modified */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1747,6 +1867,86 @@ export interface operations {
                 content: {
                     "text/event-stream": unknown;
                 };
+            };
+        };
+    };
+    get_calendar_link_api_calendar_link_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarLinkOut"];
+                };
+            };
+        };
+    };
+    create_calendar_link_api_calendar_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalendarLinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarLinkOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_calendar_link_api_calendar_link_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

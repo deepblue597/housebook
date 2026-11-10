@@ -1,6 +1,7 @@
 """HTTP API: reads (milestone 1), writes and the event stream (milestone 4)."""
 
 import asyncio
+import hashlib
 import json
 import logging
 import os
@@ -8,6 +9,7 @@ import posixpath
 import secrets
 import unicodedata
 from collections.abc import AsyncIterator
+from datetime import UTC
 from typing import Annotated, Any
 from urllib.parse import quote
 
@@ -21,6 +23,8 @@ from housebook.api.context import AppContext, get_ctx
 from housebook.api.http import NO_CACHE, matches_if_none_match, quote_etag
 from housebook.api.schemas import (
     AdoptIn,
+    CalendarLinkIn,
+    CalendarLinkOut,
     ErrorOut,
     HealthOut,
     ItemCreateIn,
@@ -32,7 +36,8 @@ from housebook.api.schemas import (
     ProblemsOut,
     SnapshotOut,
 )
-from housebook.api.views import item_out
+from housebook.api.views import item_out, item_status
+from housebook.domain.calendar import CalendarItem, calendar_ics, item_events
 from housebook.domain.catalog import Catalog
 from housebook.domain.filetypes import INLINE_TYPES, SNIFF_BYTES, sniff
 from housebook.domain.house import House
@@ -40,7 +45,8 @@ from housebook.domain.paths import is_safe_name
 from housebook.domain.status import due_sort_key, is_due_within
 from housebook.domain.text import nfc
 from housebook.ports import UnsafePath
-from housebook.services.indexer import MAX_HOUSE_BYTES, IndexState
+from housebook.services.calendar_links import clean_origin
+from housebook.services.indexer import MAX_HOUSE_BYTES, IndexState, display_name
 from housebook.services.sync import items_version, resync_payload, sse_frame
 from housebook.services.uploads import UploadRejected, prepare
 from housebook.services.writer import field_error, parse_house, unprocessable
@@ -58,6 +64,8 @@ def current_identity(request: Request, ctx: Ctx) -> Identity:
 
 api = APIRouter(prefix="/api", dependencies=[Depends(current_identity)])
 health = APIRouter()
+# The calendar feed: calendar apps can't log in, so its link carries a code instead (D40).
+calendar_feed = APIRouter()
 
 # Only sniffed PDFs and raster images are shown inline; everything else is a download.
 # Plain-text extensions are labelled for convenience (always as a download).
@@ -507,3 +515,100 @@ async def events(request: Request, ctx: Ctx) -> Response:
             hub.unsubscribe(sub)
 
     return StreamingResponse(stream(), media_type="text/event-stream", headers=headers)
+
+
+# --- calendar feed (milestone 8, D40) -----------------------------------------------------------
+#
+# Anyone who can see the house (viewers too) may make their own link: WriteGuard lets these
+# writes through for any signed-in role. The JSON body keeps the CSRF rule of the other writes.
+
+FEED_PATH = "/api/calendar.ics"
+
+
+def _link_user(request: Request) -> str:
+    identity: Identity = request.state.identity
+    return identity.user or ""  # `none` mode: one link for the household
+
+
+@api.get("/calendar/link", response_model=CalendarLinkOut)
+def get_calendar_link(request: Request, ctx: Ctx) -> CalendarLinkOut:
+    """Whether the caller has a calendar link, and since when. The link itself is shown only when
+    it is made."""
+    link = ctx.calendar_links.get(_link_user(request))
+    return CalendarLinkOut(exists=link is not None, created_at=link.created_at if link else None)
+
+
+@api.post(
+    "/calendar/link",
+    status_code=status.HTTP_201_CREATED,
+    response_model=CalendarLinkOut,
+    dependencies=[Depends(require_json)],
+    responses=_errors(415),
+)
+def create_calendar_link(body: CalendarLinkIn, request: Request, ctx: Ctx) -> CalendarLinkOut:
+    """A new calendar link for the caller; their old one stops working. `url` is in this answer
+    only. Item links in the feed point at the origin the app was opened on."""
+    origin = clean_origin(request.headers.get("origin")) or clean_origin(str(request.base_url))
+    if origin is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Can't tell where the app is served from")
+    token, link = ctx.calendar_links.create(_link_user(request), origin, ctx.clock())
+    return CalendarLinkOut(exists=True, created_at=link.created_at, url=f"{origin}{FEED_PATH}?token={token}")
+
+
+@api.delete("/calendar/link", status_code=status.HTTP_204_NO_CONTENT)
+def delete_calendar_link(request: Request, ctx: Ctx) -> Response:
+    """Turn the caller's calendar link off (nothing to do if there is none)."""
+    ctx.calendar_links.delete(_link_user(request))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@calendar_feed.get(
+    FEED_PATH,
+    response_class=Response,
+    responses={200: {"content": {"text/calendar": {}}}, 304: {}, 404: {"model": ErrorOut}},
+)
+def calendar_feed_ics(
+    request: Request,
+    ctx: Ctx,
+    token: Annotated[str, Query(description="The code from the calendar link")] = "",
+) -> Response:
+    """Every item's next check and warranty end as all-day events (iCalendar). No login: the
+    code is the key, so an unknown code is a plain 404."""
+    link = ctx.calendar_links.find(token)
+    if link is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown calendar link")
+    state = ctx.state()
+    today = ctx.today()
+    house = state.house.house
+    rooms = {r.id: r.name for r in house.rooms} if house else {}
+    floors = {f.id: f.name for f in house.floors} if house else {}
+    events = []
+    for item in state.items.values():
+        loc = item.location
+        where = None
+        if loc and loc.floor_id in floors:
+            room = rooms.get(loc.room_id) if loc.room_id else None
+            where = f"{room} · {floors[loc.floor_id]}" if room else floors[loc.floor_id]
+        f = item.fields
+        what = " ".join(x for x in (f.brand, f.model) if x) or None
+        events += item_events(
+            CalendarItem(
+                id=item.id,
+                name=display_name(item),
+                status=item_status(item, today),
+                where=where,
+                what=what,
+                every=str(f.check_every) if f.check_every else None,
+                url=f"{link.origin}/i/{quote(item.id, safe='')}",
+            )
+        )
+    body = calendar_ics(events, name="Housebook", stamp=state.scanned_at.astimezone(UTC)).encode()
+    etag = hashlib.sha256(body).hexdigest()[:32]
+    headers = {"ETag": quote_etag(etag), "Cache-Control": "private, no-cache"}
+    if matches_if_none_match(request, etag):
+        return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
+    return Response(
+        body,
+        media_type="text/calendar; charset=utf-8",
+        headers={**headers, "Content-Disposition": 'inline; filename="housebook.ics"'},
+    )

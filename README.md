@@ -107,6 +107,16 @@ in the tree. Matching is case-sensitive. Don't publish the container port; keep 
 `/healthz` and `/readyz` need no auth; `/api/docs` and `/api/openapi.json` follow the same rule as
 the rest of `/api`.
 
+**Calendar feed.** Calendar apps can't log in, so `/api/calendar.ics` is opened with the private
+code in its link instead. Let that one path through the proxy without a login, and only that path
+(not `/api/calendar/link`, which needs one). oauth2-proxy: `--skip-auth-route='GET=^/api/calendar\.ics$'`;
+Authelia: an access-control rule with `policy: bypass` for `^/api/calendar\.ics$`; Traefik
+forward-auth or nginx `auth_request`: a separate route for that path without the auth middleware.
+A person's link keeps working after they lose access through the proxy: turn it off in the app
+(sign in as them) or delete their entry from `.housebook/calendar-links.json`. Google Calendar
+fetches the feed from Google's servers, so it only works when Housebook is reachable from the
+internet; Apple Calendar and Thunderbird fetch it from the device.
+
 ## API
 
 Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md` §8–9.
@@ -130,6 +140,8 @@ Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md
 | GET | `/api/problems` | Integrity report |
 | GET | `/api/catalog` | Item types |
 | GET | `/api/me` | Current user and role |
+| GET, POST, DELETE | `/api/calendar/link` | The caller's calendar link (any signed-in role): whether there is one; make a new one (the URL is returned only then); turn it off |
+| GET | `/api/calendar.ics?token=` | Calendar feed of next checks and warranty ends (iCalendar). **No login**: the code in the link is the key |
 | GET | `/healthz`, `/readyz` | Liveness; readiness = first scan done and data root writable |
 | GET | `/api/docs`, `/api/openapi.json` | OpenAPI (same auth as `/api`) |
 

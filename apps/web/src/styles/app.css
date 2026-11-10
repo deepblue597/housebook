@@ -1146,6 +1146,58 @@ code {
   }
 }
 
+.attention-tools {
+  display: flex;
+  justify-content: flex-end;
+}
+.calendar-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.calendar-dialog .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.calendar-dialog p {
+  margin: 0;
+}
+.cal-link {
+  display: flex;
+  gap: 6px;
+}
+.cal-link input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.cal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.cal-howto {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.calendar-dialog .msg {
+  font-size: 12px;
+  min-height: 1em;
+}
+.calendar-dialog .msg.err {
+  color: var(--bad);
+}
+
 /* ---- list view ------------------------------------------------------------------- */
 .list-view {
   overflow: auto;

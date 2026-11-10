@@ -52,6 +52,58 @@
         }
       }
     },
+    "/api/calendar.ics": {
+      "get": {
+        "summary": "Calendar Feed Ics",
+        "description": "Every item's next check and warranty end as all-day events (iCalendar). No login: the\ncode is the key, so an unknown code is a plain 404.",
+        "operationId": "calendar_feed_ics_api_calendar_ics_get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "The code from the calendar link",
+              "default": "",
+              "title": "Token"
+            },
+            "description": "The code from the calendar link"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/calendar": {}
+            }
+          },
+          "304": {
+            "description": "Not Modified"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/house": {
       "get": {
         "summary": "Get House",
@@ -1042,6 +1094,82 @@
           }
         }
       }
+    },
+    "/api/calendar/link": {
+      "get": {
+        "summary": "Get Calendar Link",
+        "description": "Whether the caller has a calendar link, and since when. The link itself is shown only when\nit is made.",
+        "operationId": "get_calendar_link_api_calendar_link_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarLinkOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Calendar Link",
+        "description": "A new calendar link for the caller; their old one stops working. `url` is in this answer\nonly. Item links in the feed point at the origin the app was opened on.",
+        "operationId": "create_calendar_link_api_calendar_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CalendarLinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalendarLinkOut"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Calendar Link",
+        "description": "Turn the caller's calendar link off (nothing to do if there is none).",
+        "operationId": "delete_calendar_link_api_calendar_link_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1091,6 +1219,51 @@
           "url"
         ],
         "title": "AttachmentOut"
+      },
+      "CalendarLinkIn": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CalendarLinkIn",
+        "description": "Empty: the body only has to be JSON, which a cross-site form can't send (DESIGN 15.13)."
+      },
+      "CalendarLinkOut": {
+        "properties": {
+          "exists": {
+            "type": "boolean",
+            "title": "Exists"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "Subscribe to this; shown once"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exists"
+        ],
+        "title": "CalendarLinkOut",
+        "description": "The caller's calendar link (D40). `url` only in the answer that made it: the code is\nstored hashed, so it can't be shown again."
       },
       "Catalog": {
         "properties": {
