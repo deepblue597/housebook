@@ -10,7 +10,7 @@ Status: milestones 0–5: the data contract; the web UI with 2D plan, list, deta
 events, live sync and the problems panel (milestone 4); and the **layout editor** (milestone 5):
 edit mode for editors with paint/erase (rectangle drag), place/move/rotate items, rooms, resizing
 the house, undo/redo, debounced saving with replay on `412`, the Unplaced tray and ghost relinking,
-in 2D and 3D. Milestone 6 (in progress, see `docs/ROADMAP.md`): the **note editor** (edit an
+in 2D and 3D. Milestone 6 (see `docs/ROADMAP.md`): **first-run setup** on an empty data folder, the **note editor** (edit an
 item's fields and notes in the app) **deleting items** (to the trash) and
 **uploading attachments** (photos lose their GPS data; HEIC becomes JPEG). See `apps/web/README.md`.
 

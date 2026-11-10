@@ -4,6 +4,7 @@ import {
   EditToggle,
   EditorNotices,
   LazyEditorPanels,
+  NoFloorPlan,
   useEditorShortcuts,
 } from '../features/editor';
 import { ProblemsButton } from '../features/problems/ProblemsButton';
@@ -225,17 +226,7 @@ function Main() {
 
   if (view === 'list') return <ListView />;
   const floor = (floorId && model.floorById.get(floorId)) || model.floors[0];
-  if (!floor) {
-    return (
-      <section className="stage state">
-        <h2>No floor plan yet</h2>
-        <p className="muted">
-          There is no valid <code>house.json</code> in the data folder. Items are still listed in
-          the List view.
-        </p>
-      </section>
-    );
-  }
+  if (!floor) return <NoFloorPlan />;
   return shows3d ? <Scene3dSlot floor={floor} /> : <PlanView floor={floor} />;
 }
 
