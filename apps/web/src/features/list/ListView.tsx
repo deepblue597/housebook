@@ -2,35 +2,16 @@
  * Floor → Room → Item list: the accessible alternative to the plan and the phone-friendly view
  * (DESIGN 15.12). Tab works as usual; ↑/↓, Home and End move between entries.
  */
-import type { KeyboardEvent } from 'react';
 import type { Item } from '../../api/types';
 import { typeLabel } from '../../catalog/catalog';
 import { TypeIcon } from '../../catalog/TypeIcon';
+import { moveFocus } from '../../components/listNav';
 import { LEVEL_TEXT, currentStatus, levelTone } from '../../components/status';
 import { formatArea } from '../../domain/plan';
 import { useData } from '../../store/data';
 import { type FloorModel, type Model, itemsInRoom } from '../../store/model';
 import { useSearchResults } from '../../store/search';
 import { useUi } from '../../store/ui';
-
-function moveFocus(e: KeyboardEvent<HTMLElement>) {
-  const keys = ['ArrowDown', 'ArrowUp', 'Home', 'End'];
-  if (!keys.includes(e.key)) return;
-  const all = [...e.currentTarget.querySelectorAll<HTMLElement>('[data-nav]')];
-  const i = all.indexOf(document.activeElement as HTMLElement);
-  const next =
-    e.key === 'Home'
-      ? 0
-      : e.key === 'End'
-        ? all.length - 1
-        : e.key === 'ArrowDown'
-          ? Math.min(all.length - 1, i + 1)
-          : Math.max(0, i - 1);
-  if (all[next]) {
-    e.preventDefault();
-    all[next].focus();
-  }
-}
 
 function ItemRow({ item, model }: { item: Item; model: Model }) {
   const select = useUi((s) => s.select);

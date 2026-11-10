@@ -1106,6 +1106,58 @@ code {
   text-anchor: middle;
 }
 
+/* ---- attention view (D38) ---------------------------------------------------------- */
+.seg .count {
+  display: inline-block;
+  margin-left: 6px;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--warn);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+.attention-view .row-btn {
+  flex-wrap: wrap;
+}
+.attention-when {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  margin-left: auto;
+}
+.attention-when small {
+  font-family: var(--mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.attention-view h2 {
+  flex-wrap: wrap;
+  row-gap: 0;
+  white-space: nowrap;
+}
+.attention-empty {
+  max-width: 52ch;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+@media (max-width: 480px) {
+  /* The status moves under the name instead of squeezing it. */
+  .attention-when {
+    flex-basis: 100%;
+    flex-direction: row;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding-left: 32px;
+  }
+}
+
 /* ---- list view ------------------------------------------------------------------- */
 .list-view {
   overflow: auto;
