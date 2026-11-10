@@ -73,6 +73,20 @@ class NoteRepo(Protocol):
         """Move a note (and its attachment folder) to the trash; returns the trash folder."""
         ...
 
+    def upload_dir(self) -> Path:
+        """A folder for uploads in progress, on the same filesystem as the data (ignored by the
+        scanner), so a finished upload is moved into place by rename."""
+        ...
+
+    def add_file(self, folder_rel: str, name: str, src: Path) -> None:
+        """Move `src` to `<folder_rel>/<name>` inside the notes folder, creating the folder;
+        FileExistsError if the name is taken."""
+        ...
+
+    def trash_file(self, rel: str, label: str, now: datetime) -> str:
+        """Move one file (an attachment) to the trash; returns the trash folder."""
+        ...
+
 
 class AttachmentStore(Protocol):
     def open_path(self, rel: str) -> Path:

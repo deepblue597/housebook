@@ -141,6 +141,12 @@ class MarkdownNoteRepo:
             and not any(is_ignored_name(part) for part in rel.split("/"))
         )
 
+    def _in_notes(self, folder_rel: str) -> bool:
+        """A folder inside the notes folder, no part of the path ignored by the scanner."""
+        return f"{folder_rel}/".startswith(self.notes_prefix) and not any(
+            is_ignored_name(part) for part in folder_rel.split("/")
+        )
+
     def walk(self) -> Tree:
         root_r = self.root.resolve()
         files: list[FileEntry] = []
@@ -235,6 +241,39 @@ class MarkdownNoteRepo:
             has_notes = any(p.suffix.lower() == ".md" for p in sibling.rglob("*"))
             if not has_notes:
                 shutil.move(sibling, dest / sibling.name)
+        return dest.relative_to(self.root).as_posix()
+
+    def upload_dir(self) -> Path:
+        folder = self.root / STATE_DIR / "uploads"
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def add_file(self, folder_rel: str, name: str, src: Path) -> None:
+        rel = f"{folder_rel}/{name}"
+        parts = PurePosixPath(rel).parts
+        if "\x00" in rel or ".." in parts or is_ignored_name(name) or not self._in_notes(folder_rel):
+            raise UnsafePath(rel)
+        folder = self.root / folder_rel
+        folder.mkdir(parents=True, exist_ok=True)
+        if not folder.resolve().is_relative_to(self.root.resolve()):
+            raise UnsafePath(rel)
+        dest = folder / name
+        if dest.exists() or dest.is_symlink():
+            raise FileExistsError(rel)
+        try:
+            os.link(src, dest)  # fails instead of replacing a file that appeared meanwhile
+            src.unlink()
+        except OSError as e:
+            if isinstance(e, FileExistsError):
+                raise
+            shutil.move(src, dest)  # another filesystem (EXDEV) or no hard links (some shares)
+        _fsync_dir(folder)
+
+    def trash_file(self, rel: str, label: str, now: datetime) -> str:
+        path = resolve_inside(self.root, rel)
+        dest = self.root / STATE_DIR / "trash" / f"{_stamp(now)}-{re.sub(r'[^A-Za-z0-9_-]', '_', label)}"
+        dest.mkdir(parents=True, exist_ok=False)
+        shutil.move(path, dest / path.name)
         return dest.relative_to(self.root).as_posix()
 
     def purge_trash(self, now: datetime, days: int = TRASH_DAYS) -> int:

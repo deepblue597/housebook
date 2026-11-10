@@ -186,9 +186,16 @@ const roomName = (id: string): string => {
 };
 
 /** Catalogue footprints for items, 1×1 for ids without a note (ghosts). */
+/** Items whose note this app deleted (D32): never placed again, not even by an undo. */
+const deletedNotes = new Set<string>();
+export const markNoteDeleted = (itemId: string): void => void deletedNotes.add(itemId);
+
 export function applyContext(): ApplyContext {
   const items = useData.getState().model?.items;
-  return { footprintOf: (id) => placementSpec(items?.get(id)?.type).footprint };
+  return {
+    footprintOf: (id) => placementSpec(items?.get(id)?.type).footprint,
+    noteDeleted: (id) => deletedNotes.has(id),
+  };
 }
 
 /** Readable reason for a conflict, with room/item names instead of ids. */
@@ -827,6 +834,7 @@ if (typeof window !== 'undefined') {
 
 /** For tests: forget timers and module state. */
 export function resetEditorForTests(): void {
+  deletedNotes.clear();
   unconfirmed = null;
   if (timer) clearTimeout(timer);
   timer = null;

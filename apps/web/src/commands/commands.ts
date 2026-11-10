@@ -144,6 +144,7 @@ export type ConflictCode =
   | 'outside_grid'
   | 'not_placed'
   | 'already_placed'
+  | 'note_deleted'
   | 'grid_changed'
   | 'size_invalid'
   | 'more_lost';
@@ -161,6 +162,12 @@ export type ApplyResult =
 export interface ApplyContext {
   /** Footprint of an item without a placement override (catalogue; 1×1 for unknown). */
   footprintOf: FootprintOf;
+  /**
+   * Whether the item's note was deleted in this app (D32). Such an item can't be placed again:
+   * undoing "remove from plan" after the delete would bring it back as a ghost. Placements of
+   * notes that are merely missing (ghosts) are unaffected, so their relink and removal undo.
+   */
+  noteDeleted?: (itemId: string) => boolean;
 }
 
 const fail = (code: ConflictCode, subject?: string): ApplyResult => ({
@@ -269,6 +276,7 @@ function applyPlacement(l: Layout, c: PlacementCommand, ctx: ApplyContext): Appl
     const to = c.to;
     // A repair's undo puts a placement back where it was, valid or not.
     if (!c.repair) {
+      if (!prev && ctx.noteDeleted?.(c.itemId)) return fail('note_deleted', c.itemId);
       if (!l.floors.some((f) => f.id === to.floorId)) return fail('floor_missing', to.floorId);
       if (!rectInsideGrid(placementRect(to, ctx.footprintOf), l.grid))
         return fail('outside_grid', c.itemId);

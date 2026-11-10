@@ -538,6 +538,68 @@ code {
   }
 }
 
+.btn.danger {
+  border-color: var(--bad);
+  background: var(--bad);
+  color: var(--paper);
+}
+.btn.danger:hover {
+  filter: brightness(1.08);
+}
+.note-actions .danger-quiet {
+  margin-left: auto;
+  color: var(--bad);
+}
+.delete-what {
+  margin: 0 0 8px;
+  padding-left: 18px;
+}
+.delete-what li + li {
+  margin-top: 6px;
+}
+.delete-dialog .msg {
+  min-height: 1em;
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.delete-dialog .msg.err {
+  color: var(--bad);
+}
+
+.att-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.att-status {
+  margin: 4px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.att-status:empty {
+  display: none;
+}
+.att-errors {
+  margin: 4px 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--bad);
+}
+.attachments .att-errors li {
+  display: list-item;
+}
+.att-confirm {
+  display: inline-flex;
+  gap: 4px;
+}
+.attachments.dropping {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+
 /* ---- search ---------------------------------------------------------------------- */
 .search {
   position: relative;

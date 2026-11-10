@@ -112,6 +112,13 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   (`PATCH /api/items/{id}`, If-Match). If the note was saved elsewhere meanwhile, changes to
   different fields are merged and saved; a field changed on both sides is shown as "theirs ·
   yours" with "Use theirs". Unsaved edits survive closing the panel (not a reload; the page warns).
+- **Delete item (milestone 6, D32):** "Delete item" in the item panel (editors) takes the item off
+  the plan and saves the layout, then moves the note and its attachments folder to
+  `.housebook/trash/` (`DELETE /api/items/{id}`, If-Match). Undoing the "remove from plan" step
+  afterwards is refused ("its note was deleted") so no ghost comes back.
+- **Attachments (milestone 6, D33):** editors add files with "Add files" or by dropping them on
+  the Attachments section (PDF, JPEG, PNG, WebP, HEIC; 25 MB each; uploaded one after the other),
+  and remove one with ✕ → Remove (to the trash; only files in the item's own folder).
 - **Layout editor (milestone 5, DESIGN §7.3, D17, D23–D29):** "Edit" in the top bar (editors,
   writable layout) opens a side bar: tools Select/move (V), Paint (B), Erase (E), undo/redo,
   Resize house…, the save state, the room list (add, rename, recolour, paint with, delete when

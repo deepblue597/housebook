@@ -180,6 +180,48 @@ export async function patchItem(id: string, patch: ItemPatch, etag: string): Pro
   return (await res.json()) as Item;
 }
 
+/**
+ * DELETE /api/items/{id} with `If-Match`: the note and its attachment folder go to
+ * `.housebook/trash/` (data contract §8.2). Remove the placement first (D8).
+ */
+export async function deleteItemRequest(id: string, etag: string): Promise<void> {
+  await request(`/api/items/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+    headers: { 'If-Match': `"${unquoteEtag(etag)}"` },
+  });
+}
+
+/** Largest upload the server accepts (data contract §8: 25 MiB for writes). */
+export const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+
+/**
+ * POST /api/items/{id}/attachments: the file is the raw body (`application/octet-stream`, the
+ * CSRF guard), its name a query parameter. The server checks the type from the content (PDF,
+ * JPEG, PNG, WebP, HEIC), strips photo metadata and converts HEIC to JPEG (D33).
+ */
+export async function uploadAttachment(id: string, file: Blob, name: string): Promise<Item> {
+  const res = await request(
+    `/api/items/${encodeURIComponent(id)}/attachments?name=${encodeURIComponent(name)}`,
+    {
+      method: 'POST',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/octet-stream' },
+      body: file,
+    },
+  );
+  return (await res.json()) as Item;
+}
+
+/** DELETE /api/items/{id}/attachments/{name}: to the trash, and unlisted from the note. */
+export async function deleteAttachment(id: string, name: string): Promise<Item> {
+  const res = await request(
+    `/api/items/${encodeURIComponent(id)}/attachments/${encodeURIComponent(name)}`,
+    { method: 'DELETE', cache: 'no-store' },
+  );
+  return (await res.json()) as Item;
+}
+
 /** POST /api/items: create a note (D8: the client places it with PUT /api/house afterwards). */
 export const postItem = (body: ItemCreate) => postJson<Item>('/api/items', body);
 
