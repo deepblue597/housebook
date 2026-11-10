@@ -378,6 +378,18 @@ code {
 .log-form .msg.err {
   color: var(--bad);
 }
+.next-offer {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.next-offer p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 12px;
+}
 
 /* ---- note editor (D31) ------------------------------------------------------------ */
 .note-actions {

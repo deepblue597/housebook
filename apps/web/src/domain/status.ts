@@ -97,3 +97,30 @@ export function computeStatus(today: string, input: StatusInput): Status {
 
   return { level, check, warranty };
 }
+
+/**
+ * After a maintenance-log entry on `entryDate`: the `next_check` to suggest (D39), or null.
+ * Only for items with a valid `check_every` and an explicit `next_check` (without one, the next
+ * check already follows the log, see effectiveNextCheck). The suggestion is the entry date plus
+ * the interval, and only when it is later than the current next check, so logging an old
+ * service never pulls the date back.
+ */
+export function suggestNextCheck(
+  input: Pick<StatusInput, 'next_check' | 'check_every'>,
+  entryDate: string,
+): string | null {
+  const interval = input.check_every ? parseInterval(input.check_every) : null;
+  if (!interval || !input.next_check) return null;
+  const next = addInterval(entryDate, interval);
+  return next > input.next_check ? next : null;
+}
+
+const UNIT_WORD = { d: 'day', w: 'week', m: 'month', y: 'year' } as const;
+
+/** `6m` → "6 months", `1y` → "year" (as in "every year"); the raw text if it doesn't parse. */
+export function intervalText(value: string): string {
+  const i = parseInterval(value);
+  if (!i) return value;
+  const word = UNIT_WORD[i.unit];
+  return i.count === 1 ? word : `${i.count} ${word}s`;
+}
