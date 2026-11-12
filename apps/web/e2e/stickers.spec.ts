@@ -8,6 +8,7 @@ import {
   expect,
   expectNoA11yViolations,
   gotoPlan,
+  openMore,
   panel,
   test,
 } from './support/fixtures';
@@ -16,8 +17,7 @@ const stickers = (page: Page) => page.locator('.qs-sticker');
 
 test('every item by default; narrow down, pick a size, print', async ({ page }) => {
   await gotoPlan(page);
-  await page.getByRole('button', { name: 'List' }).click();
-  await page.getByRole('link', { name: 'QR stickers' }).click();
+  await (await openMore(page)).getByRole('link', { name: 'QR stickers' }).click();
   await expect(page).toHaveURL(/\/print\/stickers$/);
   await expect(page).toHaveTitle('QR stickers · Housebook');
   await expect(stickers(page)).toHaveCount(14); // every example item
@@ -65,11 +65,10 @@ test('one item from its panel; the sticker’s link opens it', async ({ page }) 
   await expect(panel(page).getByRole('heading', { name: 'Dishwasher' })).toBeVisible();
 });
 
-test('the List view’s search narrows the stickers', async ({ page }) => {
+test('the search narrows the stickers', async ({ page }) => {
   await gotoPlan(page);
-  await page.getByRole('button', { name: 'List' }).click();
   await page.getByRole('combobox', { name: /search/i }).fill('fridge');
-  await page.getByRole('link', { name: 'QR stickers' }).click();
+  await (await openMore(page)).getByRole('link', { name: 'QR stickers' }).click();
   await expect(stickers(page)).toHaveCount(2); // the fridge and the chest freezer
 });
 

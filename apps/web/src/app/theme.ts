@@ -1,6 +1,6 @@
 /** Light/dark theme: follows the OS unless the user picked one (applied as `data-theme`). */
 import { useEffect, useSyncExternalStore } from 'react';
-import { type Theme, useUi } from '../store/ui';
+import { useUi } from '../store/ui';
 
 /** Ink and paper per theme; must match the tokens in styles/app.css. */
 export const PALETTE = {
@@ -30,5 +30,3 @@ export function useApplyTheme(): void {
     else root.dataset.theme = theme;
   }, [theme]);
 }
-
-export const NEXT_THEME: Record<Theme, Theme> = { auto: 'light', light: 'dark', dark: 'auto' };

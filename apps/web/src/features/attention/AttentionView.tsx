@@ -17,7 +17,6 @@ import { useUi } from '../../store/ui';
 import { EMERGENCY } from '../../strings/emergency';
 import { readPrinted } from '../emergency/printed';
 import { emergencySheet, sheetFingerprint } from '../emergency/sheet';
-import { CalendarDialog } from './CalendarDialog';
 import { type AttentionEntry, attentionEntries, entryText } from './entries';
 
 /** Where the item is: "Kitchen · Ground floor", or "Unplaced". */
@@ -113,7 +112,6 @@ export function AttentionView() {
     : model.snapshot.items;
   const { overdue, upcoming } = attentionEntries(items, (i) => currentStatus(i, model.snapshot));
   const none = overdue.length === 0 && upcoming.length === 0;
-  const [calendar, setCalendar] = useState(false);
   const staleSheet = useStaleSheet(model);
 
   return (
@@ -124,20 +122,11 @@ export function AttentionView() {
       aria-label="What needs attention"
       onKeyDown={moveFocus}
     >
-      <div className="attention-tools">
-        <button type="button" className="btn" onClick={() => setCalendar(true)}>
-          Add to your calendar
-        </button>
-        <a className="btn" href="/print/emergency">
-          {EMERGENCY.open}
-        </a>
-      </div>
       {staleSheet && (
         <p className="banner warn attention-reprint" role="status">
           {EMERGENCY.reprint(staleSheet)} <a href="/print/emergency">{EMERGENCY.reprintLink}</a>
         </p>
       )}
-      {calendar && <CalendarDialog onClose={() => setCalendar(false)} />}
       {search.active && (
         <p className="list-summary" role="status">
           Showing only items that match the search.

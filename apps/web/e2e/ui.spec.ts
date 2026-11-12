@@ -9,34 +9,45 @@ import {
   expectNoA11yViolations,
   gotoPlan,
   item,
+  openMore,
   panel,
   planItems,
   searchBox,
   test,
 } from './support/fixtures';
 
-const themeButton = (page: Page) => page.getByRole('button', { name: /^Theme: / });
+const pickTheme = async (page: Page, name: 'Auto' | 'Light' | 'Dark') => {
+  const menu = await openMore(page);
+  await menu.getByRole('button', { name }).click();
+  await expect(menu.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+};
+const pressed = async (page: Page) => {
+  const menu = await openMore(page);
+  const name = await menu.locator('.more-theme button[aria-pressed="true"]').textContent();
+  await page.keyboard.press('Escape');
+  return name;
+};
 const bg = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
 
-test('theme toggle cycles auto → light → dark, applies and persists', async ({ page }) => {
+test('theme from the ⋯ menu: auto, light or dark, applies and persists', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await gotoPlan(page);
-  await expect(themeButton(page)).toHaveAccessibleName('Theme: auto. Change theme');
+  expect(await pressed(page)).toBe('Auto');
   const light = await bg(page);
 
-  await themeButton(page).click();
-  await expect(themeButton(page)).toHaveAccessibleName('Theme: light. Change theme');
+  await pickTheme(page, 'Light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await themeButton(page).click();
+  await pickTheme(page, 'Dark');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const dark = await bg(page);
   expect(dark).not.toBe(light);
 
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await expect(themeButton(page)).toHaveAccessibleName('Theme: dark. Change theme');
+  expect(await pressed(page)).toBe('Dark');
 
-  await themeButton(page).click();
+  await pickTheme(page, 'Auto');
   await expect(page.locator('html')).not.toHaveAttribute('data-theme', /.*/);
   expect(await bg(page)).toBe(light);
   // "auto" follows the OS.
@@ -144,7 +155,7 @@ test.describe('360 px phone', () => {
     for (const el of [
       panel(page).getByRole('button', { name: 'Close details' }),
       page.getByRole('button', { name: 'List', exact: true }),
-      themeButton(page),
+      page.getByRole('button', { name: 'More', exact: true }),
       page.getByRole('button', { name: 'Zoom in' }),
     ]) {
       const b = (await el.boundingBox())!;

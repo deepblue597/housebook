@@ -28,6 +28,7 @@ import {
   exampleHouse,
   floorTab,
   gotoPlan,
+  openMore,
   panel,
   planView,
   planItems,
@@ -651,8 +652,8 @@ test('a house.json change on disk moves the item in 3D without a reload', async 
 test('switching the theme while in 3D redraws the scene without errors', async ({ page }) => {
   await open3d(page);
   const f0 = await page.evaluate(() => window.__housebook!.scene!.frames());
-  const theme = page.getByRole('button', { name: /^Theme: / });
-  for (let i = 0; i < 3; i++) await theme.click();
+  const menu = await openMore(page);
+  for (const name of ['Light', 'Dark', 'Auto']) await menu.getByRole('button', { name }).click();
   await stable(page);
   expect(await page.evaluate(() => window.__housebook!.scene!.frames())).toBeGreaterThan(f0);
   await expect(canvas(page)).toBeVisible();

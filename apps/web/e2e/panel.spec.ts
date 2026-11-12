@@ -92,11 +92,13 @@ test('Tab order in the item panel follows reading order', async ({ page }) => {
     d.getByRole('button', { name: 'Close details' }),
     d.getByRole('link', { name: 'Manual', exact: true }),
     d.getByRole('link', { name: 'Open in Obsidian' }),
-    d.getByRole('link', { name: 'QR sticker' }),
     d.getByRole('button', { name: 'View manual.pdf' }),
     d.getByRole('link', { name: 'Download manual.pdf' }),
     d.getByRole('button', { name: 'Preview receipt.png' }),
     d.getByRole('link', { name: 'Download receipt.png' }),
+    d.getByRole('button', { name: 'Copy path' }),
+    d.getByRole('link', { name: 'Find manual online' }),
+    d.getByRole('link', { name: 'QR sticker' }),
   ];
   for (const el of order) await tabTo(page, el);
   for (const el of order.slice(0, -1).reverse()) await tabTo(page, el, true);
@@ -141,10 +143,8 @@ test('list view: Tab order, arrow keys, Enter opens and Esc returns', async ({ p
   // Floor headings in level order, rooms by name inside.
   await expect(list.getByRole('heading', { level: 2 })).toHaveText([/^Apartment/, /^Basement/]);
 
-  // Tab from the last header control reaches the "QR stickers" link above the list, then the
-  // list at its first entry, then walks it in order.
-  await page.locator('header.top button.theme').focus();
-  await tabTo(page, list.getByRole('link', { name: 'QR stickers' }));
+  // Tab from the last header control reaches the list at its first entry, then walks it in order.
+  await page.getByRole('button', { name: 'More', exact: true }).focus();
   await tabTo(page, nav.nth(0));
   for (let i = 1; i < 6; i++) await tabTo(page, nav.nth(i));
   // Arrows, Home/End.

@@ -9,6 +9,7 @@ import {
   expect,
   expectNoA11yViolations,
   gotoPlan,
+  openMore,
   panel,
   planItems,
   searchBox,
@@ -94,7 +95,7 @@ test('calendar link (D40): a viewer makes one; the feed has the dates; a new lin
   await views(page)
     .getByRole('button', { name: /^Attention/ })
     .click();
-  await attention(page).getByRole('button', { name: 'Add to your calendar' }).click();
+  await (await openMore(page)).getByRole('button', { name: 'Add to your calendar' }).click();
   const dialog = page.getByRole('dialog', { name: 'Add to your calendar' });
   await dialog.getByRole('button', { name: 'Make my calendar link' }).click();
   const link = await dialog.getByLabel('Calendar link').inputValue();
@@ -112,7 +113,9 @@ test('calendar link (D40): a viewer makes one; the feed has the dates; a new lin
 
   // Reopened: the link isn't shown again; a new one replaces it.
   await dialog.getByRole('button', { name: 'Close' }).click();
-  await attention(page).getByRole('button', { name: 'Add to your calendar' }).click();
+  // Focus goes back to the menu button the dialog was opened from.
+  await expect(page.getByRole('button', { name: 'More', exact: true })).toBeFocused();
+  await (await openMore(page)).getByRole('button', { name: 'Add to your calendar' }).click();
   await expect(dialog).toContainText('It can’t be shown again');
   await dialog.getByRole('button', { name: 'Make a new link' }).click();
   const newer = await dialog.getByLabel('Calendar link').inputValue();
