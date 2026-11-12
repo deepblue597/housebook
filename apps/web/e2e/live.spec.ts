@@ -270,6 +270,31 @@ test.describe('maintenance log entry', () => {
     expect(log).toEqual([`POST /api/items/${DISHWASHER}/log`]);
     await expectNoA11yViolations(page);
   });
+  test('after an entry, an item with a check interval is offered its next check (D39)', async ({
+    page,
+    backend,
+  }) => {
+    // Living room AC: next_check 2026-11-20, check_every 1y.
+    const AC = 'it_3a9c4l';
+    const note = 'House/Living room/Living room AC.md';
+    const { url, dataDir } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'editor' });
+    await page.goto(`${url}/i/${AC}`);
+    await expect(sync(page)).toHaveAttribute('data-sync', 'live');
+    const form = panel(page).getByRole('form', { name: 'Add to maintenance log' });
+    await form.getByLabel('Maintenance log entry').fill('Serviced, filters cleaned (e2e)');
+    await form.getByLabel(/Date/).fill('2026-11-25');
+    await form.getByRole('button', { name: 'Add' }).click();
+    await expect(form.getByRole('status')).toHaveText(
+      'Added to the maintenance log. Set the next check to 25 Nov 2027?',
+    );
+    await expectNoA11yViolations(page);
+    await form.getByRole('button', { name: 'Set next check to 25 Nov 2027' }).click();
+    await expect(form.getByRole('status')).toHaveText('Next check set to 25 Nov 2027.');
+    const text = readFileSync(join(dataDir, note), 'utf8');
+    expect(text).toContain('next_check: 2027-11-25');
+    expect(text).toContain('- 2026-11-25 Serviced, filters cleaned (e2e)');
+    expect(text).toContain('check_every: 1y');
+  });
 });
 
 test('a Markdown chunk that failed once loads on the next note opened (no reload)', async ({
