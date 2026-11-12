@@ -459,9 +459,18 @@ export interface MeshData {
   positions: number[];
   normals: number[];
   indices: number[];
+  /**
+   * Texture coordinates in metres, projected on the face's plane (D42): floors use (x, z), walls
+   * (their run, height). A texture repeats every `size` metres by scaling these.
+   */
+  uvs?: number[];
 }
 
-const emptyMesh = (): MeshData => ({ positions: [], normals: [], indices: [] });
+const emptyMesh = (): MeshData => ({ positions: [], normals: [], indices: [], uvs: [] });
+
+/** World-space planar UV of a vertex on a face with normal `n` (axis-aligned faces only). */
+const planarUv = (v: P3, n: P3): [number, number] =>
+  n[1] !== 0 ? [v[0], v[2]] : n[0] !== 0 ? [v[2], v[1]] : [v[0], v[1]];
 
 type P3 = readonly [number, number, number];
 
@@ -471,6 +480,7 @@ function quad(m: MeshData, p: readonly [P3, P3, P3, P3], n: P3) {
   for (const v of p) {
     m.positions.push(v[0], v[1], v[2]);
     m.normals.push(n[0], n[1], n[2]);
+    m.uvs?.push(...planarUv(v, n));
   }
   const [a, b, c] = p;
   const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];

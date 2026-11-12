@@ -1,51 +1,68 @@
 /**
- * Colours of the home look (D41), flat for now: a room's floor finish, what each side of a wall
- * shows, and wall halves grouped so that each colour is one mesh. Pure, tested without WebGL.
+ * Surfaces of the home look (D41, D42): a room's floor, what each side of a wall shows, and wall
+ * halves grouped so that each surface is one mesh. A surface is a colour, plus a texture for
+ * floor finishes and wallpapers (the colour is drawn while it loads). Pure, tested without WebGL.
  */
 import type { Room } from '../../api/types';
 import {
   EXTERIOR_DEFAULT,
+  type FinishTexture,
+  finishTexture,
   floorFinish,
   paintPalette,
   wallFinish,
-  wallFinishColor,
 } from '../../catalog/finishes';
 import { type Box, OUTSIDE } from '../../domain/scene';
 
 /** Walls of a room without a wall finish: the first paint (white), not the plan's grey. */
 export const UNPAINTED = paintPalette()[0]!.color;
 
-/** The colour each wall half is drawn with, by its `side` (a room id or OUTSIDE). */
-export function wallSideColors(
+export interface Surface {
+  /** Same key, same mesh: a colour, or a wallpaper or floor key. */
+  key: string;
+  color: string;
+  texture?: FinishTexture;
+}
+
+const paint = (color: string): Surface => ({ key: color.toLowerCase(), color });
+
+/** What each wall half shows, by its `side` (a room id or OUTSIDE). */
+export function wallSideSurfaces(
   rooms: readonly Pick<Room, 'id' | 'walls'>[],
   exteriorWallColor: string | null | undefined,
-): (side: string | undefined) => string {
+): (side: string | undefined) => Surface {
   const byRoom = new Map(rooms.map((r) => [r.id, r]));
-  const outside = exteriorWallColor || EXTERIOR_DEFAULT;
+  const outside = paint(exteriorWallColor || EXTERIOR_DEFAULT);
   return (side) => {
     if (side === OUTSIDE || side === undefined) return outside;
     const w = wallFinish(byRoom.get(side)?.walls);
-    return w ? wallFinishColor(w) : UNPAINTED;
+    if (!w) return paint(UNPAINTED);
+    if (w.kind === 'paint') return paint(w.color);
+    return {
+      key: `wallpaper:${w.finish.key}`,
+      color: w.finish.color,
+      texture: finishTexture(w.finish),
+    };
   };
 }
 
-/** A room's floor in the home look: its finish, or undefined (drawn in its plan colour). */
-export const floorColor = (room: Pick<Room, 'floor'> | undefined): string | undefined =>
-  floorFinish(room?.floor)?.color;
+/** A room's floor in the home look, or undefined (drawn in its plan colour). */
+export function floorSurface(room: Pick<Room, 'floor'> | undefined): Surface | undefined {
+  const f = floorFinish(room?.floor);
+  return f && { key: `floor:${f.key}`, color: f.color, texture: finishTexture(f) };
+}
 
-/** Boxes grouped by the colour of their side, in a stable order (one mesh per colour). */
-export function groupByColor(
+/** Boxes grouped by surface, in a stable order (one mesh per surface). */
+export function groupBySurface(
   boxes: readonly Box[],
-  colorOf: (side: string | undefined) => string,
-): { color: string; boxes: Box[] }[] {
-  const groups = new Map<string, Box[]>();
+  surfaceOf: (side: string | undefined) => Surface,
+): { surface: Surface; boxes: Box[] }[] {
+  const groups = new Map<string, { surface: Surface; boxes: Box[] }>();
   for (const b of boxes) {
-    const c = colorOf(b.side).toLowerCase();
-    let list = groups.get(c);
-    if (!list) groups.set(c, (list = []));
-    list.push(b);
+    const s = surfaceOf(b.side);
+    let g = groups.get(s.key);
+    if (!g) groups.set(s.key, (g = { surface: s, boxes: [] }));
+    g.boxes.push(b);
   }
-  return [...groups]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([color, bs]) => ({ color, boxes: bs }));
+  return [...groups.values()].sort((a, b) => a.surface.key.localeCompare(b.surface.key));
 }

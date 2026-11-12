@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   EXTERIOR_DEFAULT,
   type Finish,
+  finishTexture,
   floorFinish,
   floorFinishes,
   paintPalette,
@@ -49,11 +50,14 @@ function ColorPick({
 
 function Swatch({
   color,
+  texture,
   label,
   pressed,
   onClick,
 }: {
   color: string | null;
+  /** A finish's texture (D42): the swatch shows a piece of it. */
+  texture?: string;
   label: string;
   pressed: boolean;
   onClick: () => void;
@@ -68,7 +72,13 @@ function Swatch({
     >
       <span
         className={`swatch${color ? '' : ' none'}`}
-        style={color ? { background: color } : undefined}
+        style={
+          texture
+            ? { background: `${color ?? ''} url("${texture}") center / 200% auto` }
+            : color
+              ? { background: color }
+              : undefined
+        }
         aria-hidden="true"
       />
       {label}
@@ -138,6 +148,7 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
                 <Swatch
                   key={f.key}
                   color={f.color}
+                  texture={finishTexture(f)?.url}
                   label={f.label}
                   pressed={floor === f.key}
                   onClick={() => setRoomFinish(roomId, { floor: f.key })}
@@ -190,6 +201,7 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
               <Swatch
                 key={w.key}
                 color={w.color}
+                texture={finishTexture(w)?.url}
                 label={w.label}
                 pressed={walls === w.key}
                 onClick={() => setRoomFinish(roomId, { walls: w.key })}

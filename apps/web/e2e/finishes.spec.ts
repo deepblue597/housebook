@@ -95,3 +95,34 @@ test('the home look is a per-browser setting, off by default; plan colours stay 
     'true',
   );
 });
+
+test('textures (D42): none fetched until the home look is on; then the room is filled with its pattern', async ({
+  page,
+  backend,
+}) => {
+  const { url } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'editor' });
+  // The kitchen gets the checker.
+  const r = await page.request.get(`${url}/api/house`);
+  const house = (await r.json()) as { rooms: Room[] };
+  house.rooms.find((x) => x.id === 'rm_kit')!.floor = 'checker';
+  await page.request.put(`${url}/api/house`, {
+    data: house,
+    headers: { 'If-Match': r.headers()['etag']! },
+  });
+  const fetched: string[] = [];
+  page.on('request', (q) => {
+    if (/\/assets\/[\w-]+\.jpg$/.test(new URL(q.url()).pathname)) fetched.push(q.url());
+  });
+  await gotoPlan(page, url);
+  await page.waitForLoadState('networkidle');
+  expect(fetched).toEqual([]);
+
+  await page.getByRole('button', { name: 'Home look' }).click();
+  const kitchen = page.locator('.plan .room[data-finish="checker"]');
+  await expect(kitchen).toHaveAttribute('fill', 'url(#finish-checker)');
+  const pattern = page.locator('pattern#finish-checker');
+  // 1.2 m of checker per repeat, at 40 plan units per 1 m tile.
+  await expect(pattern).toHaveAttribute('width', '48');
+  await expect.poll(() => fetched.filter((u) => /checker/.test(u)).length).toBe(1);
+  expect(fetched).toHaveLength(1); // only the finish in use
+});
