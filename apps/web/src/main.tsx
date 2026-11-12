@@ -12,19 +12,25 @@ import { App } from './app/App';
 import { startRouter } from './app/router';
 import { installTestHook } from './app/testHook';
 import { preloadMarkdown } from './features/details/markdownLoader';
+import { LazyEmergencySheet } from './features/emergency/LazyEmergencySheet';
 import { useData } from './store/data';
 import { startSync } from './store/sync';
 
+// The printable emergency sheet (D44) is a page of its own: no live sync, no router.
+const printSheet = /^\/print\/emergency\/?$/u.test(location.pathname);
+
 installTestHook();
-startRouter();
 void useData.getState().load();
-void useData.getState().loadMe();
-startSync();
-// Notes are opened often; fetch the Markdown chunk once the shell is idle.
-(window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500)))(() => preloadMarkdown());
+if (!printSheet) {
+  startRouter();
+  void useData.getState().loadMe();
+  startSync();
+  // Notes are opened often; fetch the Markdown chunk once the shell is idle.
+  (window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500)))(() =>
+    preloadMarkdown(),
+  );
+}
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+  <StrictMode>{printSheet ? <LazyEmergencySheet /> : <App />}</StrictMode>,
 );

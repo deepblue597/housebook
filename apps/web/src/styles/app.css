@@ -1166,7 +1166,13 @@ code {
 
 .attention-tools {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 8px;
+}
+.attention-reprint a {
+  color: inherit;
+  font-weight: 600;
 }
 .calendar-dialog {
   width: min(560px, calc(100vw - 32px));
@@ -2522,4 +2528,200 @@ code {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+/* ---- emergency sheet (/print/emergency, D44) ---------------------------------------- */
+.es-page {
+  height: 100%;
+  overflow-y: auto; /* body doesn't scroll (the app scrolls in regions) */
+  background: var(--paper);
+  color: var(--ink);
+  padding: 16px;
+  box-sizing: border-box;
+}
+.es-page > * {
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.es-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+.es-toolbar p {
+  margin: 0;
+}
+.es-actions,
+.es-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.es-ask p {
+  flex-basis: 100%;
+}
+.es-muted {
+  color: var(--muted);
+}
+.es-head h1 {
+  font-family: var(--display);
+  font-size: 30px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 4px;
+}
+.es-head p {
+  margin: 2px 0;
+}
+.es-empty {
+  margin-top: 20px;
+}
+.es-floor {
+  margin-top: 24px;
+}
+.es-floor h2 {
+  font-family: var(--display);
+  font-size: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 4px;
+  margin: 0 0 8px;
+}
+.es-plan {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 70vh;
+  margin: 0 0 12px;
+}
+.es-plan .tile {
+  fill-opacity: 0.35;
+}
+/* No halo: the fills are light, and a stroked copy doubles the text in a saved PDF. */
+.es-room {
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  text-anchor: middle;
+  fill: var(--ink);
+}
+.es-marker circle {
+  fill: #000;
+  stroke: #fff;
+  stroke-width: 2.5;
+}
+.es-marker text {
+  fill: #fff;
+  font-family: var(--body);
+  font-size: 15px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.es-footprint {
+  fill: none;
+  stroke: #000;
+  stroke-width: 2;
+  stroke-dasharray: 5 3;
+}
+.es-items {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+.es-item {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+  break-inside: avoid;
+}
+.es-n {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #000;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+}
+.es-item h3 {
+  margin: 0;
+  font-size: 16px;
+}
+.es-type {
+  font-weight: 400;
+  color: var(--muted);
+}
+.es-body p {
+  margin: 2px 0;
+}
+.es-where {
+  font-weight: 600;
+}
+.es-help {
+  margin-top: 4px;
+}
+.es-help h1,
+.es-help h2,
+.es-help h3 {
+  font-size: 14px;
+  margin: 4px 0;
+}
+.es-help ul,
+.es-help ol {
+  margin: 2px 0;
+  padding-left: 18px;
+}
+.es-help-plain {
+  white-space: pre-wrap;
+  font: inherit;
+  margin: 0;
+}
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+@media print {
+  html,
+  body,
+  #root,
+  .es-page {
+    height: auto;
+    overflow: visible;
+    background: #fff;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .es-page {
+    padding: 0;
+    font-size: 12pt;
+  }
+  .es-page > * {
+    max-width: none;
+  }
+  /* Each floor starts on a new page, the first one under the title. */
+  .es-floor + .es-floor {
+    break-before: page;
+  }
+  .es-plan {
+    max-height: 120mm;
+  }
+  .es-plan,
+  .es-n {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
 }

@@ -284,6 +284,9 @@ download it instead. Attachments are never gzip-compressed and keep a strong ETa
   the line is not a code.
 - **Maintenance log:** list items starting with a date, `- YYYY-MM-DD text`, under a heading
   titled "Maintenance log". The latest date is the item's *last service*.
+- **Emergency sheet** (`/print/emergency`, D44): an emergency item (`critical`) is printed with
+  its "Quick help" section, or, when it has none, its whole body without the "Maintenance log"
+  section. A Quick help section keeps a long note short on paper.
 
 ### 3.6 How the server writes notes
 
