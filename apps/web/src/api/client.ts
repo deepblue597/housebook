@@ -1,5 +1,13 @@
 import type { paths } from './schema.gen';
-import type { CalendarLink, House, Item, ItemCreate, ItemPatch, Snapshot } from './types';
+import type {
+  CalendarLink,
+  House,
+  Item,
+  ItemCreate,
+  ItemPatch,
+  OwnTexture,
+  Snapshot,
+} from './types';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -234,6 +242,44 @@ export async function deleteAttachment(id: string, name: string): Promise<Item> 
     { method: 'DELETE', cache: 'no-store' },
   );
   return (await res.json()) as Item;
+}
+
+/** What `uploadTexture` needs besides the image. */
+export interface TextureUpload {
+  kind: OwnTexture['kind'];
+  label: string;
+  /** Metres the image covers before it repeats: across, and along the floor or up the wall. */
+  width: number;
+  height: number;
+}
+
+/**
+ * POST /api/textures (D43): your own floor or wallpaper. Like an attachment, the image is the raw
+ * body; the server checks its type, drops metadata and shrinks it to 1024 px. Returns the new
+ * texture with its `my_` key.
+ */
+export async function uploadTexture(file: Blob, t: TextureUpload): Promise<OwnTexture> {
+  const q = new URLSearchParams({
+    kind: t.kind,
+    label: t.label,
+    width: String(t.width),
+    height: String(t.height),
+  });
+  const res = await request(`/api/textures?${q}`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: file,
+  });
+  return (await res.json()) as OwnTexture;
+}
+
+/** DELETE /api/textures/{key}: to the trash. A 409 `in_use` while a room uses it. */
+export async function deleteTexture(key: string): Promise<void> {
+  await request(`/api/textures/${encodeURIComponent(key)}`, {
+    method: 'DELETE',
+    cache: 'no-store',
+  });
 }
 
 /** POST /api/items: create a note (D8: the client places it with PUT /api/house afterwards). */

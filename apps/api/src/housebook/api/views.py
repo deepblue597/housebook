@@ -3,11 +3,11 @@
 from datetime import date
 from urllib.parse import quote
 
-from housebook.api.schemas import AttachmentOut, ItemDetailOut, ItemFieldsOut, ItemOut, LocationOut
+from housebook.api.schemas import AttachmentOut, ItemDetailOut, ItemFieldsOut, ItemOut, LocationOut, TextureOut
 from housebook.config import Settings
 from housebook.domain.status import Status, compute_status
 from housebook.domain.text import nfc
-from housebook.services.indexer import IndexedItem, attachments_etag, display_name
+from housebook.services.indexer import IndexedItem, IndexedTexture, attachments_etag, display_name
 
 
 def item_status(item: IndexedItem, today: date) -> Status:
@@ -67,3 +67,9 @@ def item_out(item: IndexedItem, today: date, settings: Settings, *, body: bool =
         obsidian_url=obsidian_url(settings, item.rel),
     )
     return ItemDetailOut(**data, body=item.body) if body else ItemOut(**data)
+
+
+def texture_out(t: IndexedTexture) -> TextureOut:
+    tx = t.texture
+    url = f"/api/textures/{tx.key}?v={t.file_version}" if t.file_version else None
+    return TextureOut(key=tx.key, label=tx.label, kind=tx.kind, size=tx.size, color=tx.color, url=url)

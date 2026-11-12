@@ -27,6 +27,9 @@ fixture first.
       Dishwasher.md          one item
       Dishwasher/            sibling folder: attachments of Dishwasher.md
         manual.pdf
+  Textures/                  your own floors and wallpapers (§6.2): images + textures.json
+    textures.json            the list, written by the server
+    Marble.jpg
   .housebook/                app state, never synced as content
     lock                     single-process flock
     history/                 previous house.json versions: house-<UTC stamp>.json, last 50 kept
@@ -62,7 +65,7 @@ reported (`symlink_outside_root`).
 | `grid.tileSize` | number, metres | `0 < tileSize ≤ 10`, default 1 |
 | `grid.width`, `grid.depth` | integer | 1–512 tiles along x / y |
 | `exteriorWallColor` | string, optional | `#RRGGBB`: the outside walls of the whole house in the home look (default from §6.1) |
-| `rooms[]` | `{id, name, color, floor?, walls?}` | Global, shared by all floors. `color` is `#RRGGBB` (the plan colour). `floor`: a floor finish key (§6.1). `walls`: a paint `#RRGGBB` or a wallpaper key (§6.1). Keys match `^[a-z][a-z0-9_]{0,39}$`; an unknown key is a `house_unknown_finish` warning, drawn as if unset. A room has the same finish on every floor it is on |
+| `rooms[]` | `{id, name, color, floor?, walls?}` | Global, shared by all floors. `color` is `#RRGGBB` (the plan colour). `floor`: a floor finish key (§6.1, or your own, §6.2). `walls`: a paint `#RRGGBB` or a wallpaper key (§6.1, §6.2). Keys match `^[a-z][a-z0-9_]{0,39}$`; an unknown key is a `house_unknown_finish` warning, drawn as if unset. A room has the same finish on every floor it is on |
 | `floors[]` | `{id, name, level, cells}` | At least one. `level` −20…200. `cells` maps `"x,y"` → room id |
 | `placements[]` | `{itemId, floorId, x, y, rotation, footprint?}` | `rotation` ∈ {0, 90, 180, 270}. `footprint` `[w, d]` (each 1–512) overrides the catalogue |
 | `openings[]` | `{floorId, x, y, side, kind}` | Doors and windows on tile edges. `side` ∈ {`n`, `w`}, `kind` ∈ {`door`, `window`} |
@@ -397,6 +400,35 @@ Shared by `GET /api/items?q=` and the client-side search over the snapshot.
   colours stay the default. A room without a floor finish keeps its plan colour; walls without a
   finish are drawn in the first paint (white). Each side of a wall shows the finish of the room on
   that side; sides facing no room use the outside colour.
+- Built-in keys never start with `my_`: that prefix belongs to your own textures (§6.2).
+
+### 6.2 Your own textures (`Textures/textures.json`, D43)
+
+Images people upload for floors and wallpapers live in `Textures/` at the data root, so they are
+backed up and synced with everything else. The server lists them in `Textures/textures.json` and
+is its only writer (a hand edit is read like any other file):
+
+```json
+{ "version": 1,
+  "textures": [ { "key": "my_k3x9q2", "label": "Marble", "kind": "floor", "file": "Marble.jpg",
+                  "size": [0.6, 0.6], "color": "#d8d4cc" } ] }
+```
+
+| Field | Rules |
+|---|---|
+| `key` | `^my_[a-z0-9_]{1,37}$`, unique. What `rooms[].floor` (kind `floor`) or `rooms[].walls` (kind `wallpaper`) stores, like a built-in key. The app makes `my_` + 6 base36 characters |
+| `label` | 1–60 characters, shown in the Finish dialog |
+| `kind` | `floor` or `wallpaper`. A floor key in `walls` (or the reverse) is `house_unknown_finish` |
+| `file` | a file name directly in `Textures/` (no folders), one per texture |
+| `size` | metres `[x, y]` the image covers before it repeats, `0 < size ≤ 20` (as §6.1) |
+| `color` | the image's average colour: the flat look, and drawn while it loads or if it's missing |
+
+- A manifest that can't be read or breaks a rule is `textures_invalid` (error): the last valid list
+  stays in use and uploads and deletes are refused (`409 textures_invalid`) until it is fixed or
+  removed, so the server never overwrites what it can't read. A listed file that is gone is
+  `texture_missing` (warning): its rooms are drawn in its `color`.
+- Other files in `Textures/` are ignored. The snapshot lists the textures (§8.3) with a `url`
+  that changes when the file does.
 
 ## 7. Problems (`GET /api/problems`)
 
@@ -409,7 +441,9 @@ is an explicit user action; nothing is repaired silently.
 | `house_invalid` | error | unusable `house.json`, read-only (last valid kept); `detail.reason` |
 | `house_newer_version` | warning | read-only, see §2.3; `detail.reason` |
 | `house_duplicate_id`, `house_bad_cell`, `house_outside_grid`, `house_unknown_room`, `house_unknown_floor`, `house_duplicate_placement` | warning | semantic rule broken (§2.1) |
-| `house_unknown_finish` | warning | a room's `floor` or `walls` names a finish not in `contract/finishes.json` (§6.1); never blocks a `PUT` |
+| `house_unknown_finish` | warning | a room's `floor` or `walls` names a finish not in `contract/finishes.json` (§6.1) or `Textures/textures.json` (§6.2); never blocks a `PUT` |
+| `textures_invalid` | error | `Textures/textures.json` can't be used; last valid list kept, uploads refused (§6.2) |
+| `texture_missing` | warning | a texture's image file is gone; drawn in its colour (§6.2) |
 | `note_parse_error` | error | note that can't be parsed or breaks a limit (last good kept if known) |
 | `read_error` | error | note or folder that can't be read (last good kept) |
 | `note_invalid_id` | error | bad `housebook_id`; note ignored |
@@ -473,7 +507,7 @@ against the file on disk (§8.1).
 `409` reasons: `newer_version`, `invalid`, `unreadable`, `not_json`, `bad_version`, `too_large`
 (house.json is read-only, §2.3; the value is the `detail.reason` of the house problem),
 `unparseable` (the note's frontmatter can't be parsed: fix it in an editor first), `id_changed`,
-`exists`, `not_tagged`, `has_id`.
+`exists`, `not_tagged`, `has_id`; for textures (§8.3) `textures_invalid`, `in_use`, `too_many`, `unsafe`.
 
 ### 8.1 `PUT /api/house`
 
@@ -566,6 +600,34 @@ written, `ETag`.
   shadowed by a second NFC one).
 - **Paths** in item responses, events and problems are NFC (the file on disk may be NFD).
 
+### 8.3 Your own textures (D43)
+
+| Method | Path | Body | Precondition | Response |
+|---|---|---|---|---|
+| `GET` | `/api/textures/{key}` | – | – | the image (any role) |
+| `POST` | `/api/textures?kind=&label=&width=&height=` | the image (`application/octet-stream`) | none | `201`, the texture, `Location` (its image) |
+| `DELETE` | `/api/textures/{key}` | – | none | `204` |
+
+- **The snapshot** (`GET /api/snapshot`) has `textures`: `[{key, label, kind, size, color, url}]`
+  in manifest order, and `texturesVersion`, a hash over them and their files. `url` is
+  `/api/textures/{key}?v=<size and mtime of the file>`, so it changes when the file does; it is
+  `null` when the file is missing.
+- **Upload:** `kind` is `floor` or `wallpaper`; `label` 1–60 characters without control
+  characters; `width` and `height` the metres the image covers before it repeats (across, and along
+  a floor or up a wall), `0 < x ≤ 20`. The body follows the attachment rules (§8.2): at most
+  25 MiB, `415` for anything but JPEG, PNG, WebP or HEIC/HEIF by the first bytes, `422` if empty or
+  unreadable; the image is saved again without metadata, HEIC as JPEG, and shrunk to at most
+  1024 px on its longer side. It is stored as `Textures/<label>.<ext>` (the label cleaned like a
+  note name, fallback `Texture`; `-2`, `-3`, … on a collision) and appended to the manifest under a
+  new key. `409 too_many` past 200 textures. No `If-Match`: an upload merges with the manifest on
+  disk. Using it is a separate `PUT /api/house` (the editor does it right after).
+- **Delete:** `409 in_use` while a room in `house.json` uses the key (the message names the
+  rooms): choose another finish there first. Otherwise the entry leaves the manifest and the file
+  moves to `.housebook/trash/<stamp>-<key>-texture/`. `404` for an unknown key.
+- `GET /api/textures/{key}` serves only JPEG, PNG and WebP (by the first bytes; anything else
+  is `404`), with `X-Content-Type-Options: nosniff`, the sandbox CSP and `Cache-Control: private,
+  no-cache`. The `v` query parameter is ignored.
+
 ## 9. Events (`GET /api/events`)
 
 Server-sent events (`text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`, never
@@ -581,7 +643,7 @@ dropped (it reconnects and resyncs).
 retry: 5000
 
 event: resync
-data: {"houseEtag":"…","houseReadOnly":false,"itemsVersion":"…","problemCount":0}
+data: {"houseEtag":"…","houseReadOnly":false,"itemsVersion":"…","texturesVersion":"…","problemCount":0}
 
 event: house.changed
 data: {"etag":"…","readOnly":false}
@@ -595,17 +657,21 @@ data: {"id":"it_7f3k2a"}
 event: problems.changed
 data: {"count":3}
 
+event: textures.changed
+data: {"version":"…"}
+
 event: ping
 data: {}
 ```
 
 | Event | Meaning | Client action |
 |---|---|---|
-| `resync` | sent first on every connection | compare `houseEtag` with the held house ETag and `itemsVersion` with the snapshot's `itemsVersion`; refetch `/api/snapshot` (with `If-None-Match`) if either differs |
+| `resync` | sent first on every connection | compare `houseEtag` with the held house ETag, and `itemsVersion` and `texturesVersion` with the snapshot's; refetch `/api/snapshot` (with `If-None-Match`) if either version differs |
 | `house.changed` | `house.json` changed (`etag` null: missing/unreadable) | ignore if `etag` equals the held one; else `GET /api/house` |
 | `item.changed` | a note was created, edited, renamed/moved (`path` changes), became unparseable or parseable again (`stale` changes; while stale, `etag` is the last good version's), or its attachment set changed (`attachmentsEtag` changes; the note's `etag` doesn't) | ignore only if `etag`, `path`, `stale` **and** `attachmentsEtag` all equal what is held (every item in `/api/snapshot` and `GET /api/items/{id}` carries them); else `GET /api/items/{id}` |
 | `item.deleted` | the note is gone (after a 3 s grace period for external deletes, at once for `DELETE`) | drop it; a placement for it becomes a missing note |
 | `problems.changed` | the integrity report changed | refetch `/api/problems` if the panel is shown |
+| `textures.changed` | your own textures changed (§6.2: added, deleted, a file replaced or gone) | ignore if `version` equals the snapshot's `texturesVersion`; else refetch `/api/snapshot` |
 | `ping` | nothing else happened for 20 s | reset the watchdog; nothing else |
 
 - **Writes from the app are announced too** (other tabs and devices need them). The writer

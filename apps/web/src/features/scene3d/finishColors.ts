@@ -3,7 +3,7 @@
  * halves grouped so that each surface is one mesh. A surface is a colour, plus a texture for
  * floor finishes and wallpapers (the colour is drawn while it loads). Pure, tested without WebGL.
  */
-import type { Room } from '../../api/types';
+import type { OwnTexture, Room } from '../../api/types';
 import {
   EXTERIOR_DEFAULT,
   type FinishTexture,
@@ -30,12 +30,13 @@ const paint = (color: string): Surface => ({ key: color.toLowerCase(), color });
 export function wallSideSurfaces(
   rooms: readonly Pick<Room, 'id' | 'walls'>[],
   exteriorWallColor: string | null | undefined,
+  own?: readonly OwnTexture[],
 ): (side: string | undefined) => Surface {
   const byRoom = new Map(rooms.map((r) => [r.id, r]));
   const outside = paint(exteriorWallColor || EXTERIOR_DEFAULT);
   return (side) => {
     if (side === OUTSIDE || side === undefined) return outside;
-    const w = wallFinish(byRoom.get(side)?.walls);
+    const w = wallFinish(byRoom.get(side)?.walls, own);
     if (!w) return paint(UNPAINTED);
     if (w.kind === 'paint') return paint(w.color);
     return {
@@ -47,8 +48,11 @@ export function wallSideSurfaces(
 }
 
 /** A room's floor in the home look, or undefined (drawn in its plan colour). */
-export function floorSurface(room: Pick<Room, 'floor'> | undefined): Surface | undefined {
-  const f = floorFinish(room?.floor);
+export function floorSurface(
+  room: Pick<Room, 'floor'> | undefined,
+  own?: readonly OwnTexture[],
+): Surface | undefined {
+  const f = floorFinish(room?.floor, own);
   return f && { key: `floor:${f.key}`, color: f.color, texture: finishTexture(f) };
 }
 

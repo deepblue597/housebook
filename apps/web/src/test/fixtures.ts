@@ -75,6 +75,8 @@ export const snapshot: Snapshot = {
   houseSchemaVersion: 1,
   problemCount: 0,
   itemsVersion: 'v',
+  textures: [],
+  texturesVersion: 't',
   house: {
     schemaVersion: 2,
     grid: { tileSize: 1, width: 4, depth: 2 },

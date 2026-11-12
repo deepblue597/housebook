@@ -125,7 +125,7 @@ Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md
 |---|---|---|
 | GET | `/api/house` | Layout; `ETag`, `If-None-Match` → 304; `X-Housebook-Read-Only` for newer schema versions |
 | PUT | `/api/house` | Replace the layout (editor). `If-Match` (428/412), full validation (422 with every issue), history in `.housebook/history/` (last 50), atomic deterministic write; 409 when read-only |
-| GET | `/api/snapshot` | House + all items (fields, status, body, attachments) + `itemsVersion`; `ETag`/304. Poll this when SSE fails |
+| GET | `/api/snapshot` | House + all items (fields, status, body, attachments) + your own textures + `itemsVersion`, `texturesVersion`; `ETag`/304. Poll this when SSE fails |
 | GET | `/api/items?q=&due=` | Search (contract §5) and/or "due within N days" |
 | POST | `/api/items` | Create a note `House/<Room>/<Name>.md` from `{type, name?, roomId?, frontmatter?, body?}` (editor). The client places it with `PUT /api/house` afterwards |
 | GET | `/api/items/{id}` | One item; `ETag` = note content hash (the `If-Match` for writes) |
@@ -135,8 +135,11 @@ Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md
 | DELETE | `/api/items/{id}/attachments/{name}` | Move a file from the item's attachments folder to `.housebook/trash/` and unlist it (editor) |
 | POST | `/api/items/{id}/log` | Append `- YYYY-MM-DD text` under `## Maintenance log` (`{text, date?}`, no `If-Match`, editor) |
 | POST | `/api/items/adopt` | Give a tagged note without `housebook_id` (a `not_adopted` problem) an id (`{path}`, editor) |
-| GET | `/api/events` | Server-sent events: `resync` on connect, then `house.changed`, `item.changed`, `item.deleted`, `problems.changed`; a `ping` event after 20 s of silence |
+| GET | `/api/events` | Server-sent events: `resync` on connect, then `house.changed`, `item.changed`, `item.deleted`, `problems.changed`, `textures.changed`; a `ping` event after 20 s of silence |
 | GET | `/api/items/{id}/attachments/{name}` | File download; Range, `nosniff`, sandbox CSP (PDFs too: the web app renders them with PDF.js) |
+| POST | `/api/textures?kind=&label=&width=&height=` | Your own floor or wallpaper (editor): an image as the raw body, cleaned like an attachment and shrunk to 1024 px, stored in `Textures/` and listed in `Textures/textures.json` under a `my_` key; `width`/`height` are the metres one repeat covers |
+| GET | `/api/textures/{key}` | A texture's image |
+| DELETE | `/api/textures/{key}` | Move a texture's image to `.housebook/trash/` (editor); 409 while a room uses it |
 | GET | `/api/problems` | Integrity report |
 | GET | `/api/catalog` | Item types |
 | GET | `/api/me` | Current user and role |

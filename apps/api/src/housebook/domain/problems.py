@@ -25,6 +25,9 @@ class ProblemKind(StrEnum):
     house_outside_grid = "house_outside_grid"
     house_duplicate_placement = "house_duplicate_placement"
     house_unknown_finish = "house_unknown_finish"
+    # Textures/textures.json (D43)
+    textures_invalid = "textures_invalid"
+    texture_missing = "texture_missing"
     # notes
     note_parse_error = "note_parse_error"
     read_error = "read_error"

@@ -104,7 +104,7 @@ const patternId = (key: string) => `finish-${key}`;
 function FinishPatterns({ model, tileSize }: { model: Model; tileSize: number }) {
   const used = new Map(
     [...model.rooms.values()].flatMap((r) => {
-      const f = floorFinish(r.floor);
+      const f = floorFinish(r.floor, model.snapshot.textures);
       const t = finishTexture(f);
       return f && t ? [[f.key, t] as const] : [];
     }),
@@ -206,7 +206,8 @@ function PlanSvgImpl({
       {geometry.labels.map(({ roomId, cells }) => {
         const room = model.rooms.get(roomId)!;
         const area = formatArea(floor.roomAreas.get(roomId) ?? 0);
-        const finish = look === 'home' ? floorFinish(room.floor) : undefined;
+        const finish =
+          look === 'home' ? floorFinish(room.floor, model.snapshot.textures) : undefined;
         return (
           <g
             key={roomId}
@@ -245,7 +246,8 @@ function PlanSvgImpl({
       {geometry.labels.map(({ roomId, cells, at }) => {
         const room = model.rooms.get(roomId)!;
         const area = formatArea(floor.roomAreas.get(roomId) ?? 0);
-        const finish = look === 'home' ? floorFinish(room.floor) : undefined;
+        const finish =
+          look === 'home' ? floorFinish(room.floor, model.snapshot.textures) : undefined;
         const ink = finish ? labelInk(finish.color, true) : labelInk(room.color);
         return (
           <g

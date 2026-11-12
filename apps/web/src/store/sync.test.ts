@@ -60,6 +60,7 @@ function setup(over: Partial<SyncDeps> = {}) {
       'item.changed': vi.fn(),
       'item.deleted': vi.fn(),
       'problems.changed': vi.fn(),
+      'textures.changed': vi.fn(),
     },
     onStatus: (s: SyncStatus) => statuses.push(s),
     timings: T,

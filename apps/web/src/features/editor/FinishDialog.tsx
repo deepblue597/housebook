@@ -1,14 +1,18 @@
 /**
  * A room's floor and wall finish (D41), from the room list. Every choice is an editor command
- * (undo, autosave); "copy to other rooms" is one step for all of them.
+ * (undo, autosave); "copy to other rooms" is one step for all of them. Your own textures (D43)
+ * are uploaded and deleted here too: those are server writes, not undoable layout edits.
  */
-import { useEffect, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useRef, useState } from 'react';
+import { ApiError, MAX_UPLOAD_BYTES } from '../../api/client';
+import type { OwnTexture } from '../../api/types';
 import {
   EXTERIOR_DEFAULT,
   type Finish,
   finishTexture,
   floorFinish,
   floorFinishes,
+  ownFinishes,
   paintPalette,
   wallFinish,
   wallpaperFinishes,
@@ -54,6 +58,7 @@ function Swatch({
   label,
   pressed,
   onClick,
+  note,
 }: {
   color: string | null;
   /** A finish's texture (D42): the swatch shows a piece of it. */
@@ -61,6 +66,8 @@ function Swatch({
   label: string;
   pressed: boolean;
   onClick: () => void;
+  /** Shown after the label, e.g. "image missing". */
+  note?: string;
 }) {
   return (
     <button
@@ -68,7 +75,7 @@ function Swatch({
       className="swatch-btn"
       aria-pressed={pressed}
       onClick={onClick}
-      title={label}
+      title={note ? `${label} (${note})` : label}
     >
       <span
         className={`swatch${color ? '' : ' none'}`}
@@ -82,7 +89,238 @@ function Swatch({
         aria-hidden="true"
       />
       {label}
+      {note && <span className="muted"> ({note})</span>}
     </button>
+  );
+}
+
+type Kind = OwnTexture['kind'];
+
+function uploadError(e: unknown): string {
+  if (!(e instanceof ApiError)) return EDITOR.ownUnreachable;
+  if (e.status === 413) return EDITOR.ownTooLarge;
+  if (e.status === 415) return EDITOR.ownWrongType;
+  return e.detail ?? e.message;
+}
+
+const stem = (name: string) =>
+  name
+    .replace(/\.[^.]*$/, '')
+    .trim()
+    .slice(0, 60);
+
+/** Upload form for your own floor or wallpaper (D43): the image and how much of it repeats. */
+function AddTexture({
+  kind,
+  onAdded,
+  onCancel,
+}: {
+  kind: Kind;
+  onAdded: (key: string) => void;
+  onCancel: () => void;
+}) {
+  const addTexture = useData((s) => s.addTexture);
+  const [file, setFile] = useState<File | null>(null);
+  const [name, setName] = useState('');
+  const [across, setAcross] = useState('50');
+  const [along, setAlong] = useState('50');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const w = Number(across);
+    const h = Number(along);
+    const label = name.trim();
+    const problem = !file
+      ? EDITOR.ownNeedFile
+      : file.size > MAX_UPLOAD_BYTES
+        ? EDITOR.ownTooLarge
+        : !label
+          ? EDITOR.ownNeedName
+          : !(w >= 1 && w <= 2000 && h >= 1 && h <= 2000)
+            ? EDITOR.ownBadSize
+            : null;
+    if (problem || !file) {
+      setError(problem);
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const t = await addTexture(file, { kind, label, width: w / 100, height: h / 100 });
+      onAdded(t.key);
+    } catch (err) {
+      setError(uploadError(err));
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form
+      className="own-form"
+      onSubmit={(e) => void submit(e)}
+      aria-label={EDITOR.ownAddTitle(kind)}
+    >
+      <label>
+        {EDITOR.ownFile}
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            setFile(f);
+            if (f && !name.trim()) setName(stem(f.name));
+          }}
+        />
+      </label>
+      <label>
+        {EDITOR.ownName}
+        <input type="text" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <fieldset className="own-size">
+        <legend>{EDITOR.ownRepeat}</legend>
+        <label>
+          <input
+            type="number"
+            min={1}
+            max={2000}
+            step="any"
+            value={across}
+            onChange={(e) => setAcross(e.target.value)}
+          />{' '}
+          {EDITOR.ownAcross}
+        </label>
+        <label>
+          <input
+            type="number"
+            min={1}
+            max={2000}
+            step="any"
+            value={along}
+            onChange={(e) => setAlong(e.target.value)}
+          />{' '}
+          {EDITOR.ownAlong(kind)}
+        </label>
+      </fieldset>
+      <p className="muted">{EDITOR.ownRepeatHint}</p>
+      {error && (
+        <p className="msg err" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="row">
+        <button type="submit" className="btn primary" disabled={busy}>
+          {busy ? EDITOR.ownSaving : EDITOR.ownSave}
+        </button>
+        <button type="button" className="btn" onClick={onCancel} disabled={busy}>
+          {EDITOR.ownCancel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * The "Your own" group of a fieldset: uploaded textures of one kind as swatches, each with a
+ * delete button, and the upload form.
+ */
+function OwnTextures({
+  kind,
+  selected,
+  onPick,
+}: {
+  kind: Kind;
+  selected: string | null;
+  onPick: (key: string) => void;
+}) {
+  const own = useData((s) => s.model?.snapshot.textures);
+  const rooms = useData((s) => s.model?.snapshot.house?.rooms) ?? [];
+  const removeTexture = useData((s) => s.removeTexture);
+  const [adding, setAdding] = useState(false);
+  const [asking, setAsking] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const list = ownFinishes(own, kind);
+
+  const remove = async (key: string, label: string) => {
+    setAsking(null);
+    // The layout shown may have unsaved edits the server doesn't know about yet.
+    const users = rooms.filter((r) => r.floor === key || r.walls === key).map((r) => r.name);
+    if (users.length > 0) {
+      setMsg(EDITOR.ownInUse(label, users));
+      return;
+    }
+    setMsg(null);
+    try {
+      await removeTexture(key);
+    } catch (e) {
+      setMsg(uploadError(e));
+    }
+  };
+
+  return (
+    <div className="finish-group own" data-own={kind}>
+      <h4>{EDITOR.ownTextures}</h4>
+      {list.length > 0 && (
+        <div className="swatches">
+          {list.map((f) => (
+            <span key={f.key} className="own-swatch">
+              <Swatch
+                color={f.color}
+                texture={finishTexture(f)?.url}
+                label={f.label}
+                note={f.own?.url ? undefined : EDITOR.ownMissing}
+                pressed={selected === f.key}
+                onClick={() => onPick(f.key)}
+              />
+              <button
+                type="button"
+                className="btn icon"
+                aria-label={EDITOR.ownDelete(f.label)}
+                title={EDITOR.ownDelete(f.label)}
+                onClick={() => setAsking(f.key)}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      {asking && (
+        <p className="own-ask" role="alert">
+          {EDITOR.ownDeleteAsk(list.find((f) => f.key === asking)?.label ?? asking)}{' '}
+          <button
+            type="button"
+            className="btn"
+            onClick={() => void remove(asking, list.find((f) => f.key === asking)?.label ?? asking)}
+          >
+            {EDITOR.ownDeleteYes}
+          </button>{' '}
+          <button type="button" className="btn" onClick={() => setAsking(null)}>
+            {EDITOR.ownDeleteNo}
+          </button>
+        </p>
+      )}
+      {msg && (
+        <p className="msg err" role="alert">
+          {msg}
+        </p>
+      )}
+      {adding ? (
+        <AddTexture
+          kind={kind}
+          onAdded={(key) => {
+            setAdding(false);
+            onPick(key);
+          }}
+          onCancel={() => setAdding(false)}
+        />
+      ) : (
+        <button type="button" className="btn" onClick={() => setAdding(true)}>
+          {EDITOR.ownAdd(kind)}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -97,6 +335,7 @@ const byGroup = (list: readonly Finish[]) => {
 
 export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () => void }) {
   const house = useData((s) => s.model?.snapshot.house);
+  const own = useData((s) => s.model?.snapshot.textures);
   const setRoomFinish = useEditor((s) => s.setRoomFinish);
   const copyFinish = useEditor((s) => s.copyFinish);
   const setExterior = useEditor((s) => s.setExteriorWallColor);
@@ -109,7 +348,7 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
   if (!room) return null; // deleted meanwhile
   const floor = room.floor ?? null;
   const walls = room.walls ?? null;
-  const wall = wallFinish(walls);
+  const wall = wallFinish(walls, own);
   const paints = paintPalette();
   const customPaint =
     wall?.kind === 'paint' &&
@@ -131,7 +370,9 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
 
       <fieldset>
         <legend>{EDITOR.finishFloor}</legend>
-        {floor && !floorFinish(floor) && <p className="msg err">{EDITOR.finishUnknown(floor)}</p>}
+        {floor && !floorFinish(floor, own) && (
+          <p className="msg err">{EDITOR.finishUnknown(floor)}</p>
+        )}
         <div className="swatches">
           <Swatch
             color={null}
@@ -157,6 +398,11 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
             </div>
           </div>
         ))}
+        <OwnTextures
+          kind="floor"
+          selected={floor}
+          onPick={(key) => setRoomFinish(roomId, { floor: key })}
+        />
       </fieldset>
 
       <fieldset>
@@ -209,6 +455,11 @@ export function FinishDialog({ roomId, onClose }: { roomId: string; onClose: () 
             ))}
           </div>
         </div>
+        <OwnTextures
+          kind="wallpaper"
+          selected={walls}
+          onPick={(key) => setRoomFinish(roomId, { walls: key })}
+        />
       </fieldset>
 
       {others.length > 0 && (

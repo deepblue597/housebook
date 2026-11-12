@@ -31,8 +31,9 @@ from housebook.domain.problems import HouseProblemReason as Why
 from housebook.domain.problems import Problem, ProblemKind, Severity
 from housebook.domain.search import SearchDoc
 from housebook.domain.text import nfc
+from housebook.domain.textures import MANIFEST_REL, TEXTURES_DIR, ManifestError, OwnTexture, parse_manifest
 from housebook.migrations.house import MigrationError, migrate
-from housebook.ports import HouseRepo, NoteRepo, UnsafePath
+from housebook.ports import FileEntry, HouseRepo, NoteRepo, TextureRepo, UnsafePath
 
 log = logging.getLogger(__name__)
 
@@ -92,6 +93,14 @@ class HouseState:
 
 
 @dataclass(frozen=True)
+class IndexedTexture:
+    """An uploaded texture (D43) and a version of its file (size and mtime), None if missing."""
+
+    texture: OwnTexture
+    file_version: str | None
+
+
+@dataclass(frozen=True)
 class IndexState:
     house: HouseState
     items: dict[str, IndexedItem]
@@ -99,18 +108,25 @@ class IndexState:
     search_docs: tuple[SearchDoc, ...]
     scanned_at: datetime
     scan_ms: float
+    textures: tuple[IndexedTexture, ...] = ()
     # rel -> (hash, parse outcome) so unchanged files skip YAML parsing on the next scan
     _parse_cache: dict[str, tuple[str, Any]] = field(default_factory=dict, repr=False)
 
 
 class Indexer:
     def __init__(
-        self, house_repo: HouseRepo, notes: NoteRepo, catalog: Catalog, finishes: Finishes | None = None
+        self,
+        house_repo: HouseRepo,
+        notes: NoteRepo,
+        catalog: Catalog,
+        finishes: Finishes | None = None,
+        textures: TextureRepo | None = None,
     ) -> None:
         self.house_repo = house_repo
         self.notes = notes
         self.catalog = catalog
         self.finishes = finishes  # None: finish names aren't checked
+        self.textures = textures  # None: no uploaded textures
         self.state: IndexState | None = None
         self._lock = threading.Lock()
 
@@ -138,6 +154,7 @@ class _Scan:
         self.prev_by_rel = {i.rel: i for i in previous.items.values()} if previous else {}
         self.unreadable_files: set[str] = set()
         self.mtimes: dict[str, int] = {}
+        self.textures: tuple[IndexedTexture, ...] = ()
 
     def problem(self, kind: ProblemKind, severity: Severity, message: str, **kw: Any) -> None:
         if kw.get("path"):
@@ -155,6 +172,7 @@ class _Scan:
                 path=rel,
             )
 
+        self.textures = self.scan_textures(tree.files)
         house = self.scan_house()
         notes = [f for f in tree.files if self.ix.notes.is_note(f.rel)]
         candidates = [c for f in notes if (c := self.scan_note(f.rel, f.mtime_ns))]
@@ -184,6 +202,7 @@ class _Scan:
             search_docs=tuple(self.search_doc(i, house.house) for i in items.values()),
             scanned_at=datetime.now(UTC),
             scan_ms=0.0,
+            textures=self.textures,
             _parse_cache=self.parse_cache,
         )
 
@@ -296,22 +315,65 @@ class _Scan:
         finishes = self.ix.finishes
         if finishes is None:
             return
-        # Unknown finish names (a typo, or a newer catalogue): drawn in the plan colour (D41).
+        floor_keys = finishes.floor_keys | {t.texture.key for t in self.textures if t.texture.kind == "floor"}
+        wallpaper_keys = finishes.wallpaper_keys | {
+            t.texture.key for t in self.textures if t.texture.kind == "wallpaper"
+        }
+        # Unknown finish names (a typo, a newer catalogue, a deleted texture): drawn in the plan colour (D41).
         for room in state.house.rooms:
-            if room.floor and room.floor not in finishes.floor_keys:
+            if room.floor and room.floor not in floor_keys:
                 self.problem(
                     ProblemKind.house_unknown_finish,
                     Severity.warning,
                     f"room '{room.id}': unknown floor finish '{room.floor}'; shown in the plan colour",
                     path="house.json",
                 )
-            if room.walls and not room.walls.startswith("#") and room.walls not in finishes.wallpaper_keys:
+            if room.walls and not room.walls.startswith("#") and room.walls not in wallpaper_keys:
                 self.problem(
                     ProblemKind.house_unknown_finish,
                     Severity.warning,
                     f"room '{room.id}': unknown wallpaper '{room.walls}'; shown in the plain wall colour",
                     path="house.json",
                 )
+
+    # --- Textures/textures.json (D43) ---------------------------------------------------
+
+    def scan_textures(self, files: tuple[FileEntry, ...]) -> tuple[IndexedTexture, ...]:
+        """The uploaded textures. A manifest that can't be used is an error, and the last valid
+        list is kept (as for house.json), so rooms don't lose their finish while a sync tool is
+        halfway through writing it. A listed file that is gone is a warning: drawn in its colour."""
+        repo = self.ix.textures
+        if repo is None:
+            return ()
+        try:
+            raw = repo.read_manifest()
+            manifest = parse_manifest(raw) if raw is not None else None
+        except (UnsafePath, OSError, ManifestError) as e:
+            why = str(e) if isinstance(e, ManifestError) else f"{MANIFEST_REL} can't be read"
+            kept = self.prev.textures if self.prev else ()
+            self.problem(
+                ProblemKind.textures_invalid,
+                Severity.error,
+                why + ("; showing the last valid list" if kept else "") + "; textures can't be added until fixed",
+                path=MANIFEST_REL,
+            )
+            return kept
+        if manifest is None:
+            return ()
+        on_disk = {nfc(f.rel): f for f in files if f.readable}
+        out = []
+        for t in manifest.textures:
+            entry = on_disk.get(nfc(f"{TEXTURES_DIR}/{t.file}"))
+            if entry is None:
+                self.problem(
+                    ProblemKind.texture_missing,
+                    Severity.warning,
+                    f"texture '{t.label}' ({t.key}): {TEXTURES_DIR}/{t.file} is missing; shown in its colour",
+                    path=MANIFEST_REL,
+                )
+            version = f"{entry.size:x}-{entry.mtime_ns:x}" if entry else None
+            out.append(IndexedTexture(t, version))
+        return tuple(out)
 
     # --- notes --------------------------------------------------------------------------
 
