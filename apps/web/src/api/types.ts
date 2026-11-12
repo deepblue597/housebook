@@ -16,6 +16,7 @@ export type Attachment = Schemas['AttachmentOut'];
 export type ItemStatus = Schemas['Status'];
 export type Me = Schemas['MeOut'];
 export type CalendarLink = Schemas['CalendarLinkOut'];
+export type OwnTexture = Schemas['TextureOut'];
 export type Problem = Schemas['Problem'];
 export type HouseProblemReason = Schemas['HouseProblemReason'];
 export type ProblemKind = Schemas['ProblemKind'];
@@ -26,6 +27,7 @@ export interface ResyncEvent {
   houseEtag: string | null;
   houseReadOnly: boolean;
   itemsVersion: string;
+  texturesVersion: string;
   problemCount: number;
 }
 export interface HouseChangedEvent {
@@ -44,4 +46,7 @@ export interface ItemDeletedEvent {
 }
 export interface ProblemsChangedEvent {
   count: number;
+}
+export interface TexturesChangedEvent {
+  version: string;
 }

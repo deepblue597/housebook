@@ -118,6 +118,11 @@ def items_version(state: IndexState) -> str:
     return _digest({i: [s.etag, s.path, s.stale, s.attachments_etag] for i, s in item_sigs(state).items()})
 
 
+def textures_version(state: IndexState) -> str:
+    """Version of the uploaded textures (D43): their manifest entries and files."""
+    return _digest([[t.texture.model_dump(mode="json"), t.file_version] for t in state.textures])
+
+
 def problems_version(state: IndexState) -> str:
     return _digest([p.model_dump(mode="json") for p in state.problems])
 
@@ -127,6 +132,7 @@ def resync_payload(state: IndexState) -> dict[str, Any]:
         "houseEtag": state.house.etag,
         "houseReadOnly": state.house.read_only,
         "itemsVersion": items_version(state),
+        "texturesVersion": textures_version(state),
         "problemCount": len(state.problems),
     }
 
@@ -143,6 +149,7 @@ class Sync:
         self._items: dict[str, ItemSig] | None = None  # as last announced
         self._house: tuple[str | None, bool] | None = None
         self._problems: str | None = None
+        self._textures: str | None = None
         self._pending_deletes: dict[str, float] = {}  # id -> loop time when it may be announced
         self._retrying: set[str] = set()
         self._tasks: set[asyncio.Task[Any]] = set()
@@ -183,8 +190,9 @@ class Sync:
         new = item_sigs(state)
         house = (state.house.etag, state.house.read_only)
         problems = problems_version(state)
+        textures = textures_version(state)
         if self._items is None:  # first scan: nobody to tell yet
-            self._items, self._house, self._problems = dict(new), house, problems
+            self._items, self._house, self._problems, self._textures = dict(new), house, problems, textures
             return
         loop = asyncio.get_running_loop()
         now = loop.time()
@@ -206,6 +214,9 @@ class Sync:
         if house != self._house:
             events.append(("house.changed", {"etag": house[0], "readOnly": house[1]}))
             self._house = house
+        if textures != self._textures:
+            events.append(("textures.changed", {"version": textures}))
+            self._textures = textures
         for item_id, sig in new.items():
             if item_id in held:
                 continue

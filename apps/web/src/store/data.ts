@@ -15,13 +15,16 @@ import {
   fetchSnapshot,
   deleteAttachment,
   deleteItemRequest,
+  deleteTexture,
   getJson,
   patchItem,
   postAdopt,
   postItem,
   postLogEntry,
   sameEtag,
+  type TextureUpload,
   uploadAttachment,
+  uploadTexture,
 } from '../api/client';
 import type {
   House,
@@ -32,9 +35,11 @@ import type {
   ItemDeletedEvent,
   ItemPatch,
   Me,
+  OwnTexture,
   ProblemsChangedEvent,
   ResyncEvent,
   Snapshot,
+  TexturesChangedEvent,
 } from '../api/types';
 import { type Model, buildModel } from './model';
 
@@ -69,6 +74,7 @@ interface DataState {
   itemChanged: (e: ItemChangedEvent) => Promise<void>;
   itemDeleted: (e: ItemDeletedEvent) => Promise<void>;
   problemsChanged: (e: ProblemsChangedEvent) => void;
+  texturesChanged: (e: TexturesChangedEvent) => Promise<void>;
   // Writes (editors only; the server checks the role too).
   appendLog: (id: string, text: string, date?: string) => Promise<Item>;
   adopt: (path: string) => Promise<Item>;
@@ -82,6 +88,10 @@ interface DataState {
   deleteItem: (id: string, etag: string) => Promise<void>;
   /** POST /api/items; the new (still unplaced) item is added to the held items. */
   createItem: (body: ItemCreate) => Promise<Item>;
+  /** Upload your own texture (D43); the snapshot is reloaded so its key is known on return. */
+  addTexture: (file: Blob, t: TextureUpload) => Promise<OwnTexture>;
+  /** Delete an uploaded texture (409 `in_use` while a saved room uses it). */
+  removeTexture: (key: string) => Promise<void>;
   // Layout editing (store/editor.ts): the layout shown may be ahead of the server's.
   /** Show a locally edited layout (items are re-located on it); the server ETag is kept. */
   showLayout: (house: House) => void;
@@ -289,7 +299,8 @@ export const useData = create<DataState>()((set, get) => {
       enqueue(async () => {
         set((s) => ({ problemCount: e.problemCount, problemsRev: s.problemsRev + 1 }));
         const { model, itemsVersion } = get();
-        if (!model || itemsVersion !== e.itemsVersion) {
+        const textures = model?.snapshot.texturesVersion;
+        if (!model || itemsVersion !== e.itemsVersion || textures !== e.texturesVersion) {
           await loadNow();
           return;
         }
@@ -314,6 +325,12 @@ export const useData = create<DataState>()((set, get) => {
       }).catch(swallow),
 
     problemsChanged: (e) => set((s) => ({ problemCount: e.count, problemsRev: s.problemsRev + 1 })),
+    // Textures are few and small: take the whole snapshot (it keeps unsaved layout edits).
+    texturesChanged: (e) =>
+      enqueue(async () => {
+        const snap = get().model?.snapshot;
+        if (snap && snap.texturesVersion !== e.version) await loadNow();
+      }).catch(swallow),
 
     appendLog: (id, text, date) =>
       enqueue(async () => {
@@ -368,6 +385,17 @@ export const useData = create<DataState>()((set, get) => {
         return item;
       }),
 
+    addTexture: (file, t) =>
+      enqueue(async () => {
+        const texture = await uploadTexture(file, t);
+        await loadNow();
+        return texture;
+      }),
+    removeTexture: (key) =>
+      enqueue(async () => {
+        await deleteTexture(key);
+        await loadNow();
+      }),
     showLayout: (house) => {
       const snap = get().model?.snapshot;
       if (!snap) return;

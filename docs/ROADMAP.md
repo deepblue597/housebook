@@ -53,7 +53,7 @@ The file format supports any number of floors and doors/windows; the editor can'
 - **Door and window tool:** click a wall edge to add or remove a door or window. They're stored
   (`openings`) and drawn in 2D and 3D already.
 
-## M8: What needs attention (~2–3 days)
+## M8: What needs attention (~2–3 days) — done
 
 Goal G5 ("surface what needs attention") is only met by badges on the plan today.
 
@@ -64,7 +64,7 @@ Goal G5 ("surface what needs attention") is only met by badges on the plan today
 - **Calendar feed** (`/api/calendar.ics`) of checks and warranty ends, behind a per-user token
   that can be revoked, since calendar apps can't log in (DESIGN 15.8).
 
-## M9: Floor and wall finishes, a home-like view (~5–7 days)
+## M9: Floor and wall finishes, a home-like view (~5–7 days) — done
 
 Today rooms are flat colours, which is good for finding things but doesn't look like a home.
 This adds a second way to look at the house.
@@ -79,7 +79,8 @@ This adds a second way to look at the house.
   get one colour for the whole house.
 - **Your own wallpapers and floors:** upload an image (JPEG, PNG or WebP; uses the upload code of
   M6) with its real-world size, e.g. "this pattern repeats every 50 cm". Stored as files in the
-  data folder (`Textures/`), so they are backed up with everything else.
+  data folder (`Textures/`), so they are backed up with everything else. (Built as D43:
+  `Textures/textures.json` lists them, so `house.json` stays version 2.)
 - **Editing:** in the layout editor's room list, a "Finish" button per room opens swatches for
   floor and walls. Undo works as for any other edit; "copy finish to other rooms" for whole
   apartments done in one floor.

@@ -1080,6 +1080,214 @@
         }
       }
     },
+    "/api/textures/{key}": {
+      "get": {
+        "summary": "Get Texture",
+        "description": "An uploaded texture's image. The `v` the snapshot adds to the URL is ignored here; it\nonly makes the URL change when the file does.",
+        "operationId": "get_texture_api_textures__key__get",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete Texture",
+        "description": "Remove an uploaded texture and move its image to `.housebook/trash/`. While a room uses\nit, 409 `in_use`: choose another finish there first.",
+        "operationId": "delete_texture_api_textures__key__delete",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/textures": {
+      "post": {
+        "summary": "Upload Texture",
+        "description": "Add your own floor or wallpaper texture: an image (JPEG, PNG, WebP or HEIC, by its first\nbytes; at most 25 MiB) and the metres it covers before it repeats (`width` across, `height`\nalong a floor, or up a wall). It is saved without metadata, at most 1024 px on a side, in\n`Textures/`, and gets a `my_` key to use in a room's `floor` or `walls`.",
+        "operationId": "upload_texture_api_textures_post",
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "floor",
+                "wallpaper"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          },
+          {
+            "name": "label",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60,
+              "description": "Name shown in the Finish dialog",
+              "title": "Label"
+            },
+            "description": "Name shown in the Finish dialog"
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 20,
+              "exclusiveMinimum": 0,
+              "description": "Metres the image covers before it repeats",
+              "title": "Width"
+            },
+            "description": "Metres the image covers before it repeats"
+          },
+          {
+            "name": "height",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 20,
+              "exclusiveMinimum": 0,
+              "description": "Metres the image covers before it repeats",
+              "title": "Height"
+            },
+            "description": "Metres the image covers before it repeats"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextureOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Content Too Large"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Unprocessable Content"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/octet-stream": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/events": {
       "get": {
         "summary": "Events",
@@ -2466,6 +2674,8 @@
           "house_outside_grid",
           "house_duplicate_placement",
           "house_unknown_finish",
+          "textures_invalid",
+          "texture_missing",
           "note_parse_error",
           "read_error",
           "note_invalid_field",
@@ -2636,6 +2846,19 @@
           "problemCount": {
             "type": "integer",
             "title": "Problemcount"
+          },
+          "textures": {
+            "items": {
+              "$ref": "#/components/schemas/TextureOut"
+            },
+            "type": "array",
+            "title": "Textures",
+            "description": "Uploaded textures (D43)"
+          },
+          "texturesVersion": {
+            "type": "string",
+            "title": "Texturesversion",
+            "description": "Changes with `textures`; the SSE `resync` event carries the same value"
           }
         },
         "type": "object",
@@ -2648,7 +2871,9 @@
           "houseSchemaVersion",
           "itemsVersion",
           "items",
-          "problemCount"
+          "problemCount",
+          "textures",
+          "texturesVersion"
         ],
         "title": "SnapshotOut"
       },
@@ -2698,6 +2923,69 @@
           "warranty"
         ],
         "title": "Status"
+      },
+      "TextureOut": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "floor",
+              "wallpaper"
+            ],
+            "title": "Kind"
+          },
+          "size": {
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array",
+            "maxItems": 2,
+            "minItems": 2,
+            "title": "Size",
+            "description": "Metres the image covers before it repeats [x, y]"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color",
+            "description": "Average colour: the flat look, and drawn while the image loads"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url",
+            "description": "The image; changes when the file does. Null when the file is missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "kind",
+          "size",
+          "color",
+          "url"
+        ],
+        "title": "TextureOut",
+        "description": "An uploaded texture (D43). Rooms use `key` in `floor` (kind `floor`) or `walls` (kind\n`wallpaper`), like a built-in finish key."
       },
       "ValidationError": {
         "properties": {

@@ -51,6 +51,8 @@ export function exampleSnapshot(): Snapshot {
     houseSchemaVersion: 1,
     problemCount: 0,
     itemsVersion: 'v',
+    textures: [],
+    texturesVersion: 't',
     house,
     items,
   };

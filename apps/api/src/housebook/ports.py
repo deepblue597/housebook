@@ -88,6 +88,42 @@ class NoteRepo(Protocol):
         ...
 
 
+class TextureRepo(Protocol):
+    """`Textures/` at the data root (D43): the manifest and the images it lists."""
+
+    def read_manifest(self) -> bytes | None:
+        """Raw `Textures/textures.json`, or None if it doesn't exist."""
+        ...
+
+    def write_manifest(self, data: bytes) -> None:
+        """Atomic replace (creates the folder)."""
+        ...
+
+    def names(self) -> set[str]:
+        """Casefolded NFC names of the files in the folder, for collision checks."""
+        ...
+
+    def add_file(self, name: str, src: Path) -> None:
+        """Move `src` to `Textures/<name>`; FileExistsError if the name is taken."""
+        ...
+
+    def remove_file(self, name: str) -> None:
+        """Delete a file just added (undo of `add_file`); missing is fine."""
+        ...
+
+    def open_path(self, name: str) -> Path:
+        """Resolved path of a regular file in the folder, else UnsafePath."""
+        ...
+
+    def stat(self, name: str) -> tuple[int, int] | None:
+        """(size, mtime_ns) of a file in the folder, or None if it isn't a readable file."""
+        ...
+
+    def trash_file(self, name: str, label: str, now: datetime) -> str | None:
+        """Move a file to the trash; returns the trash folder, or None if it was already gone."""
+        ...
+
+
 class AttachmentStore(Protocol):
     def open_path(self, rel: str) -> Path:
         """Resolved absolute path of a regular file inside the data root, else UnsafePath."""

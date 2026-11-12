@@ -82,6 +82,7 @@ describe('live sync', () => {
     houseEtag: snapshot.houseEtag,
     houseReadOnly: false,
     itemsVersion: snapshot.itemsVersion,
+    texturesVersion: snapshot.texturesVersion,
     problemCount: 0,
     ...over,
   });
@@ -247,6 +248,46 @@ describe('live sync', () => {
     useData.getState().problemsChanged({ count: 7 });
     expect(useData.getState().problemCount).toBe(7);
     expect(useData.getState().problemsRev).toBe(rev + 1);
+  });
+
+  it('textures.changed or a resync with another texturesVersion refetches the snapshot', async () => {
+    const f = await loaded();
+    await useData.getState().texturesChanged({ version: snapshot.texturesVersion });
+    expect(f).not.toHaveBeenCalled();
+    f.mockResolvedValueOnce(json({ ...snapshot, texturesVersion: 't2' }, 'snap2'));
+    await useData.getState().texturesChanged({ version: 't2' });
+    expect(urls(f)).toEqual(['GET /api/snapshot']);
+    f.mockResolvedValueOnce(new Response(null, { status: 304 }));
+    await useData.getState().resync(resync({ texturesVersion: 't3' }));
+    expect(urls(f)).toEqual(['GET /api/snapshot', 'GET /api/snapshot']);
+  });
+
+  it('adding a texture uploads the raw image, then holds the snapshot that lists it', async () => {
+    const f = await loaded();
+    const t = {
+      key: 'my_abc123',
+      label: 'Marble',
+      kind: 'floor' as const,
+      size: [0.6, 0.6] as [number, number],
+      color: '#cccccc',
+      url: '/api/textures/my_abc123?v=1',
+    };
+    f.mockResolvedValueOnce(json(t)).mockResolvedValueOnce(
+      json({ ...snapshot, textures: [t], texturesVersion: 't2' }, 'snap2'),
+    );
+    const got = await useData
+      .getState()
+      .addTexture(new Blob(['x']), { kind: 'floor', label: 'Marble', width: 0.6, height: 0.6 });
+    expect(got.key).toBe('my_abc123');
+    expect(urls(f)).toEqual([
+      'POST /api/textures?kind=floor&label=Marble&width=0.6&height=0.6',
+      'GET /api/snapshot',
+    ]);
+    const init = f.mock.calls[0]![1] as RequestInit;
+    expect((init.headers as Record<string, string>)['Content-Type']).toBe(
+      'application/octet-stream',
+    );
+    expect(useData.getState().model?.snapshot.textures).toEqual([t]);
   });
 });
 

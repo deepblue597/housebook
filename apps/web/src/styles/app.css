@@ -1319,6 +1319,75 @@ code {
 .finish-dialog fieldset > .btn {
   align-self: flex-start;
 }
+/* your own textures (D43) */
+.finish-group.own {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.own-swatch {
+  display: inline-flex;
+  align-items: center;
+}
+.own-swatch .swatch-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.own-swatch .btn {
+  min-width: var(--target);
+  min-height: var(--target);
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  padding: 0 8px;
+}
+.own-ask {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.own-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+.own-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
+.own-form input[type='text'],
+.own-form input[type='file'] {
+  max-width: 100%;
+}
+.own-form .own-size {
+  border: 0;
+  padding: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.own-form .own-size legend {
+  font-family: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  padding: 0;
+  margin-bottom: 4px;
+}
+.own-form .own-size label {
+  flex-direction: row;
+  align-items: center;
+}
+.own-form .own-size input {
+  width: 6em;
+}
 
 /* ---- list view ------------------------------------------------------------------- */
 .list-view {

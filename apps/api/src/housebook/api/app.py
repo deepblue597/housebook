@@ -13,7 +13,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from housebook import __version__
-from housebook.adapters.fs import FsAttachmentStore, FsHouseRepo, MarkdownNoteRepo
+from housebook.adapters.fs import FsAttachmentStore, FsHouseRepo, FsTextureRepo, MarkdownNoteRepo
 from housebook.api.context import AppContext
 from housebook.api.middleware import Compression, HeadAsGet, WriteGuard
 from housebook.api.routes import api, calendar_feed, health
@@ -105,7 +105,8 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
     catalog = load_catalog(settings.catalog_path)
     data = settings.data_dir
     house_repo, notes = FsHouseRepo(data), MarkdownNoteRepo(data, settings.notes_dir)
-    indexer = Indexer(house_repo, notes, catalog, load_finishes(settings.finishes_path))
+    textures = FsTextureRepo(data)
+    indexer = Indexer(house_repo, notes, catalog, load_finishes(settings.finishes_path), textures)
     hub = Hub()
     now = clock or (lambda: datetime.now(UTC))
     ctx = AppContext(
@@ -116,7 +117,7 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
         lock=ProcessLock(data),
         hub=hub,
         sync=Sync(indexer, hub),
-        writer=Writer(house_repo, notes, indexer, catalog, settings, now),
+        writer=Writer(house_repo, notes, indexer, catalog, settings, now, textures),
         calendar_links=CalendarLinks(data),
     )
     if clock:

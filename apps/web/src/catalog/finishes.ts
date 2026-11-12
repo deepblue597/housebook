@@ -1,6 +1,8 @@
-// Floor and wall finishes from the shared contract (contract/finishes.json, D41). Pure data and
-// lookups; the views decide how a finish is drawn.
+// Floor and wall finishes from the shared contract (contract/finishes.json, D41), plus the
+// household's own textures from the snapshot (D43). Pure data and lookups; the views decide how
+// a finish is drawn.
 import finishesJson from '@contract/finishes.json';
+import type { OwnTexture } from '../api/types';
 
 export interface Finish {
   key: string;
@@ -11,7 +13,9 @@ export interface Finish {
   /** File in src/assets/textures (D42). */
   texture?: string;
   /** Metres the texture covers before it repeats, [x, y]. */
-  size?: [number, number];
+  size?: readonly [number, number];
+  /** An uploaded texture (D43): its image URL from the server (none if the file is missing). */
+  own?: { url: string | null };
 }
 
 /** A finish's texture: its URL (fetched only when drawn) and real-world repeat. */
@@ -32,9 +36,29 @@ const TEXTURE_URLS: Record<string, string> = Object.fromEntries(
 );
 
 export function finishTexture(f: Finish | undefined): FinishTexture | undefined {
-  const url = f?.texture ? TEXTURE_URLS[f.texture] : undefined;
+  const url = f?.own ? f.own.url : f?.texture ? TEXTURE_URLS[f.texture] : undefined;
   return url && f?.size ? { url, size: f.size } : undefined;
 }
+
+/** An uploaded texture (D43) as a finish. */
+export const ownFinish = (t: OwnTexture): Finish => ({
+  key: t.key,
+  label: t.label,
+  color: t.color,
+  size: t.size,
+  own: { url: t.url ?? null },
+});
+
+/** Uploaded textures of one kind, as finishes, in upload order. */
+export const ownFinishes = (
+  own: readonly OwnTexture[] | undefined,
+  kind: OwnTexture['kind'],
+): Finish[] => (own ?? []).filter((t) => t.kind === kind).map(ownFinish);
+
+const ownOf = (own: readonly OwnTexture[] | undefined, key: string, kind: OwnTexture['kind']) => {
+  const t = own?.find((x) => x.key === key && x.kind === kind);
+  return t && ownFinish(t);
+};
 
 /** Tests only: the texture files shipped. */
 export const shippedTextures = (): readonly string[] => Object.keys(TEXTURE_URLS);
@@ -60,19 +84,27 @@ export const paintPalette = (): readonly Paint[] => data.paints;
 /** Outside walls when the house has no `exteriorWallColor`. */
 export const EXTERIOR_DEFAULT = data.exteriorDefault;
 
-/** The floor finish of a room, or undefined (none chosen, or a key this version doesn't know). */
-export const floorFinish = (key: string | null | undefined): Finish | undefined =>
-  key ? floors.get(key) : undefined;
+/**
+ * The floor finish of a room, or undefined (none chosen, or a key that is neither built in nor
+ * one of `own`, the uploaded textures).
+ */
+export const floorFinish = (
+  key: string | null | undefined,
+  own?: readonly OwnTexture[],
+): Finish | undefined => (key ? (floors.get(key) ?? ownOf(own, key, 'floor')) : undefined);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
 export type WallFinish = { kind: 'paint'; color: string } | { kind: 'wallpaper'; finish: Finish };
 
 /** A room's `walls` value read: a paint colour or a known wallpaper; undefined otherwise. */
-export function wallFinish(value: string | null | undefined): WallFinish | undefined {
+export function wallFinish(
+  value: string | null | undefined,
+  own?: readonly OwnTexture[],
+): WallFinish | undefined {
   if (!value) return undefined;
   if (HEX.test(value)) return { kind: 'paint', color: value };
-  const w = wallpapers.get(value);
+  const w = wallpapers.get(value) ?? ownOf(own, value, 'wallpaper');
   return w ? { kind: 'wallpaper', finish: w } : undefined;
 }
 

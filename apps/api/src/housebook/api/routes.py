@@ -10,7 +10,7 @@ import secrets
 import unicodedata
 from collections.abc import AsyncIterator
 from datetime import UTC
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response, status
@@ -35,8 +35,9 @@ from housebook.api.schemas import (
     MeOut,
     ProblemsOut,
     SnapshotOut,
+    TextureOut,
 )
-from housebook.api.views import item_out, item_status
+from housebook.api.views import item_out, item_status, texture_out
 from housebook.domain.calendar import CalendarItem, calendar_ics, item_events
 from housebook.domain.catalog import Catalog
 from housebook.domain.filetypes import INLINE_TYPES, SNIFF_BYTES, sniff
@@ -47,8 +48,8 @@ from housebook.domain.text import nfc
 from housebook.ports import UnsafePath
 from housebook.services.calendar_links import clean_origin
 from housebook.services.indexer import MAX_HOUSE_BYTES, IndexState, display_name
-from housebook.services.sync import items_version, resync_payload, sse_frame
-from housebook.services.uploads import UploadRejected, prepare
+from housebook.services.sync import items_version, resync_payload, sse_frame, textures_version
+from housebook.services.uploads import UploadRejected, prepare, prepare_texture
 from housebook.services.writer import field_error, parse_house, unprocessable
 
 log = logging.getLogger(__name__)
@@ -121,6 +122,8 @@ def get_snapshot(request: Request, ctx: Ctx) -> Response:
             items_version=items_version(state),
             items=[item_out(i, today, ctx.settings, body=True) for i in state.items.values()],
             problem_count=len(state.problems),
+            textures=[texture_out(t) for t in state.textures],
+            textures_version=textures_version(state),
         ).model_dump(mode="json")
         snap["house"] = hs.house.dump() if hs.house else None
         return snap
@@ -470,6 +473,112 @@ async def delete_attachment(item_id: str, name: str, ctx: Ctx) -> Response:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid file name")
     _, state = await ctx.sync.write(lambda: ctx.writer.delete_attachment(item_id, name))
     return _item_response(ctx, state, item_id)
+
+
+# --- your own textures (D43) ----------------------------------------------------------------------
+
+TEXTURE_IMAGE_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+
+
+@api.get("/textures/{key}", response_class=FileResponse)
+def get_texture(key: str, ctx: Ctx) -> FileResponse:
+    """An uploaded texture's image. The `v` the snapshot adds to the URL is ignored here; it
+    only makes the URL change when the file does."""
+    texture = next((t.texture for t in ctx.state().textures if t.texture.key == key), None)
+    if texture is None or ctx.writer.textures is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No texture with this key")
+    try:
+        path = ctx.writer.textures.open_path(texture.file)
+        with path.open("rb") as f:
+            media_type = sniff(f.read(SNIFF_BYTES))
+    except (UnsafePath, OSError):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "The texture's image is missing") from None
+    if media_type not in TEXTURE_IMAGE_TYPES:  # a hand-placed file that isn't an image
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "The texture's image is missing")
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, no-cache",
+        "Content-Security-Policy": SANDBOX_CSP,
+    }
+    return FileResponse(path, media_type=media_type, headers=headers, stat_result=os.stat(path))
+
+
+TextureLabel = Annotated[str, Query(min_length=1, max_length=60, description="Name shown in the Finish dialog")]
+TextureSize = Annotated[float, Query(gt=0, le=20, description="Metres the image covers before it repeats")]
+
+
+@api.post(
+    "/textures",
+    response_model=TextureOut,
+    status_code=201,
+    dependencies=[Depends(require_editor), Depends(require_upload)],
+    responses=_errors(409, 413, 415, 422),
+    openapi_extra={
+        "requestBody": {
+            "required": True,
+            "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    },
+)
+async def upload_texture(
+    kind: Annotated[Literal["floor", "wallpaper"], Query()],
+    label: TextureLabel,
+    width: TextureSize,
+    height: TextureSize,
+    request: Request,
+    ctx: Ctx,
+) -> Response:
+    """Add your own floor or wallpaper texture: an image (JPEG, PNG, WebP or HEIC, by its first
+    bytes; at most 25 MiB) and the metres it covers before it repeats (`width` across, `height`
+    along a floor, or up a wall). It is saved without metadata, at most 1024 px on a side, in
+    `Textures/`, and gets a `my_` key to use in a room's `floor` or `walls`."""
+    label = label.strip()
+    if not label or any(unicodedata.category(ch) == "Cc" for ch in label):
+        raise unprocessable([field_error(["query", "label"], "label must be text without control characters")])
+    upload = ctx.writer.notes.upload_dir() / f".{secrets.token_hex(8)}.part"
+    prepared_path = None
+    try:
+        size = 0
+        with upload.open("wb") as f:
+            async for chunk in request.stream():
+                size += len(chunk)
+                f.write(chunk)
+        if size == 0:
+            raise unprocessable([field_error(["body"], "the file is empty")])
+        try:
+            prepared = await asyncio.to_thread(prepare_texture, upload)
+        except UploadRejected as e:
+            raise HTTPException(e.status, str(e)) from None
+        prepared_path = prepared.path
+        texture, state = await ctx.sync.write(
+            lambda: ctx.writer.add_texture(
+                prepared.path, prepared.extension, prepared.color, label, kind, (width, height)
+            )
+        )
+    finally:
+        upload.unlink(missing_ok=True)
+        if prepared_path is not None:
+            prepared_path.unlink(missing_ok=True)
+    indexed = next(t for t in state.textures if t.texture.key == texture.key)
+    out = texture_out(indexed)
+    return JSONResponse(
+        out.model_dump(mode="json"),
+        status_code=201,
+        headers={"Location": out.url or f"/api/textures/{texture.key}"},
+    )
+
+
+@api.delete(
+    "/textures/{key}",
+    status_code=204,
+    dependencies=[Depends(require_editor)],
+    responses=_errors(404, 409),
+)
+async def delete_texture(key: str, ctx: Ctx) -> Response:
+    """Remove an uploaded texture and move its image to `.housebook/trash/`. While a room uses
+    it, 409 `in_use`: choose another finish there first."""
+    await ctx.sync.write(lambda: ctx.writer.delete_texture(key))
+    return Response(status_code=204)
 
 
 # --- events (DESIGN 15.7) -----------------------------------------------------------------------

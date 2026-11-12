@@ -38,6 +38,38 @@ describe('home look surfaces (D41, D42)', () => {
     expect(floorSurface(undefined)).toBeUndefined();
   });
 
+  it('your own textures (D43): found by key and kind, drawn from their server URL', () => {
+    const own = [
+      {
+        key: 'my_floor1',
+        label: 'Marble',
+        kind: 'floor' as const,
+        size: [0.6, 0.3] as [number, number],
+        color: '#dddddd',
+        url: '/api/textures/my_floor1?v=1',
+      },
+      {
+        key: 'my_paper1',
+        label: 'Roses',
+        kind: 'wallpaper' as const,
+        size: [0.5, 0.5] as [number, number],
+        color: '#eeaaaa',
+        url: null, // the image is missing: colour only
+      },
+    ];
+    const floor = floorSurface({ floor: 'my_floor1' }, own)!;
+    expect(floor).toMatchObject({ key: 'floor:my_floor1', color: '#dddddd' });
+    expect(floor.texture).toEqual({ url: '/api/textures/my_floor1?v=1', size: [0.6, 0.3] });
+    expect(floorSurface({ floor: 'my_floor1' })).toBeUndefined(); // not known without the list
+    expect(floorSurface({ floor: 'my_paper1' }, own)).toBeUndefined(); // a wallpaper isn't a floor
+    const surface = wallSideSurfaces([{ id: 'a', walls: 'my_paper1' }], null, own);
+    expect(surface('a')).toEqual({
+      key: 'wallpaper:my_paper1',
+      color: '#eeaaaa',
+      texture: undefined,
+    });
+  });
+
   it('every finish in the catalogue has a shipped texture', () => {
     const shipped = new Set(shippedTextures());
     for (const f of [...floorFinishes(), ...wallpaperFinishes()])
