@@ -131,6 +131,22 @@ export function labelPosition(
   return { x: best.x + 0.5, y: best.y + 0.5 };
 }
 
+/**
+ * Openings whose edge is a wall on this floor: tiles of two different rooms, or a room and no
+ * room. A door or window whose wall went away (its rooms were repainted) stays in `house.json`
+ * but isn't drawn, in 2D as in 3D (`openingPlacements`).
+ */
+export function openingsOnWalls<T extends { x: number; y: number; side: 'n' | 'w' }>(
+  openings: readonly T[],
+  cells: CellMap,
+): T[] {
+  return openings.filter((o) => {
+    const a = cells.get(cellKey(o.x, o.y));
+    const b = cells.get(o.side === 'n' ? cellKey(o.x, o.y - 1) : cellKey(o.x - 1, o.y));
+    return (a !== undefined || b !== undefined) && a !== b;
+  });
+}
+
 /** Which tile a door swings into: the keyed tile if it is part of a room, else the other one. */
 export function doorSwingsIntoKeyedTile(
   o: { x: number; y: number; side: 'n' | 'w' },

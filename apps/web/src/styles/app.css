@@ -1166,6 +1166,7 @@ code {
 
 .attention-tools {
   display: flex;
+  margin-bottom: 4px;
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
@@ -2600,7 +2601,7 @@ code {
 }
 
 /* ---- emergency sheet (/print/emergency, D44) ---------------------------------------- */
-.es-page {
+.paper-page {
   height: 100%;
   overflow-y: auto; /* body doesn't scroll (the app scrolls in regions) */
   background: var(--paper);
@@ -2608,12 +2609,12 @@ code {
   padding: 16px;
   box-sizing: border-box;
 }
-.es-page > * {
+.paper-page > * {
   max-width: 820px;
   margin-left: auto;
   margin-right: auto;
 }
-.es-toolbar {
+.paper-toolbar {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -2622,10 +2623,10 @@ code {
   border-radius: 10px;
   margin-bottom: 20px;
 }
-.es-toolbar p {
+.paper-toolbar p {
   margin: 0;
 }
-.es-actions,
+.paper-actions,
 .es-ask {
   display: flex;
   flex-wrap: wrap;
@@ -2635,7 +2636,7 @@ code {
 .es-ask p {
   flex-basis: 100%;
 }
-.es-muted {
+.paper-muted {
   color: var(--muted);
 }
 .es-head h1 {
@@ -2758,6 +2759,93 @@ code {
   margin: 0;
 }
 
+/* ---- QR stickers (/print/stickers, D45) ------------------------------------------- */
+.qs-title {
+  font-family: var(--display);
+  font-size: 24px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 auto 12px;
+}
+.qs-size,
+.qs-choose,
+.qs-group {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+.qs-choose {
+  flex-direction: column;
+}
+.qs-group {
+  border-style: dashed;
+}
+.qs-size label,
+.qs-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--target);
+}
+.qs-sheet {
+  display: grid;
+  justify-content: center;
+  grid-template-columns: repeat(auto-fill, 46mm);
+  gap: 0;
+}
+.qs-sheet.large {
+  grid-template-columns: repeat(auto-fill, 62mm);
+}
+.qs-sticker {
+  box-sizing: border-box;
+  border: 1px dashed #999; /* cut line */
+  padding: 3mm;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5mm;
+  text-align: center;
+  break-inside: avoid;
+  background: #fff;
+  color: #000;
+}
+.qs-code {
+  width: 30mm;
+  height: 30mm;
+  display: block;
+}
+.qs-sheet.large .qs-code {
+  width: 50mm;
+  height: 50mm;
+}
+.qs-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5mm;
+  max-width: 100%;
+  font-size: 9pt;
+  line-height: 1.2;
+}
+.qs-text b {
+  font-size: 10pt;
+  overflow-wrap: anywhere;
+}
+.qs-sheet.large .qs-text {
+  font-size: 11pt;
+}
+.qs-sheet.large .qs-text b {
+  font-size: 13pt;
+}
+.qs-text code {
+  font-family: var(--mono);
+  font-size: 7pt;
+  color: #444;
+}
+
 @page {
   size: A4;
   margin: 12mm;
@@ -2766,7 +2854,7 @@ code {
   html,
   body,
   #root,
-  .es-page {
+  .paper-page {
     height: auto;
     overflow: visible;
     background: #fff;
@@ -2774,11 +2862,11 @@ code {
   .no-print {
     display: none !important;
   }
-  .es-page {
+  .paper-page {
     padding: 0;
     font-size: 12pt;
   }
-  .es-page > * {
+  .paper-page > * {
     max-width: none;
   }
   /* Each floor starts on a new page, the first one under the title. */
@@ -2792,5 +2880,12 @@ code {
   .es-n {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
+  }
+  .qs-sheet {
+    grid-template-columns: repeat(4, 1fr);
+    justify-content: stretch;
+  }
+  .qs-sheet.large {
+    grid-template-columns: repeat(3, 1fr);
   }
 }

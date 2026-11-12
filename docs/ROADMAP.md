@@ -134,6 +134,7 @@ Link receipts and invoices stored in Paperless-ngx to items.
   items (water valve, fuse box, gas valve, boiler, router, or `critical: true`), their location
   and quick help. The attention list reminds you to reprint when it's out of date. (Done: D44.)
 - **QR stickers:** print sheets of QR codes linking to `/i/<item id>` (the route exists).
+  (Done: D45.)
 - **Offline viewing (PWA):** the app and last known data stay readable without a connection,
   with an "Offline, data from <time>" banner. Editing stays online only.
 
@@ -143,6 +144,21 @@ Link receipts and invoices stored in Paperless-ngx to items.
 - **Export** (`/api/export`, editors only): a zip of the data folder, streamed.
 - **Backup and restore guide** (what to back up, how to test a restore).
 - **Dependency updates:** Dependabot (or Renovate) for GitHub Actions, Python and npm packages.
+
+## M14: Open-plan rooms (~1–2 days)
+
+Two rooms without a wall between them (a kitchen open to the living room) can only be drawn as
+one room today, which loses the separate names, finishes, areas and "item in the Kitchen".
+
+- **No wall on chosen edges:** a third kind of opening, `"open"`, next to `door` and `window`
+  (`openings[]`, per tile edge). Walls stay derived from the tiles; an open edge just isn't drawn
+  as one. Per edge, so a wall can be open for 3 m and solid with a door for the rest.
+- **2D:** a thin dashed line where one room ends and the next begins. **3D:** no wall; each room
+  keeps its own floor finish.
+- **Editing:** an "Open wall" tool next to Door and Window; drag along a wall to open (or close)
+  a whole run as one step, with undo like any other edit.
+- **`house.json`:** a new `kind` value. Until a release has shipped version 2 it can join it;
+  after that it needs version 3 (an older image would refuse the unknown kind).
 
 ---
 
@@ -163,7 +179,7 @@ Link receipts and invoices stored in Paperless-ngx to items.
 | Track | Milestones | Main code areas |
 |---|---|---|
 | Items | M6 → M11 | `features/details`, backend writer and attachments |
-| Layout | M7 → M9 | `commands/`, `features/editor`, `features/plan2d`, `features/scene3d` |
+| Layout | M7 → M9 → M14 | `commands/`, `features/editor`, `features/plan2d`, `features/scene3d` |
 | Attention | M8 → M12 | new pages, `domain/status`, a new backend route |
 | Platform | M10, M13 | backend auth, CI, Docker |
 

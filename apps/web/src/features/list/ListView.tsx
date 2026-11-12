@@ -8,6 +8,8 @@ import { TypeIcon } from '../../catalog/TypeIcon';
 import { moveFocus } from '../../components/listNav';
 import { LEVEL_TEXT, currentStatus, levelTone } from '../../components/status';
 import { formatArea } from '../../domain/plan';
+import { STICKERS } from '../../strings/stickers';
+import { printPath } from '../print/pages';
 import { useData } from '../../store/data';
 import { type FloorModel, type Model, itemsInRoom } from '../../store/model';
 import { useSearchResults } from '../../store/search';
@@ -121,6 +123,17 @@ export function ListView() {
     // Arrow keys move between the buttons inside (keydown delegation, not a widget of its own).
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <section className="stage list-view" aria-label="Items by floor and room" onKeyDown={moveFocus}>
+      <div className="attention-tools">
+        <a
+          className="btn"
+          href={printPath(
+            'stickers',
+            filter ? [...model.items.values()].filter(filter).map((i) => i.id) : undefined,
+          )}
+        >
+          {STICKERS.open}
+        </a>
+      </div>
       {search.active && (
         <p className="list-summary" role="status">
           {search.ids.length === 0

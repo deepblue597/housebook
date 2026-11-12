@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cellKey } from './coords';
 import {
+  openingsOnWalls,
   area,
   floorCells,
   formatArea,
@@ -79,5 +80,22 @@ describe('rooms', () => {
     const pos = labelPosition(tiles, cells, new Set([cellKey(0, 0), cellKey(1, 1)]));
     expect([cellKey(pos.x - 0.5, pos.y - 0.5)]).not.toContain(cellKey(0, 0));
     expect(cells.get(cellKey(pos.x - 0.5, pos.y - 0.5))).toBe('a');
+  });
+});
+
+describe('openingsOnWalls', () => {
+  // Two rooms side by side, a | b, each 2 tiles wide on one row: a a b b
+  const cells = new Map([
+    ['0,0', 'a'],
+    ['1,0', 'a'],
+    ['2,0', 'b'],
+    ['3,0', 'b'],
+  ]);
+  it('keeps doors and windows on walls, drops the ones whose wall went away', () => {
+    const between = { x: 2, y: 0, side: 'w' as const, kind: 'door' };
+    const outside = { x: 1, y: 0, side: 'n' as const, kind: 'window' }; // room above nothing
+    const inRoom = { x: 1, y: 0, side: 'w' as const, kind: 'door' }; // a | a
+    const nowhere = { x: 1, y: 3, side: 'n' as const, kind: 'window' }; // no room either side
+    expect(openingsOnWalls([between, outside, inRoom, nowhere], cells)).toEqual([between, outside]);
   });
 });
