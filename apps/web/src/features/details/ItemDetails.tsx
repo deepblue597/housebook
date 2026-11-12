@@ -5,6 +5,8 @@ import { typeLabel } from '../../catalog/catalog';
 import { TypeIcon } from '../../catalog/TypeIcon';
 import { currentStatus, statusChips } from '../../components/status';
 import { formatDate } from '../../domain/dates';
+import { printPath } from '../print/pages';
+import { STICKERS } from '../../strings/stickers';
 import { isWebUrl, safeExternalHref } from '../../domain/urls';
 import { type Model, floorOf, roomOf } from '../../store/model';
 import { useUi } from '../../store/ui';
@@ -283,13 +285,12 @@ function ItemDetailsView({
           ))}
       </dl>
 
-      {(manual || support || item.obsidianUrl) && (
-        <div className="links">
-          {manual && <ExternalLink href={manual} label="Manual" primary />}
-          {support && <ExternalLink href={support} label="Support" />}
-          {item.obsidianUrl && <ExternalLink href={item.obsidianUrl} label="Open in Obsidian" />}
-        </div>
-      )}
+      <div className="links">
+        {manual && <ExternalLink href={manual} label="Manual" primary />}
+        {support && <ExternalLink href={support} label="Support" />}
+        {item.obsidianUrl && <ExternalLink href={item.obsidianUrl} label="Open in Obsidian" />}
+        <a href={printPath('stickers', [item.id])}>{STICKERS.openOne}</a>
+      </div>
 
       <section aria-label="Notes">
         <Notes body={item.body} resolve={resolve} onNavigate={onNavigate} />

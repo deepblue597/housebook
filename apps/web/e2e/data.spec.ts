@@ -96,10 +96,10 @@ test('note Markdown: no script, no unsafe links, no remote images; wikilinks wor
     'mailto:someone@example.com',
   );
 
-  // Every href in the panel uses an allowed scheme or is in-app.
+  // Every href in the panel uses an allowed scheme or is in-app (item links, attachments, print pages).
   const hrefs = await d.locator('a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
   for (const h of hrefs)
-    expect(h).toMatch(/^(https?:|mailto:|tel:|obsidian:|\/i\/|\/api\/items\/)/);
+    expect(h).toMatch(/^(https?:|mailto:|tel:|obsidian:|\/i\/|\/api\/items\/|\/print\/)/);
   // Unsafe links render as text; frontmatter manual/support with javascript: are dropped.
   for (const name of ['js', 'data', 'vb', 'ref link']) {
     await expect(md.getByText(name, { exact: true })).toBeVisible();

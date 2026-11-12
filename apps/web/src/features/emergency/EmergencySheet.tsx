@@ -13,6 +13,7 @@ import { useData } from '../../store/data';
 import type { Model } from '../../store/model';
 import { loadMarkdown } from '../details/markdownLoader';
 import { S } from '../plan2d/geometry';
+import { usePaper } from '../print/usePaper';
 import { OpeningMark } from '../plan2d/PlanSvg';
 import { type Printed, readPrinted, savePrinted } from './printed';
 import {
@@ -153,7 +154,7 @@ function ItemEntry({ s }: { s: SheetItem }) {
             </Suspense>
           </div>
         ) : (
-          <p className="es-muted">{EMERGENCY.noHelp}</p>
+          <p className="paper-muted">{EMERGENCY.noHelp}</p>
         )}
       </div>
     </li>
@@ -188,8 +189,8 @@ function Toolbar({
     return () => window.removeEventListener('afterprint', after);
   }, []);
   return (
-    <div className="es-toolbar no-print">
-      <div className="es-actions">
+    <div className="paper-toolbar no-print">
+      <div className="paper-actions">
         <a className="btn" href="/">
           {EMERGENCY.back}
         </a>
@@ -197,7 +198,7 @@ function Toolbar({
           {EMERGENCY.print}
         </button>
       </div>
-      <p className="es-muted">{EMERGENCY.printHint}</p>
+      <p className="paper-muted">{EMERGENCY.printHint}</p>
       {printed && !asking && (
         <p role="status" data-printed={printed.fingerprint === fingerprint ? 'current' : 'old'}>
           {EMERGENCY.lastPrinted(printed.date)}{' '}
@@ -242,7 +243,7 @@ function SheetBody({
       <header className="es-head">
         <h1>{EMERGENCY.title}</h1>
         <p>{EMERGENCY.intro}</p>
-        <p className="es-muted" data-version={fingerprint}>
+        <p className="paper-muted" data-version={fingerprint}>
           {EMERGENCY.printed(model.snapshot.today, fingerprint)}
         </p>
       </header>
@@ -282,19 +283,7 @@ export default function EmergencySheetPage() {
   const load = useData((s) => s.load);
   const [printed, setPrinted] = useState<Printed | null>(readPrinted);
 
-  // Paper is light: ignore a dark theme or a dark OS setting on this page.
-  useEffect(() => {
-    const root = document.documentElement;
-    const before = root.dataset.theme;
-    root.dataset.theme = 'light';
-    const title = document.title;
-    document.title = `${EMERGENCY.title} · Housebook`;
-    return () => {
-      if (before === undefined) delete root.dataset.theme;
-      else root.dataset.theme = before;
-      document.title = title;
-    };
-  }, []);
+  usePaper(EMERGENCY.title);
 
   const sheet = useMemo(() => (model ? emergencySheet(model) : null), [model]);
   const fingerprint = useMemo(
@@ -304,11 +293,11 @@ export default function EmergencySheetPage() {
 
   if (!model || !sheet) {
     return (
-      <main className="es-page">
+      <main className="paper-page">
         {state === 'error' ? (
           <div role="alert">
             <p>{EMERGENCY.loadFailed}</p>
-            <p className="es-muted">{error}</p>
+            <p className="paper-muted">{error}</p>
             <button type="button" className="btn primary" onClick={() => void load()}>
               {EMERGENCY.retry}
             </button>
@@ -320,7 +309,7 @@ export default function EmergencySheetPage() {
     );
   }
   return (
-    <main className="es-page">
+    <main className="paper-page">
       <Toolbar
         fingerprint={fingerprint}
         today={model.snapshot.today}

@@ -41,7 +41,7 @@ test('the sheet shows each emergency item on its floor plan, with where it is an
 
   // On paper: no buttons, light background; a PDF comes out.
   await page.emulateMedia({ media: 'print' });
-  await expect(page.locator('.es-toolbar')).toBeHidden();
+  await expect(page.locator('.paper-toolbar')).toBeHidden();
   const pdf = await page.pdf({ format: 'A4' });
   expect(pdf.subarray(0, 5).toString()).toBe('%PDF-');
 });
@@ -50,7 +50,9 @@ test('dark theme or not, the sheet is light', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/print/emergency');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  const bg = await page.locator('.es-page').evaluate((el) => getComputedStyle(el).backgroundColor);
+  const bg = await page
+    .locator('.paper-page')
+    .evaluate((el) => getComputedStyle(el).backgroundColor);
   expect(bg).not.toBe('rgb(0, 0, 0)');
 });
 
@@ -93,6 +95,8 @@ test('after printing, a change to the sheet is flagged in the Attention view unt
 test('the sheet fits a phone and stays readable @phone', async ({ page }) => {
   await page.goto('/print/emergency');
   await expect(page.locator('.es-item')).toHaveCount(3);
-  const overflow = await page.locator('.es-page').evaluate((el) => el.scrollWidth - el.clientWidth);
+  const overflow = await page
+    .locator('.paper-page')
+    .evaluate((el) => el.scrollWidth - el.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });

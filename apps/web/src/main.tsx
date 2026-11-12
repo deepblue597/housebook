@@ -12,16 +12,17 @@ import { App } from './app/App';
 import { startRouter } from './app/router';
 import { installTestHook } from './app/testHook';
 import { preloadMarkdown } from './features/details/markdownLoader';
-import { LazyEmergencySheet } from './features/emergency/LazyEmergencySheet';
+import { LazyPrintPage } from './features/print/LazyPrintPage';
+import { printPageOf } from './features/print/pages';
 import { useData } from './store/data';
 import { startSync } from './store/sync';
 
-// The printable emergency sheet (D44) is a page of its own: no live sync, no router.
-const printSheet = /^\/print\/emergency\/?$/u.test(location.pathname);
+// Pages made for paper (D44, D45) stand alone: no live sync, no router.
+const printPage = printPageOf(location.pathname);
 
 installTestHook();
 void useData.getState().load();
-if (!printSheet) {
+if (!printPage) {
   startRouter();
   void useData.getState().loadMe();
   startSync();
@@ -32,5 +33,5 @@ if (!printSheet) {
 }
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>{printSheet ? <LazyEmergencySheet /> : <App />}</StrictMode>,
+  <StrictMode>{printPage ? <LazyPrintPage page={printPage} /> : <App />}</StrictMode>,
 );
