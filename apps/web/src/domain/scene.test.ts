@@ -2,7 +2,7 @@ import fixtures from '@contract/fixtures/placement_cases.json';
 import houseRaw from '../../../../examples/house/house.json?raw';
 import { describe, expect, it } from 'vitest';
 import { backEdge, cellKey, facing, occupiedRect, tileCenterWorld } from './coords';
-import { type Walls, floorCells, walls } from './plan';
+import { type CellMap, type Walls, floorCells, walls } from './plan';
 import {
   type Box,
   CEILING_HEIGHT,
@@ -13,6 +13,7 @@ import {
   WALL_ITEM_TOP,
   WINDOW_HEAD,
   WINDOW_SILL,
+  OUTSIDE,
   boxesAbove,
   boxesMesh,
   cellBounds,
@@ -20,6 +21,7 @@ import {
   itemTransform,
   mountCentreY,
   roomAtPoint,
+  sidesFromCells,
   tilesMesh,
   wallGeometry,
   wallThickness,
@@ -375,5 +377,48 @@ describe('walls facing the camera (faded with walls up, M2-03)', () => {
       { ...b, y: (2.5 + CUT_HEIGHT) / 2, sy: 2.5 - CUT_HEIGHT },
     ]);
     expect(boxesAbove([{ ...b, y: 0.1, sy: 0.2 }], CUT_HEIGHT)).toEqual([]);
+  });
+});
+
+describe('walls split per side for the home look (D41)', () => {
+  // Rooms a (0,0)-(1,0) and b (2,0): one interior wall at x = 2, exterior around both.
+  const cells: CellMap = new Map([
+    [cellKey(0, 0), 'a'],
+    [cellKey(1, 0), 'a'],
+    [cellKey(2, 0), 'b'],
+  ]);
+  const w = walls(cells);
+  const plain = wallGeometry(w, [], 1, 2.5).walls;
+  const split = wallGeometry(w, [], 1, 2.5, sidesFromCells(cells)).walls;
+
+  it('each half faces one side: the interior wall is half a, half b', () => {
+    const t = wallThickness('interior', 1);
+    const interior = split.filter((b) => Math.abs(b.x - 2) < 0.1);
+    expect(interior.map((b) => b.side).sort()).toEqual(['a', 'b']);
+    const a = interior.find((b) => b.side === 'a')!;
+    const b = interior.find((b) => b.side === 'b')!;
+    expect(a.x).toBeCloseTo(2 - t / 4);
+    expect(b.x).toBeCloseTo(2 + t / 4);
+    expect(a.sx).toBeCloseTo(t / 2);
+  });
+
+  it('the north wall is cut at tile edges: outside on one side, the room on the other', () => {
+    // On the line z = 0: the outside half at z < 0, the room's at z > 0; one tile each.
+    const north = split.filter((b) => Math.abs(b.z) < 0.2 && b.sx < 1.5);
+    const inside = north.filter((b) => b.side !== OUTSIDE).map((b) => [b.side, Math.floor(b.x)]);
+    expect(north.filter((b) => b.side !== OUTSIDE).every((b) => b.z > 0)).toBe(true);
+    expect(inside.sort()).toEqual([
+      ['a', 0],
+      ['a', 1],
+      ['b', 2],
+    ]);
+    expect(north.filter((b) => b.side === OUTSIDE)).toHaveLength(3);
+  });
+
+  it('covers the same wall as the plain boxes (volume)', () => {
+    const vol = (bs: { sx: number; sy: number; sz: number }[]) =>
+      bs.reduce((s, b) => s + b.sx * b.sy * b.sz, 0);
+    expect(vol(split)).toBeCloseTo(vol(plain), 6);
+    expect(plain.every((b) => b.side === undefined)).toBe(true);
   });
 });

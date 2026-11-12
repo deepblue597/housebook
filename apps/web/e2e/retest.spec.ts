@@ -282,8 +282,8 @@ const HOUSE_CASES: { name: string; house: string; text: RegExp; reason: string }
   },
   {
     name: 'newer schema this image cannot display',
-    house: JSON.stringify({ schemaVersion: 2, grid: 'nope' }),
-    text: /newer Housebook version \(schema 2\)/,
+    house: JSON.stringify({ schemaVersion: 3, grid: 'nope' }),
+    text: /newer Housebook version \(schema 3\)/,
     reason: 'newer_version',
   },
   {

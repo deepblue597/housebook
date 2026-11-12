@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "floors": [
+    { "key": "oak_light", "label": "Light oak", "group": "Wood", "color": "#d8bd92" },
+    { "key": "oak", "label": "Oak", "group": "Wood", "color": "#b98a56" },
+    { "key": "walnut", "label": "Walnut", "group": "Wood", "color": "#6f4a30" },
+    { "key": "herringbone", "label": "Herringbone", "group": "Wood", "color": "#a87c4f" },
+    { "key": "tiles_white", "label": "White tiles", "group": "Tiles", "color": "#ecebe7" },
+    { "key": "tiles_grey", "label": "Grey large tiles", "group": "Tiles", "color": "#a3a5a6" },
+    { "key": "terracotta", "label": "Terracotta", "group": "Tiles", "color": "#b8694a" },
+    { "key": "checker", "label": "Black and white checker", "group": "Tiles", "color": "#8a8a8a" },
+    { "key": "stone", "label": "Stone", "group": "Stone and concrete", "color": "#bdb4a5" },
+    { "key": "concrete", "label": "Concrete", "group": "Stone and concrete", "color": "#9c9b97" },
+    { "key": "carpet", "label": "Carpet", "group": "Soft", "color": "#8f8c86" }
+  ],
+  "wallpapers": [
+    { "key": "stripes", "label": "Stripes", "color": "#dfe3e6" },
+    { "key": "floral", "label": "Floral", "color": "#e9e1d3" },
+    { "key": "geometric", "label": "Geometric", "color": "#d6d9cf" },
+    { "key": "linen", "label": "Linen", "color": "#e6dfd2" }
+  ],
+  "paints": [
+    { "label": "White", "color": "#f4f3ef" },
+    { "label": "Warm white", "color": "#efe8da" },
+    { "label": "Greige", "color": "#cfc6b8" },
+    { "label": "Light grey", "color": "#d5d7d8" },
+    { "label": "Sage", "color": "#b7c2a6" },
+    { "label": "Pale blue", "color": "#bfd2dc" },
+    { "label": "Blush", "color": "#e3c7bf" },
+    { "label": "Ochre", "color": "#d8b26a" },
+    { "label": "Terracotta", "color": "#c27c5f" },
+    { "label": "Deep green", "color": "#4f6650" },
+    { "label": "Navy", "color": "#33435c" },
+    { "label": "Charcoal", "color": "#46494c" }
+  ],
+  "exteriorDefault": "#e6e1d8"
+}

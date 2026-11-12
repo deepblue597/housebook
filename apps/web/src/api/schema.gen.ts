@@ -501,8 +501,13 @@ export interface components {
              * Schemaversion
              * @constant
              */
-            schemaVersion: 1;
+            schemaVersion: 2;
             grid: components["schemas"]["Grid"];
+            /**
+             * Exteriorwallcolor
+             * @description Outside walls, the whole house (#RRGGBB)
+             */
+            exteriorWallColor?: string | null;
             /** Rooms */
             rooms?: components["schemas"]["Room"][];
             /** Floors */
@@ -890,7 +895,7 @@ export interface components {
          * ProblemKind
          * @enum {string}
          */
-        ProblemKind: "house_missing" | "house_invalid" | "house_newer_version" | "house_duplicate_id" | "house_bad_cell" | "house_unknown_room" | "house_unknown_floor" | "house_outside_grid" | "house_duplicate_placement" | "note_parse_error" | "read_error" | "note_invalid_field" | "note_invalid_id" | "duplicate_id" | "conflict_copy" | "not_adopted" | "untagged_typed" | "unknown_type" | "symlink_outside_root" | "missing_note" | "attachment_missing" | "attachment_unsafe" | "attachment_name_collision";
+        ProblemKind: "house_missing" | "house_invalid" | "house_newer_version" | "house_duplicate_id" | "house_bad_cell" | "house_unknown_room" | "house_unknown_floor" | "house_outside_grid" | "house_duplicate_placement" | "house_unknown_finish" | "note_parse_error" | "read_error" | "note_invalid_field" | "note_invalid_id" | "duplicate_id" | "conflict_copy" | "not_adopted" | "untagged_typed" | "unknown_type" | "symlink_outside_root" | "missing_note" | "attachment_missing" | "attachment_unsafe" | "attachment_name_collision";
         /** ProblemsOut */
         ProblemsOut: {
             /** Problems */
@@ -911,6 +916,16 @@ export interface components {
             name: string;
             /** Color */
             color: string;
+            /**
+             * Floor
+             * @description Floor finish key (contract/finishes.json)
+             */
+            floor?: string | null;
+            /**
+             * Walls
+             * @description Wall finish: a paint colour #RRGGBB or a wallpaper key (contract/finishes.json)
+             */
+            walls?: string | null;
         };
         /**
          * Severity

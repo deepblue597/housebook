@@ -49,6 +49,10 @@ class Settings:
     def catalog_path(self) -> Path:
         return self.contract_dir / "catalog.json"
 
+    @property
+    def finishes_path(self) -> Path:
+        return self.contract_dir / "finishes.json"
+
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> "Settings":
         e = dict(os.environ if env is None else env)

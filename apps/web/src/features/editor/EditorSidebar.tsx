@@ -6,13 +6,14 @@
 import { type KeyboardEvent, useMemo, useState } from 'react';
 import { itemTypes, typeLabel } from '../../catalog/catalog';
 import { repairFixes } from '../../commands';
-import { layoutIssues } from '../../domain/layout';
+import { layoutIssues, roomFloors } from '../../domain/layout';
 import { TypeIcon } from '../../catalog/TypeIcon';
 import { EDITOR } from '../../strings/editor';
 import { useData } from '../../store/data';
 import { type Tool, applyContext, useEditor } from '../../store/editor';
 import { useUi } from '../../store/ui';
 import { DeleteFloorDialog } from './DeleteFloorDialog';
+import { FinishDialog } from './FinishDialog';
 import { TRAY_MIME } from './useToolPointer';
 
 const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase', 'door', 'window'];
@@ -353,12 +354,24 @@ function RoomList() {
   const recolor = useEditor((s) => s.recolorRoom);
   const addRoom = useEditor((s) => s.addRoom);
   const deleteRoom = useEditor((s) => s.deleteRoom);
+  const [finishing, setFinishing] = useState<string | null>(null);
   const tiles = useMemo(() => {
     const n = new Map<string, number>();
     for (const f of house?.floors ?? [])
       for (const id of Object.values(f.cells ?? {})) n.set(id, (n.get(id) ?? 0) + 1);
     return n;
   }, [house]);
+  // #14: which floors each room is on (rooms are shared by every floor).
+  const floorsOf = useMemo(
+    () =>
+      new Map(
+        (house?.rooms ?? []).map((r) => [
+          r.id,
+          house ? roomFloors(house, r.id).map((f) => f.name) : [],
+        ]),
+      ),
+    [house],
+  );
   const rooms = house?.rooms ?? [];
   return (
     <section className="ed-section" aria-labelledby="ed-rooms">
@@ -384,7 +397,27 @@ function RoomList() {
                   onChange={(e) => recolor(r.id, e.target.value)}
                 />
                 <RoomName key={`${r.id}:${r.name}`} id={r.id} name={r.name} />
-                <span className="count">{EDITOR.roomTiles(n)}</span>
+                <span className={`count${(floorsOf.get(r.id)?.length ?? 0) > 1 ? ' shared' : ''}`}>
+                  {EDITOR.roomTilesOn(n, floorsOf.get(r.id) ?? [])}
+                </span>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label={EDITOR.finish(r.name)}
+                  title={EDITOR.finish(r.name)}
+                  onClick={() => setFinishing(r.id)}
+                >
+                  {/* A tile split corner to corner: floor and wall. */}
+                  <svg
+                    className="ico"
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 4h16v16H4zM4 20 20 4M12 4v4M16 12h4" />
+                  </svg>
+                </button>
                 <button
                   type="button"
                   className="icon-btn"
@@ -418,6 +451,7 @@ function RoomList() {
           })}
         </ul>
       )}
+      {finishing && <FinishDialog roomId={finishing} onClose={() => setFinishing(null)} />}
     </section>
   );
 }

@@ -894,6 +894,12 @@ code {
   fill-opacity: var(--tile-op);
   shape-rendering: crispEdges;
 }
+.room.finished .tile {
+  fill-opacity: 1;
+}
+.room.finished.sel .tile {
+  fill-opacity: 0.72;
+}
 .room.sel .tile {
   fill-opacity: calc(var(--tile-op) + 0.22);
 }
@@ -1208,6 +1214,104 @@ code {
 }
 .calendar-dialog .msg.err {
   color: var(--bad);
+}
+
+/* ---- finishes (D41) ---------------------------------------------------------------- */
+.finish-dialog {
+  width: min(620px, calc(100vw - 32px));
+}
+.finish-dialog .dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.finish-dialog fieldset {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 12px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.finish-dialog legend {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 13px;
+  padding: 0 4px;
+}
+.finish-dialog h4 {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+}
+.finish-dialog p {
+  margin: 0;
+}
+.finish-hint {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.swatch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target);
+  padding: 4px 10px 4px 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.swatch-btn[aria-pressed='true'],
+.swatch-btn.on {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.swatch-btn .swatch {
+  width: 20px;
+  height: 20px;
+}
+.swatch.none {
+  background: repeating-linear-gradient(45deg, var(--paper) 0 3px, var(--line) 3px 6px);
+}
+.swatch-btn input[type='color'] {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.finish-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.finish-copy label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--target);
+}
+.finish-dialog .msg.err {
+  color: var(--bad);
+  font-size: 12px;
+}
+.finish-dialog fieldset > .btn {
+  align-self: flex-start;
 }
 
 /* ---- list view ------------------------------------------------------------------- */
@@ -2044,11 +2148,42 @@ code {
 }
 .rooms li {
   display: grid;
+  /* As the floors: the tile count under the name, so three buttons fit (finish, D41). */
   grid-template-columns: 28px minmax(0, 1fr) auto auto auto;
+  grid-template-areas:
+    'colour name finish paint del'
+    'colour count finish paint del';
   align-items: center;
-  gap: 4px;
+  column-gap: 4px;
   padding: 2px 4px;
   border-radius: 8px;
+}
+.rooms li > input[type='color'] {
+  grid-area: colour;
+}
+.rooms .room-name {
+  grid-area: name;
+}
+.rooms .count {
+  grid-area: count;
+  padding-left: 7px;
+}
+/* #14: a room on more than one floor; changing it changes it on all of them. */
+.rooms .count.shared {
+  color: var(--warn);
+}
+.finish-shared {
+  border-left: 3px solid var(--warn);
+  padding-left: 8px;
+}
+.rooms .icon-btn:nth-last-of-type(3) {
+  grid-area: finish;
+}
+.rooms .icon-btn:nth-last-of-type(2) {
+  grid-area: paint;
+}
+.rooms .icon-btn:nth-last-of-type(1) {
+  grid-area: del;
 }
 .rooms li.on,
 .floors li.on {

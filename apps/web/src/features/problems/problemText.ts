@@ -30,6 +30,10 @@ export const PROBLEM_TEXT: Record<ProblemKind, { title: string; help: string }> 
     title: 'Tiles of unknown rooms',
     help: 'A tile points to a room that doesn’t exist.',
   },
+  house_unknown_finish: {
+    title: 'Unknown floor or wall finishes',
+    help: 'A room names a finish this version doesn’t know (a typo, or a newer catalogue). It is shown in its plain colour; pick a finish again in the editor.',
+  },
   house_unknown_floor: {
     title: 'Unknown floors',
     help: 'A placement or opening points to a floor that doesn’t exist.',

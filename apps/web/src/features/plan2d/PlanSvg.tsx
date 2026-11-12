@@ -5,6 +5,7 @@
 import { type KeyboardEvent, memo, useMemo } from 'react';
 import type { Item, Opening, Placement } from '../../api/types';
 import { typeLabel } from '../../catalog/catalog';
+import { floorFinish } from '../../catalog/finishes';
 import { typeIconPaths } from '../../catalog/icons';
 import { PALETTE } from '../../app/theme';
 import { LEVEL_TEXT, currentStatus } from '../../components/status';
@@ -19,6 +20,7 @@ import {
   walls,
 } from '../../domain/plan';
 import { type FloorModel, type Model, ghostRect, itemRect, occupiedTiles } from '../../store/model';
+import type { Look } from '../../store/ui';
 import { FOOTER, MARGIN, S } from './geometry';
 
 interface Props {
@@ -32,6 +34,8 @@ interface Props {
   onRoom: (roomId: string) => void;
   /** The floor below, drawn faintly under this one while editing (D35): trace its walls. */
   underlay?: FloorModel | null;
+  /** "home": rooms with a floor finish are filled with it (D41). */
+  look?: Look;
 }
 
 const path = (segs: readonly Segment[]) =>
@@ -101,6 +105,7 @@ function PlanSvgImpl({
   onItem,
   onRoom,
   underlay = null,
+  look = 'plan',
 }: Props) {
   const { width: W, depth: H } = model.grid;
   const geometry = useMemo(() => {
@@ -133,10 +138,11 @@ function PlanSvgImpl({
   }, [model, floor, W, H, underlay]);
 
   const palette = PALETTE[theme];
-  const labelInk = (color: string) => {
+  /** Label ink on a room's fill: the plan colour as tinted, or a finish drawn at full strength. */
+  const labelInk = (color: string, opaque = false) => {
     const room = parseHex(color);
     if (!room) return undefined;
-    const bg = blend(room, parseHex(palette.paper)!, palette.tileOpacity);
+    const bg = opaque ? room : blend(room, parseHex(palette.paper)!, palette.tileOpacity);
     const ink = { rgb: parseHex(palette.ink)!, value: palette.ink, halo: palette.paper };
     const paper = { rgb: parseHex(palette.paper)!, value: palette.paper, halo: palette.ink };
     return bestTextColor(bg, [ink, paper]);
@@ -168,11 +174,13 @@ function PlanSvgImpl({
       {geometry.labels.map(({ roomId, cells }) => {
         const room = model.rooms.get(roomId)!;
         const area = formatArea(floor.roomAreas.get(roomId) ?? 0);
+        const finish = look === 'home' ? floorFinish(room.floor) : undefined;
         return (
           <g
             key={roomId}
-            className={`room${roomId === selectedRoomId ? ' sel' : ''}`}
-            fill={room.color}
+            className={`room${roomId === selectedRoomId ? ' sel' : ''}${finish ? ' finished' : ''}`}
+            fill={finish?.color ?? room.color}
+            data-finish={finish?.key}
             onClick={() => onRoom(roomId)}
           >
             <title>{`${room.name}, ${area}`}</title>
@@ -199,7 +207,8 @@ function PlanSvgImpl({
       {geometry.labels.map(({ roomId, cells, at }) => {
         const room = model.rooms.get(roomId)!;
         const area = formatArea(floor.roomAreas.get(roomId) ?? 0);
-        const ink = labelInk(room.color);
+        const finish = look === 'home' ? floorFinish(room.floor) : undefined;
+        const ink = finish ? labelInk(finish.color, true) : labelInk(room.color);
         return (
           <g
             key={roomId}

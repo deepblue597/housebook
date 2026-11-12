@@ -49,6 +49,7 @@ import {
   newRoomId,
   rectBetween,
   rectCells,
+  roomFloors,
   resizedSize,
   rotatedPlacement,
 } from '../domain/layout';
@@ -142,6 +143,12 @@ interface EditorState {
   addRoom: () => string | null;
   renameRoom: (roomId: string, name: string) => boolean;
   recolorRoom: (roomId: string, color: string) => void;
+  /** Floor and/or wall finish of a room (D41); null removes it. One undo step. */
+  setRoomFinish: (roomId: string, change: { floor?: string | null; walls?: string | null }) => void;
+  /** Give other rooms this room's floor and wall finish, as one undo step. */
+  copyFinish: (fromId: string, toIds: readonly string[]) => void;
+  /** Colour of the outside walls (D41); null: the default. */
+  setExteriorWallColor: (color: string | null) => void;
   deleteRoom: (roomId: string) => void;
   /** Doors/windows (D36): add `kind` on a wall edge, swap the other kind, or remove the same. */
   toggleOpening: (floorId: string, edge: Edge, kind: 'door' | 'window') => boolean;
@@ -549,12 +556,24 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
       // Only the tiles that change count (and are labelled).
       const floor = house()?.floors.find((f) => f.id === floorId);
       const changing = cells.filter((c) => (floor?.cells?.[cellKey(c.x, c.y)] ?? null) !== roomId);
-      run(
+      // #14: the first tiles of a room on this floor, while it is on other floors already.
+      const elsewhere =
+        roomId && house() ? roomFloors(house()!, roomId).filter((f) => f.id !== floorId) : [];
+      const first = elsewhere.length > 0 && !Object.values(floor?.cells ?? {}).includes(roomId!);
+      const ok = run(
         { kind: 'cells', floorId, set: cells.map((c) => [c.x, c.y, roomId]) },
         erase
           ? EDITOR.label.erase(changing.length)
           : EDITOR.label.paint(changing.length, roomName(roomId!)),
       );
+      if (ok && first && changing.length > 0)
+        notify(
+          'info',
+          EDITOR.sharedRoomPaint(
+            roomName(roomId!),
+            elsewhere.map((f) => f.name),
+          ),
+        );
     },
 
     moveItem: (itemId, dx, dy) => {
@@ -674,10 +693,20 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
       }
       const from = roomName(roomId);
       if (clean === from) return true;
-      return run(
+      const ok = run(
         { kind: 'room.update', id: roomId, name: clean },
         EDITOR.label.roomRename(from, clean),
       );
+      const floors = roomFloors(house() ?? { floors: [] }, roomId);
+      if (ok && floors.length > 1)
+        notify(
+          'info',
+          EDITOR.sharedRoomRenamed(
+            clean,
+            floors.map((f) => f.name),
+          ),
+        );
+      return ok;
     },
 
     recolorRoom: (roomId, color) => {
@@ -713,7 +742,47 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
         schedule();
         return;
       }
-      run({ kind: 'room.update', id: roomId, color }, EDITOR.label.roomColor(cur.name));
+      const ok = run({ kind: 'room.update', id: roomId, color }, EDITOR.label.roomColor(cur.name));
+      // Once per recolour, not for every move of the picker (those fold into the step above).
+      const floors = roomFloors(house() ?? { floors: [] }, roomId);
+      if (ok && floors.length > 1)
+        notify(
+          'info',
+          EDITOR.sharedRoomRecoloured(
+            cur.name,
+            floors.map((f) => f.name),
+          ),
+        );
+    },
+
+    setRoomFinish: (roomId, change) => {
+      run(
+        { kind: 'room.update', id: roomId, ...change },
+        EDITOR.label.roomFinish(roomName(roomId)),
+      );
+    },
+
+    copyFinish: (fromId, toIds) => {
+      const from = (house()?.rooms ?? []).find((r) => r.id === fromId);
+      const targets = toIds.filter((id) => id !== fromId);
+      if (!from || targets.length === 0) return;
+      run(
+        {
+          kind: 'batch',
+          commands: targets.map((id) => ({
+            kind: 'room.update' as const,
+            id,
+            floor: from.floor ?? null,
+            walls: from.walls ?? null,
+          })),
+        },
+        EDITOR.label.finishCopy(from.name, targets.length),
+      );
+    },
+
+    setExteriorWallColor: (color) => {
+      if (color !== null && !isRoomColor(color)) return;
+      run({ kind: 'house.update', exteriorWallColor: color }, EDITOR.label.exteriorWalls);
     },
 
     deleteRoom: (roomId) => {

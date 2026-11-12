@@ -4,9 +4,9 @@ from housebook.migrations.house import MigrationError, migrate
 
 
 def test_current_version_passes_through():
-    data = {"schemaVersion": 1, "grid": {}}
+    data = {"schemaVersion": 2, "grid": {}}
     m = migrate(data)
-    assert m.data == data and not m.migrated and not m.read_only and m.original_version == 1
+    assert m.data == data and not m.migrated and not m.read_only and m.original_version == 2
     assert m.data is not data  # never mutates the input
 
 
@@ -42,3 +42,10 @@ def test_missing_step_and_bad_step():
 def test_invalid_version(data):
     with pytest.raises(MigrationError):
         migrate(data)
+
+
+def test_v1_to_v2_only_bumps_the_version():
+    v1 = {"schemaVersion": 1, "grid": {"tileSize": 1}, "rooms": [{"id": "r", "name": "K", "color": "#000000"}]}
+    m = migrate(v1)
+    assert m.migrated and m.original_version == 1
+    assert m.data == {**v1, "schemaVersion": 2}

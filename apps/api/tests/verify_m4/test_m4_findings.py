@@ -23,7 +23,7 @@ def test_newer_version_problem_survives_a_second_scan(example_root: Path, make_c
     and PUT is 409 reason newer_version. The indexer's unchanged-file shortcut drops the problem
     on every scan after the first (any write or rescan), so PUT then says reason=invalid."""
     path = example_root / "house.json"
-    path.write_text(path.read_text().replace('"schemaVersion": 1', '"schemaVersion": 2'))
+    path.write_text(path.read_text().replace('"schemaVersion": 2', '"schemaVersion": 3'))
     c = make_client(example_root, anon_role="editor")
     kinds = [p["kind"] for p in c.get("/api/problems").json()["problems"]]
     assert "house_newer_version" in kinds

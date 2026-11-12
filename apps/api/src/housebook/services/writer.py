@@ -8,6 +8,7 @@ Preconditions are checked against the file **on disk**, not the index: if Obsidi
 note a moment ago and the watcher hasn't caught up, the client's ETag is still rejected.
 """
 
+import contextlib
 import logging
 import posixpath
 import secrets
@@ -24,7 +25,7 @@ from housebook.config import Settings
 from housebook.domain.attachments import link_target
 from housebook.domain.catalog import Catalog
 from housebook.domain.frontmatter import MAX_NOTE_BYTES, FrontmatterError, is_housebook_tagged, parse
-from housebook.domain.house import House, HouseIssue, house_issues, serialize, worse_issues
+from housebook.domain.house import CURRENT_SCHEMA_VERSION, House, HouseIssue, house_issues, serialize, worse_issues
 from housebook.domain.item import parse_fields
 from housebook.domain.note_edit import (
     Edited,
@@ -39,6 +40,7 @@ from housebook.domain.note_edit import (
 from housebook.domain.paths import clean_filename, unique_stem
 from housebook.domain.problems import ProblemKind
 from housebook.domain.text import nfc
+from housebook.migrations.house import MigrationError, migrate
 from housebook.ports import HouseRepo, NoteRepo, UnsafePath
 from housebook.services.indexer import IndexedItem, Indexer, IndexState, content_hash
 
@@ -461,7 +463,15 @@ class Writer:
 
 def parse_house(data: Any) -> House:
     """Structural check for PUT (types, ranges, patterns, unknown keys), each error with its JSON
-    location. Semantic rules are judged later by `Writer.put_house` against the file on disk (D30)."""
+    location. Semantic rules are judged later by `Writer.put_house` against the file on disk (D30).
+
+    An older `schemaVersion` is upgraded first, as on read (D41): a browser still running the
+    previous app sends version 1 after an upgrade, and its layout is still good."""
+    version = data.get("schemaVersion") if isinstance(data, dict) else None
+    if isinstance(version, int) and not isinstance(version, bool) and 1 <= version < CURRENT_SCHEMA_VERSION:
+        # On failure the model reports schemaVersion, with its location.
+        with contextlib.suppress(MigrationError):
+            data = migrate(data).data
     try:
         return House.model_validate(data, context={"tolerant": True})
     except ValidationError as e:

@@ -40,7 +40,7 @@ def test_house_etag_and_304(client: TestClient):
     assert r.status_code == 200
     etag = r.headers["etag"]
     body = r.json()
-    assert body["schemaVersion"] == 1 and body["$schema"] == "../../contract/house.schema.json"
+    assert body["schemaVersion"] == 2 and body["$schema"] == "../../contract/house.schema.json"
     assert len(body["openings"]) == 15 and "X-Housebook-Read-Only" not in r.headers
     r2 = client.get("/api/house", headers={"If-None-Match": etag})
     assert r2.status_code == 304 and r2.headers["etag"] == etag
@@ -49,12 +49,12 @@ def test_house_etag_and_304(client: TestClient):
 
 def test_house_newer_schema_is_read_only(example_root: Path, make_client: ClientFactory):
     path = example_root / "house.json"
-    path.write_text(path.read_text().replace('"schemaVersion": 1', '"schemaVersion": 2, "newThing": []'))
+    path.write_text(path.read_text().replace('"schemaVersion": 2', '"schemaVersion": 3, "newThing": []'))
     c = make_client(example_root)
     r = c.get("/api/house")
     assert r.status_code == 200 and r.headers["X-Housebook-Read-Only"] == "true"
     snap = c.get("/api/snapshot").json()
-    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 2
+    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 3
     assert any(p["kind"] == "house_newer_version" for p in c.get("/api/problems").json()["problems"])
 
 

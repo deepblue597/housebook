@@ -223,10 +223,10 @@ def test_newer_version_keeps_last_good_layout_read_only(tmp_path: Path, make_cli
     root = tmp_path / "data"
     vb.write_house(root, vb.house())
     c = make_client(root)
-    vb.write_house(root, vb.house(schemaVersion=2, grid={"cols": 4}))
+    vb.write_house(root, vb.house(schemaVersion=3, grid={"cols": 4}))
     c.app.state.ctx.indexer.scan()
     snap = c.get("/api/snapshot").json()
-    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 2 and snap["house"]["grid"]["width"] == 4
+    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 3 and snap["house"]["grid"]["width"] == 4
     kinds = {p["kind"] for p in c.get("/api/problems").json()["problems"]}
     assert {"house_newer_version", "house_invalid"} <= kinds
 

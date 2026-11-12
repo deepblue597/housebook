@@ -76,7 +76,7 @@ export const snapshot: Snapshot = {
   problemCount: 0,
   itemsVersion: 'v',
   house: {
-    schemaVersion: 1,
+    schemaVersion: 2,
     grid: { tileSize: 1, width: 4, depth: 2 },
     rooms: [
       { id: 'rm_kit', name: 'Kitchen', color: '#E3A94B' },

@@ -1,6 +1,6 @@
 {
   "$schema": "../../contract/house.schema.json",
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "grid": {
     "tileSize": 1.0,
     "width": 16,

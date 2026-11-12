@@ -175,7 +175,27 @@ export interface Box {
   sx: number;
   sy: number;
   sz: number;
+  /** Home look (D41): what this half of a wall faces, a room id or OUTSIDE. */
+  side?: string;
 }
+
+/** The `side` of a wall half that faces no room. */
+export const OUTSIDE = '#outside';
+
+/**
+ * What each side of a wall edge faces, for walls split per side (D41): the room (or OUTSIDE)
+ * on the low side (north of an east–west wall, west of a north–south one) and on the high side.
+ * `u` is the tile index along the wall.
+ */
+export type WallSides = (line: number, horizontal: boolean, u: number) => [string, string];
+
+/** WallSides from a floor's tiles. */
+export const sidesFromCells =
+  (cells: CellMap): WallSides =>
+  (line, horizontal, u) => {
+    const at = (x: number, y: number) => cells.get(cellKey(x, y)) ?? OUTSIDE;
+    return horizontal ? [at(u, line - 1), at(u, line)] : [at(line - 1, u), at(line, u)];
+  };
 
 export interface OpeningLike {
   x: number;
@@ -211,6 +231,8 @@ export function wallGeometry(
   openings: readonly OpeningLike[],
   tileSize: number,
   height: number,
+  /** Home look: split every wall into two halves along its line, one per side, per tile. */
+  sides?: WallSides,
 ): WallGeometry {
   const out: WallGeometry = { walls: [], glass: [] };
   const kinds: ['exterior' | 'interior', Segment[]][] = [
@@ -270,7 +292,36 @@ export function wallGeometry(
           ? { x: mid, y, z: across, sx: len, sy, sz: thick }
           : { x: across, y, z: mid, sx: thick, sy, sz: len };
       };
-      for (const p of pieces) if (p.y1 > p.y0) out.walls.push(toBox(p, t));
+      // Two halves, each half as thick and shifted to its side, tagged with what it faces; cut
+      // at tile edges, where the room on a side can change.
+      const halves = (p: Piece): Box[] => {
+        const res: Box[] = [];
+        for (let s0 = p.a; s0 < p.b;) {
+          const s1 = Math.min(p.b, Math.floor(s0) + 1);
+          const [low, high] = sides!(line, horizontal, Math.floor(s0));
+          const piece = {
+            ...p,
+            a: s0,
+            b: s1,
+            capA: p.capA && s0 === p.a,
+            capB: p.capB && s1 === p.b,
+          };
+          for (const [side, sign] of [
+            [low, -1],
+            [high, 1],
+          ] as const) {
+            const box = toBox(piece, t / 2);
+            const shift = (sign * t) / 4;
+            res.push(
+              horizontal ? { ...box, z: box.z + shift, side } : { ...box, x: box.x + shift, side },
+            );
+          }
+          s0 = s1;
+        }
+        return res;
+      };
+      for (const p of pieces)
+        if (p.y1 > p.y0) out.walls.push(...(sides ? halves(p) : [toBox(p, t)]));
       for (const p of glass) out.glass.push(toBox(p, t * 0.3));
     }
   }

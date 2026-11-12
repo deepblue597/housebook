@@ -77,6 +77,15 @@ export interface RoomUpdateCommand {
   id: string;
   name?: string;
   color?: string;
+  /** Floor finish key (D41); null removes it. */
+  floor?: string | null;
+  /** Wall finish: paint `#RRGGBB` or wallpaper key; null removes it. */
+  walls?: string | null;
+}
+/** House-wide settings (D41): the colour of the outside walls; null removes it. */
+export interface HouseUpdateCommand {
+  kind: 'house.update';
+  exteriorWallColor?: string | null;
 }
 export interface RoomRemoveCommand {
   kind: 'room.remove';
@@ -166,6 +175,7 @@ export type Command =
   | RoomAddCommand
   | RoomUpdateCommand
   | RoomRemoveCommand
+  | HouseUpdateCommand
   | OpeningsCommand
   | ResizeCommand
   | DedupeCommand
@@ -346,27 +356,58 @@ function applyRoomAdd(l: Layout, c: RoomAddCommand): ApplyResult {
   return { ok: true, layout: { ...l, rooms: [...rooms, c.room] }, inverse, changed: true };
 }
 
+/** `obj` with `key` set to `value`, or without `key` when `value` is null (absent = none). */
+function withOptional<T extends object, K extends keyof T>(obj: T, key: K, value: T[K] | null): T {
+  const out = { ...obj, [key]: value };
+  if (value === null) delete out[key];
+  return out;
+}
+
 function applyRoomUpdate(l: Layout, c: RoomUpdateCommand): ApplyResult {
   const rooms = l.rooms ?? [];
   const i = rooms.findIndex((r) => r.id === c.id);
   if (i < 0) return fail('room_missing', c.id);
   const prev = rooms[i]!;
-  const next = {
+  let next = {
     ...prev,
     ...(c.name !== undefined && { name: c.name }),
     ...(c.color !== undefined && { color: c.color }),
   };
+  if (c.floor !== undefined) next = withOptional(next, 'floor', c.floor);
+  if (c.walls !== undefined) next = withOptional(next, 'walls', c.walls);
   const inverse: RoomUpdateCommand = {
     kind: 'room.update',
     id: c.id,
     ...(c.name !== undefined && { name: prev.name }),
     ...(c.color !== undefined && { color: prev.color }),
+    ...(c.floor !== undefined && { floor: prev.floor ?? null }),
+    ...(c.walls !== undefined && { walls: prev.walls ?? null }),
   };
-  if (next.name === prev.name && next.color === prev.color)
+  if (
+    next.name === prev.name &&
+    next.color === prev.color &&
+    (next.floor ?? null) === (prev.floor ?? null) &&
+    (next.walls ?? null) === (prev.walls ?? null)
+  )
     return { ok: true, layout: l, inverse, changed: false };
   return {
     ok: true,
     layout: { ...l, rooms: rooms.map((r, j) => (j === i ? next : r)) },
+    inverse,
+    changed: true,
+  };
+}
+
+function applyHouseUpdate(l: Layout, c: HouseUpdateCommand): ApplyResult {
+  const inverse: HouseUpdateCommand = {
+    kind: 'house.update',
+    ...(c.exteriorWallColor !== undefined && { exteriorWallColor: l.exteriorWallColor ?? null }),
+  };
+  if (c.exteriorWallColor === undefined || (l.exteriorWallColor ?? null) === c.exteriorWallColor)
+    return { ok: true, layout: l, inverse, changed: false };
+  return {
+    ok: true,
+    layout: withOptional(l, 'exteriorWallColor', c.exteriorWallColor),
     inverse,
     changed: true,
   };
@@ -686,6 +727,8 @@ export function applyCommand(layout: Layout, cmd: Command, ctx: ApplyContext): A
       return applyRoomUpdate(layout, cmd);
     case 'room.remove':
       return applyRoomRemove(layout, cmd);
+    case 'house.update':
+      return applyHouseUpdate(layout, cmd);
     case 'openings':
       return applyOpenings(layout, cmd);
     case 'resize':

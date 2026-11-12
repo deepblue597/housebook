@@ -6,6 +6,9 @@ import type { ConflictCode, RepairFix } from '../commands';
 import type { LayoutIssue } from '../domain/layout';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** "A", "A and B", "A, B and C". */
+const listOf = (names: readonly string[]) =>
+  names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 
 export const EDITOR = {
   // mode
@@ -121,6 +124,10 @@ export const EDITOR = {
     roomAdd: (name: string) => `add room ${name}`,
     roomRename: (from: string, to: string) => `rename ${from} to ${to}`,
     roomColor: (name: string) => `recolour ${name}`,
+    roomFinish: (name: string) => `change the finish of ${name}`,
+    finishCopy: (name: string, n: number) =>
+      `copy the finish of ${name} to ${plural(n, 'room', 'rooms')}`,
+    exteriorWalls: 'change the outside walls',
     roomRemove: (name: string) => `delete room ${name}`,
     openingAdd: (kind: 'door' | 'window') => `add a ${kind}`,
     openingRemove: (kind: 'door' | 'window') => `remove a ${kind}`,
@@ -180,8 +187,40 @@ export const EDITOR = {
   roomDelete: (name: string) => `Delete ${name}`,
   roomDeleteDisabled: 'Erase the room’s tiles first',
   roomTiles: (n: number) => plural(n, 'tile', 'tiles'),
+  roomTilesOn: (n: number, floors: readonly string[]) =>
+    floors.length
+      ? `${plural(n, 'tile', 'tiles')} · ${floors.join(', ')}`
+      : plural(n, 'tile', 'tiles'),
+  // #14: rooms are shared by every floor they are on.
+  sharedRoomPaint: (room: string, floors: readonly string[]) =>
+    `${room} is also on ${listOf(floors)}: these tiles are part of the same room. For a separate room here, undo (Ctrl+Z) and use “+ Add room”.`,
+  sharedRoomRenamed: (to: string, floors: readonly string[]) =>
+    `Renamed to ${to} on ${listOf(floors)}: a room is the same on every floor it is on. Undo (Ctrl+Z) if you meant a new room.`,
+  sharedRoomRecoloured: (room: string, floors: readonly string[]) =>
+    `${room} changed colour on ${listOf(floors)}: a room is the same on every floor it is on.`,
+  finishShared: (floors: readonly string[]) =>
+    `This room is on ${listOf(floors)}: its finish changes on all of them.`,
   roomNameInvalid: 'A room name needs 1 to 100 characters.',
   noRooms: 'No rooms yet.',
+
+  // finishes (D41)
+  finish: (name: string) => `Finish of ${name}`,
+  finishFloor: 'Floor',
+  finishWalls: 'Walls',
+  finishNone: 'None',
+  finishNoneFloorHint: 'shown in the room’s plan colour',
+  finishPaint: 'Paint',
+  finishOtherColour: 'Other colour',
+  finishWallpaper: 'Wallpaper',
+  finishCopy: 'Copy to other rooms',
+  finishCopyButton: (n: number) => `Copy to ${plural(n, 'room', 'rooms')}`,
+  finishCopyHint: 'Gives the chosen rooms this room’s floor and walls, as one undo step.',
+  finishOutside: 'Outside walls (whole house)',
+  finishOutsideReset: 'Default',
+  finishSeeIt: 'Finishes show in the Home look.',
+  finishShowHome: 'Turn on Home look',
+  finishUnknown: (key: string) => `“${key}” isn’t a finish this version knows; pick another.`,
+  finishSharedFloors: 'A room has the same finish on every floor it is on.',
 
   // catalogue
   catalogue: 'Add item',

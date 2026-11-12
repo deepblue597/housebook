@@ -5,7 +5,7 @@
       "id": "duplicate-room-id",
       "description": "room ids are unique",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -68,7 +68,7 @@
       "id": "duplicate-floor-id",
       "description": "floor ids are unique",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -132,7 +132,7 @@
       "id": "two-placements",
       "description": "at most one placement per item",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -197,7 +197,7 @@
       "id": "cell-outside-grid",
       "description": "cells lie inside the grid (x < width)",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -257,7 +257,7 @@
       "id": "cell-outside-depth",
       "description": "cells lie inside the grid (y < depth)",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -317,7 +317,7 @@
       "id": "cell-unknown-room",
       "description": "every cell points to an existing room (e.g. a deleted one)",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -377,7 +377,7 @@
       "id": "padded-cell-key",
       "description": "cell keys are x,y without padding",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -437,7 +437,7 @@
       "id": "placement-outside-grid",
       "description": "placements lie inside the grid",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -494,7 +494,7 @@
       "id": "footprint-outside-grid",
       "description": "the occupied rectangle lies inside the grid",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -555,7 +555,7 @@
       "id": "rotated-footprint-outside-grid",
       "description": "rotation 90 swaps w and d before the check",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -616,7 +616,7 @@
       "id": "placement-unknown-floor",
       "description": "placements reference existing floors",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -674,7 +674,7 @@
       "id": "opening-unknown-floor",
       "description": "openings reference existing floors",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -732,7 +732,7 @@
       "id": "opening-outside-grid",
       "description": "an n edge needs x < width",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -789,7 +789,7 @@
       "id": "rotation-45",
       "description": "structural: rotation is 0/90/180/270",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -847,7 +847,7 @@
       "id": "unknown-key",
       "description": "structural: unknown keys are rejected",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -901,10 +901,10 @@
       ]
     },
     {
-      "id": "schema-version-2",
-      "description": "structural: only the current schemaVersion can be written",
+      "id": "schema-version-3",
+      "description": "structural: a schemaVersion newer than the server's can't be written (older ones are upgraded)",
       "house": {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -960,7 +960,7 @@
       "id": "no-floors",
       "description": "structural: at least one floor",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -992,7 +992,7 @@
       "id": "base",
       "description": "the base layout of these cases",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1040,7 +1040,7 @@
       "id": "east-boundary-opening",
       "description": "w edge at x == width is the east boundary",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1095,7 +1095,7 @@
       "id": "south-boundary-opening",
       "description": "n edge at y == depth is the south boundary",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1150,7 +1150,7 @@
       "id": "footprint-fits-after-rotation",
       "description": "1x2 rotated by 90 is 2x1 and fits at the last row",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1202,7 +1202,7 @@
       "id": "stacked-items",
       "description": "several items may share a tile",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1257,7 +1257,7 @@
       "id": "no-rooms",
       "description": "an empty plan is valid",
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1298,7 +1298,7 @@
       "id": "inherited-unknown-room-kept",
       "description": "a cell of a deleted room that is already on disk may stay (M5-03)",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1343,7 +1343,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 5,
@@ -1393,7 +1393,7 @@
       "id": "inherited-unknown-room-moved",
       "description": "counted per (floor, room), not per tile: the inherited tile may move",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1438,7 +1438,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1488,7 +1488,7 @@
       "id": "unknown-room-one-more",
       "description": "one more tile of the same missing room makes the layout worse; every tile of that subject is listed",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1533,7 +1533,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1603,7 +1603,7 @@
       "id": "unknown-room-other-room",
       "description": "a tile of another missing room is new, even if one tile of a missing room goes",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1648,7 +1648,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1708,7 +1708,7 @@
       "id": "inherited-issue-not-listed",
       "description": "only the issues that got worse are reported; the inherited one is not",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1753,7 +1753,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1814,7 +1814,7 @@
       "id": "grow-north-with-inherited-issues",
       "description": "growing north shifts every coordinate; issues keyed without coordinates stay the same",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1867,7 +1867,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1925,7 +1925,7 @@
       "id": "inherited-duplicate-placement-kept",
       "description": "an item placed twice on disk may stay placed twice (both copies may move)",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -1976,7 +1976,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2032,7 +2032,7 @@
       "id": "duplicate-placement-third-copy",
       "description": "a third copy of an item placed twice on disk is worse",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2083,7 +2083,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2163,7 +2163,7 @@
       "id": "inherited-duplicate-room-id-kept",
       "description": "a duplicate room id on disk may stay (which one is meant is a judgement)",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2212,7 +2212,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2266,7 +2266,7 @@
       "id": "inherited-placement-outside-grid-moved",
       "description": "a placement outside the grid on disk may move and stay outside",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2310,7 +2310,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2359,7 +2359,7 @@
       "id": "inherited-opening-unknown-floor-kept",
       "description": "an opening on an unknown floor on disk may stay",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2403,7 +2403,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2452,7 +2452,7 @@
       "id": "bad-cell-always-rejected",
       "description": "a malformed cell key is never let through, even if the file on disk has it (the server normalises it when reading)",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2497,7 +2497,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2557,7 +2557,7 @@
       "id": "structural-always-rejected",
       "description": "structural errors block whatever the file on disk has",
       "baseline": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2602,7 +2602,7 @@
         ]
       },
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,
@@ -2662,7 +2662,7 @@
       "description": "with no house.json (If-None-Match: *) there is no baseline: every semantic issue is new",
       "baseline": null,
       "house": {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "grid": {
           "tileSize": 1,
           "width": 4,

@@ -164,3 +164,43 @@ test.describe('doors and windows', () => {
     await expectNoA11yViolations(page);
   });
 });
+
+test('#14: a room painted on a new floor and renamed says it is the same room on both floors', async ({
+  page,
+  backend,
+}) => {
+  const { url, dataDir } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'editor' });
+  await startEditing(page, url);
+  const rooms = sidebar(page).getByRole('region', { name: 'Rooms' });
+  const notices = page.locator('.ed-notice');
+  const livingRoom = rooms.locator('li[data-room="rm_liv"]');
+  await expect(livingRoom.locator('.count')).toHaveText('36 tiles · Apartment');
+
+  // What happened on real data: a new floor painted with the living room...
+  await floors(page).getByRole('button', { name: '+ Floor above' }).click();
+  await rooms.getByRole('button', { name: 'Paint with Living room' }).click();
+  const box = (await page.locator('svg.plan').boundingBox())!;
+  const v = await planView(page);
+  await page.mouse.click(box.x + v.tx + 0.5 * 40 * v.k, box.y + v.ty + 0.5 * 40 * v.k);
+  await expect(notices.last()).toContainText(
+    'Living room is also on Apartment: these tiles are part of the same room.',
+  );
+  await expect(livingRoom.locator('.count')).toHaveText('37 tiles · Floor 1, Apartment');
+  await expect(livingRoom.locator('.count')).toHaveClass(/shared/);
+
+  // ... then renamed for the new floor: it says the Apartment's room changes too.
+  const name = rooms.getByRole('textbox', { name: 'Name of Living room' });
+  await name.fill('Terrace');
+  await name.press('Enter');
+  await expect(notices.last()).toContainText('Renamed to Terrace on Floor 1 and Apartment');
+  await expectNoA11yViolations(page);
+
+  // Undo, as the notice says: the Apartment's living room keeps its name.
+  await page.keyboard.press('Control+z');
+  await expect(rooms.getByRole('textbox', { name: 'Name of Living room' })).toBeVisible();
+  await saved(page);
+  const house = JSON.parse(readFileSync(join(dataDir, 'house.json'), 'utf8')) as {
+    rooms: { id: string; name: string }[];
+  };
+  expect(house.rooms.find((r) => r.id === 'rm_liv')!.name).toBe('Living room');
+});

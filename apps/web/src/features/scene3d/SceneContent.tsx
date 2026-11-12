@@ -1,6 +1,6 @@
 /**
  * The scene graph for one floor: room floors (one merged mesh per room), walls (one merged mesh
- * for the floor), window panes and items. A pure rendering of the layout and the UI state; no
+ * for the floor, or one per finish colour in the home look, D41), window panes and items. A pure rendering of the layout and the UI state; no
  * camera. Labels and badges are DOM overlays (SceneOverlays).
  */
 import type { ThreeEvent } from '@react-three/fiber';
@@ -9,13 +9,17 @@ import { BoxGeometry, BufferAttribute, BufferGeometry, DoubleSide, EdgesGeometry
 import type { Snapshot } from '../../api/types';
 import { blend, parseHex, toHex } from '../../domain/color';
 import {
+  type Box,
   DOOR_HEAD,
   type Heading,
   type MeshData,
   boxesMesh,
   roomAtPoint,
+  sidesFromCells,
   tilesMesh,
 } from '../../domain/scene';
+import type { Look } from '../../store/ui';
+import { floorColor, groupByColor, wallSideColors } from './finishColors';
 import type { CellMap } from '../../domain/plan';
 import { type Highlight, ItemModel } from './ItemModel';
 import { type SceneGhost, type SceneItem, type SceneLayout, wallMeshes } from './layout';
@@ -37,6 +41,8 @@ export interface SceneContentProps {
   heading: Heading;
   snapshot: Snapshot;
   palette: ScenePalette;
+  /** "home": floors and walls in their finishes, lit (D41). */
+  look?: Look;
   selectedItemId: string | null;
   selectedRoomId: string | null;
   /** Search matches, or null when no search is active. */
@@ -106,6 +112,7 @@ function Grid({
 function RoomFloor({
   tiles,
   color,
+  lit = false,
   selected,
   accent,
   roomId,
@@ -114,6 +121,8 @@ function RoomFloor({
 }: {
   tiles: SceneLayout['rooms'][number]['tiles'];
   color: string;
+  /** Home look: lit like the walls and items; plan look: unlit, exactly the room's colour. */
+  lit?: boolean;
   selected: boolean;
   accent: string;
   roomId: string;
@@ -123,10 +132,48 @@ function RoomFloor({
   const accentMix = useMemo(() => mix(color, accent, 0.25), [color, accent]);
   const data = useMemo(() => tilesMesh(tiles, ts), [tiles, ts]);
   const g = useGeometry(data);
+  const shown = selected ? accentMix : color;
   return (
-    <mesh name={`floor:${roomId}`} geometry={g} onClick={onClick}>
-      {/* Unlit, so the floor shows exactly the room's (softened) colour, as in 2D. */}
-      <meshBasicMaterial color={selected ? accentMix : color} side={DoubleSide} />
+    <mesh name={`floor:${roomId}`} geometry={g} onClick={onClick} userData={{ color: shown }}>
+      {lit ? (
+        <meshLambertMaterial color={shown} side={DoubleSide} />
+      ) : (
+        // Unlit, so the floor shows exactly the room's (softened) colour, as in 2D.
+        <meshBasicMaterial color={shown} side={DoubleSide} />
+      )}
+    </mesh>
+  );
+}
+
+/** One wall colour of the home look: its boxes as one mesh. */
+function WallGroup({
+  boxes,
+  color,
+  faded,
+}: {
+  boxes: readonly Box[];
+  color: string;
+  faded: boolean;
+}) {
+  const data = useMemo(() => boxesMesh(boxes), [boxes]);
+  const g = useGeometry(data);
+  return (
+    <mesh
+      name={`${faded ? 'walls-faded' : 'walls'}:${color}`}
+      geometry={g}
+      raycast={() => null}
+      userData={{ color }}
+    >
+      {faded ? (
+        <meshLambertMaterial
+          color={color}
+          transparent
+          opacity={FADED_WALL_OPACITY}
+          depthWrite={false}
+        />
+      ) : (
+        <meshLambertMaterial color={color} />
+      )}
     </mesh>
   );
 }
@@ -263,6 +310,7 @@ function SceneContentImpl({
   heading,
   snapshot,
   palette,
+  look = 'plan',
   selectedItemId,
   selectedRoomId,
   matches,
@@ -272,7 +320,12 @@ function SceneContentImpl({
   onRoom,
 }: SceneContentProps) {
   const ts = layout.tileSize;
-  const wm = useMemo(() => wallMeshes(layout, cells, heading), [layout, cells, heading]);
+  const home = look === 'home';
+  const house = snapshot.house;
+  const wm = useMemo(
+    () => wallMeshes(layout, cells, heading, home ? sidesFromCells(cells) : undefined),
+    [layout, cells, heading, home],
+  );
   // Once the window model is in, it brings its own pane: the plain ones would show through.
   const windows = useGlb(OPENING_MODELS.window).status === 'ready';
   const wallData = useMemo(() => boxesMesh(wm.solid), [wm]);
@@ -284,7 +337,17 @@ function SceneContentImpl({
   const wallGeo = useGeometry(wallData);
   const fadedGeo = useGeometry(fadedData);
   const glassGeo = useGeometry(glassData);
-  const grid = snapshot.house?.grid;
+  const grid = house?.grid;
+  // Home look: one mesh per wall colour (each side of a wall shows its own room's finish).
+  const roomsById = useMemo(() => new Map((house?.rooms ?? []).map((r) => [r.id, r])), [house]);
+  const wallGroups = useMemo(() => {
+    if (!home) return null;
+    const colorOf = wallSideColors(house?.rooms ?? [], house?.exteriorWallColor);
+    return {
+      solid: groupByColor(wm.solid, colorOf),
+      faded: groupByColor(windows ? wm.faded : [...wm.faded, ...wm.fadedGlass], colorOf),
+    };
+  }, [home, house, wm, windows]);
 
   // Picking (DESIGN §7.4): items stop the event first; a click on the floor maps the hit point
   // to a grid cell, and the cell to its room.
@@ -308,19 +371,26 @@ function SceneContentImpl({
           roomId={r.roomId}
           tiles={r.tiles}
           ts={ts}
-          color={palette.floor(r.color)}
+          color={(home && floorColor(roomsById.get(r.roomId))) || palette.floor(r.color)}
+          lit={home}
           selected={r.roomId === selectedRoomId}
           accent={palette.accent}
           onClick={onFloor}
         />
       ))}
 
-      {wm.solid.length > 0 && (
+      {wallGroups?.solid.map((g) => (
+        <WallGroup key={`s:${g.color}`} boxes={g.boxes} color={g.color} faded={false} />
+      ))}
+      {wallGroups?.faded.map((g) => (
+        <WallGroup key={`f:${g.color}`} boxes={g.boxes} color={g.color} faded />
+      ))}
+      {!home && wm.solid.length > 0 && (
         <mesh name="walls" geometry={wallGeo} raycast={() => null}>
           <meshLambertMaterial color={palette.wall} />
         </mesh>
       )}
-      {fadedData.indices.length > 0 && (
+      {!home && fadedData.indices.length > 0 && (
         <mesh name="walls-faded" geometry={fadedGeo} raycast={() => null}>
           <meshLambertMaterial
             color={palette.wall}

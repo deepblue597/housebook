@@ -478,3 +478,33 @@ describe('house.json turning unusable while an edit is pending (M5-10)', () => {
     expect(ed().save).not.toBe('error');
   });
 });
+
+describe('rooms shared by floors (#14)', () => {
+  const notices = () => ed().notices.map((n) => n.text);
+
+  it('painting a new floor with a room from another floor says so, once', () => {
+    const upstairs = ed().addFloor('above')!;
+    ed().setPaintRoom('rm_kit');
+    ed().paintRect(upstairs, { x: 0, y: 0 }, { x: 1, y: 0 }, false);
+    expect(notices().at(-1)).toMatch(
+      /^Kitchen is also on Ground: these tiles are part of the same room/,
+    );
+    const count = notices().length;
+    // More tiles of it on the same floor: no second notice.
+    ed().paintRect(upstairs, { x: 2, y: 0 }, { x: 2, y: 0 }, false);
+    expect(notices()).toHaveLength(count);
+  });
+
+  it('renaming or recolouring a room on two floors says it changes on both; on one floor, nothing', () => {
+    expect(ed().renameRoom('rm_bat', 'Bath')).toBe(true);
+    expect(notices().some((t) => t.startsWith('Renamed'))).toBe(false);
+
+    const upstairs = ed().addFloor('above')!;
+    ed().setPaintRoom('rm_kit');
+    ed().paintRect(upstairs, { x: 0, y: 0 }, { x: 0, y: 0 }, false);
+    expect(ed().renameRoom('rm_kit', 'Terrace')).toBe(true);
+    expect(notices().at(-1)).toMatch(/^Renamed to Terrace on .* and Ground: a room is the same/);
+    ed().recolorRoom('rm_kit', '#123456');
+    expect(notices().at(-1)).toMatch(/^Terrace changed colour on .* and Ground/);
+  });
+});

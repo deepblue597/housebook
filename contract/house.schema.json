@@ -215,6 +215,34 @@
           "pattern": "^#[0-9A-Fa-f]{6}$",
           "title": "Color",
           "type": "string"
+        },
+        "floor": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Floor finish key (contract/finishes.json)",
+          "title": "Floor"
+        },
+        "walls": {
+          "anyOf": [
+            {
+              "pattern": "^(#[0-9A-Fa-f]{6}|[a-z][a-z0-9_]{0,39})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Wall finish: a paint colour #RRGGBB or a wallpaper key (contract/finishes.json)",
+          "title": "Walls"
         }
       },
       "required": [
@@ -241,12 +269,26 @@
       "title": "$Schema"
     },
     "schemaVersion": {
-      "const": 1,
+      "const": 2,
       "title": "Schemaversion",
       "type": "integer"
     },
     "grid": {
       "$ref": "#/$defs/Grid"
+    },
+    "exteriorWallColor": {
+      "anyOf": [
+        {
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Outside walls, the whole house (#RRGGBB)",
+      "title": "Exteriorwallcolor"
     },
     "rooms": {
       "items": {

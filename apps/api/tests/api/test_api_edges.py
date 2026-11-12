@@ -448,9 +448,9 @@ def test_newer_schema_version_read_only_everywhere(root: Path, make_client):
 
 
 def test_newer_schema_version_unparseable_still_read_only(root: Path, make_client):
-    vb.write_house(root, vb.house(schemaVersion=2, grid={"cols": 16, "rows": 10}))
+    vb.write_house(root, vb.house(schemaVersion=3, grid={"cols": 16, "rows": 10}))
     snap = make_client(root).get("/api/snapshot").json()
-    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 2
+    assert snap["houseReadOnly"] is True and snap["houseSchemaVersion"] == 3
 
 
 # --- attachments -----------------------------------------------------------------------------------

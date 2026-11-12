@@ -255,11 +255,11 @@ test('a newer house.json schema is shown read-only with a banner and a problem c
   page,
   backend,
 }) => {
-  const house = { ...exampleHouse(), schemaVersion: 2, futureKey: { x: 1 } };
+  const house = { ...exampleHouse(), schemaVersion: 3, futureKey: { x: 1 } };
   const { url } = await backend({ house });
   await gotoPlan(page, `${url}/`);
   await expect(page.getByRole('note').filter({ hasText: 'read-only' })).toHaveText(
-    'This house layout was written by a newer Housebook version (schema 2). It is shown read-only.',
+    'This house layout was written by a newer Housebook version (schema 3). It is shown read-only.',
   );
   await expect(planItems(page)).toHaveCount(13); // still fully viewable
   const problems = (await (await page.request.get(`${url}/api/problems`)).json()) as {
