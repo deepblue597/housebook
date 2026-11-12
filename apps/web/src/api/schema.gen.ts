@@ -296,6 +296,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/textures/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Texture
+         * @description An uploaded texture's image. The `v` the snapshot adds to the URL is ignored here; it
+         *     only makes the URL change when the file does.
+         */
+        get: operations["get_texture_api_textures__key__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Texture
+         * @description Remove an uploaded texture and move its image to `.housebook/trash/`. While a room uses
+         *     it, 409 `in_use`: choose another finish there first.
+         */
+        delete: operations["delete_texture_api_textures__key__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/textures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Texture
+         * @description Add your own floor or wallpaper texture: an image (JPEG, PNG, WebP or HEIC, by its first
+         *     bytes; at most 25 MiB) and the metres it covers before it repeats (`width` across, `height`
+         *     along a floor, or up a wall). It is saved without metadata, at most 1024 px on a side, in
+         *     `Textures/`, and gets a `my_` key to use in a room's `floor` or `walls`.
+         */
+        post: operations["upload_texture_api_textures_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events": {
         parameters: {
             query?: never;
@@ -895,7 +944,7 @@ export interface components {
          * ProblemKind
          * @enum {string}
          */
-        ProblemKind: "house_missing" | "house_invalid" | "house_newer_version" | "house_duplicate_id" | "house_bad_cell" | "house_unknown_room" | "house_unknown_floor" | "house_outside_grid" | "house_duplicate_placement" | "house_unknown_finish" | "note_parse_error" | "read_error" | "note_invalid_field" | "note_invalid_id" | "duplicate_id" | "conflict_copy" | "not_adopted" | "untagged_typed" | "unknown_type" | "symlink_outside_root" | "missing_note" | "attachment_missing" | "attachment_unsafe" | "attachment_name_collision";
+        ProblemKind: "house_missing" | "house_invalid" | "house_newer_version" | "house_duplicate_id" | "house_bad_cell" | "house_unknown_room" | "house_unknown_floor" | "house_outside_grid" | "house_duplicate_placement" | "house_unknown_finish" | "textures_invalid" | "texture_missing" | "note_parse_error" | "read_error" | "note_invalid_field" | "note_invalid_id" | "duplicate_id" | "conflict_copy" | "not_adopted" | "untagged_typed" | "unknown_type" | "symlink_outside_root" | "missing_note" | "attachment_missing" | "attachment_unsafe" | "attachment_name_collision";
         /** ProblemsOut */
         ProblemsOut: {
             /** Problems */
@@ -958,6 +1007,16 @@ export interface components {
             items: components["schemas"]["ItemDetailOut"][];
             /** Problemcount */
             problemCount: number;
+            /**
+             * Textures
+             * @description Uploaded textures (D43)
+             */
+            textures: components["schemas"]["TextureOut"][];
+            /**
+             * Texturesversion
+             * @description Changes with `textures`; the SSE `resync` event carries the same value
+             */
+            texturesVersion: string;
         };
         /** Status */
         Status: {
@@ -965,6 +1024,40 @@ export interface components {
             level: ("overdue" | "due_soon" | "warranty_ending") | null;
             check: components["schemas"]["CheckStatus"] | null;
             warranty: components["schemas"]["WarrantyStatus"] | null;
+        };
+        /**
+         * TextureOut
+         * @description An uploaded texture (D43). Rooms use `key` in `floor` (kind `floor`) or `walls` (kind
+         *     `wallpaper`), like a built-in finish key.
+         */
+        TextureOut: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "floor" | "wallpaper";
+            /**
+             * Size
+             * @description Metres the image covers before it repeats [x, y]
+             */
+            size: [
+                number,
+                number
+            ];
+            /**
+             * Color
+             * @description Average colour: the flat look, and drawn while the image loads
+             */
+            color: string;
+            /**
+             * Url
+             * @description The image; changes when the file does. Null when the file is missing
+             */
+            url: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1825,6 +1918,150 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Content Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Content */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_texture_api_textures__key__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_texture_api_textures__key__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_texture_api_textures_post: {
+        parameters: {
+            query: {
+                kind: "floor" | "wallpaper";
+                /** @description Name shown in the Finish dialog */
+                label: string;
+                /** @description Metres the image covers before it repeats */
+                width: number;
+                /** @description Metres the image covers before it repeats */
+                height: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TextureOut"];
                 };
             };
             /** @description Conflict */

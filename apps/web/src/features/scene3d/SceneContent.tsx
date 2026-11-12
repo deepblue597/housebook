@@ -349,6 +349,7 @@ function SceneContentImpl({
   const ts = layout.tileSize;
   const home = look === 'home';
   const house = snapshot.house;
+  const own = snapshot.textures;
   const wm = useMemo(
     () => wallMeshes(layout, cells, heading, home ? sidesFromCells(cells) : undefined),
     [layout, cells, heading, home],
@@ -369,12 +370,12 @@ function SceneContentImpl({
   const roomsById = useMemo(() => new Map((house?.rooms ?? []).map((r) => [r.id, r])), [house]);
   const wallGroups = useMemo(() => {
     if (!home) return null;
-    const surfaceOf = wallSideSurfaces(house?.rooms ?? [], house?.exteriorWallColor);
+    const surfaceOf = wallSideSurfaces(house?.rooms ?? [], house?.exteriorWallColor, own);
     return {
       solid: groupBySurface(wm.solid, surfaceOf),
       faded: groupBySurface(windows ? wm.faded : [...wm.faded, ...wm.fadedGlass], surfaceOf),
     };
-  }, [home, house, wm, windows]);
+  }, [home, house, own, wm, windows]);
 
   // Picking (DESIGN §7.4): items stop the event first; a click on the floor maps the hit point
   // to a grid cell, and the cell to its room.
@@ -398,8 +399,10 @@ function SceneContentImpl({
           roomId={r.roomId}
           tiles={r.tiles}
           ts={ts}
-          color={(home && floorSurface(roomsById.get(r.roomId))?.color) || palette.floor(r.color)}
-          surface={home ? floorSurface(roomsById.get(r.roomId)) : undefined}
+          color={
+            (home && floorSurface(roomsById.get(r.roomId), own)?.color) || palette.floor(r.color)
+          }
+          surface={home ? floorSurface(roomsById.get(r.roomId), own) : undefined}
           lit={home}
           selected={r.roomId === selectedRoomId}
           accent={palette.accent}

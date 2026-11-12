@@ -45,6 +45,7 @@ def test_stream_headers_and_resync_first(example_root: Path, make_client: Client
                 "houseEtag": snap["houseEtag"],
                 "houseReadOnly": False,
                 "itemsVersion": snap["itemsVersion"],
+                "texturesVersion": snap["texturesVersion"],
                 "problemCount": snap["problemCount"],
             },
         )

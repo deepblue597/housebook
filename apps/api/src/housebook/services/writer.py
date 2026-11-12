@@ -40,8 +40,20 @@ from housebook.domain.note_edit import (
 from housebook.domain.paths import clean_filename, unique_stem
 from housebook.domain.problems import ProblemKind
 from housebook.domain.text import nfc
+from housebook.domain.textures import (
+    MANIFEST_REL,
+    MAX_TEXTURES,
+    OWN_PREFIX,
+    TEXTURES_DIR,
+    ManifestError,
+    OwnTexture,
+    TextureKind,
+    TextureManifest,
+    parse_manifest,
+    serialize_manifest,
+)
 from housebook.migrations.house import MigrationError, migrate
-from housebook.ports import HouseRepo, NoteRepo, UnsafePath
+from housebook.ports import HouseRepo, NoteRepo, TextureRepo, UnsafePath
 from housebook.services.indexer import IndexedItem, Indexer, IndexState, content_hash
 
 log = logging.getLogger(__name__)
@@ -147,6 +159,7 @@ class Writer:
         catalog: Catalog,
         settings: Settings,
         clock: Callable[[], datetime],
+        textures: TextureRepo | None = None,
     ) -> None:
         self.house_repo = house_repo
         self.notes = notes
@@ -154,6 +167,7 @@ class Writer:
         self.catalog = catalog
         self.settings = settings
         self.clock = clock
+        self.textures = textures
 
     # house.json -------------------------------------------------------------------------------
 
@@ -400,6 +414,80 @@ class Writer:
         self.notes.write(rel, data)
         log.info("note adopted", extra={"item_id": item_id, "path": rel})
         return item_id
+
+    # your own textures (D43) -----------------------------------------------------------------
+
+    def _texture_repo(self) -> TextureRepo:
+        if self.textures is None:
+            raise conflict("textures can't be stored here", "unsafe")
+        return self.textures
+
+    def _manifest(self) -> TextureManifest:
+        """The manifest on disk (not the index), so a hand edit not yet scanned is kept."""
+        repo = self._texture_repo()
+        try:
+            raw = repo.read_manifest()
+            return parse_manifest(raw) if raw is not None else TextureManifest()
+        except ManifestError as e:
+            raise conflict(f"{e}; fix or remove it first", "textures_invalid") from e
+        except (UnsafePath, OSError) as e:
+            raise conflict(f"{MANIFEST_REL} can't be read", "textures_invalid") from e
+
+    def add_texture(
+        self, src: Path, extension: str, color: str, label: str, kind: TextureKind, size: tuple[float, float]
+    ) -> OwnTexture:
+        """Move a prepared image into `Textures/` (named after the label, made unique) and list it
+        in the manifest under a new `my_` key. No If-Match: adding merges with what is on disk."""
+        repo = self._texture_repo()
+        manifest = self._manifest()
+        if len(manifest.textures) >= MAX_TEXTURES:
+            raise conflict(f"there are already {MAX_TEXTURES} textures; delete one first", "too_many")
+        taken = repo.names() | {t.file.casefold() for t in manifest.textures}
+        stem = clean_filename(label, fallback="Texture")
+        name, n = f"{stem}{extension}", 1
+        while name.casefold() in taken:
+            n += 1
+            name = f"{stem}-{n}{extension}"
+        keys = {t.key for t in manifest.textures}
+        while (key := OWN_PREFIX + "".join(secrets.choice(ID_ALPHABET) for _ in range(6))) in keys:
+            pass
+        try:
+            texture = OwnTexture(key=key, label=label, kind=kind, file=name, size=size, color=color)
+        except ValidationError as e:
+            errors = [field_error(["query", *map(str, err["loc"])], err["msg"]) for err in e.errors()]
+            raise unprocessable(errors) from e
+        data = serialize_manifest(TextureManifest(textures=(*manifest.textures, texture)))
+        try:
+            repo.add_file(name, src)
+        except FileExistsError as e:
+            raise conflict("a file with this name appeared meanwhile; try again", "exists") from e
+        except UnsafePath as e:
+            raise conflict(f"the {TEXTURES_DIR}/ folder can't be written", "unsafe") from e
+        try:
+            repo.write_manifest(data)
+        except BaseException:
+            repo.remove_file(name)  # nothing lists it: don't leave it behind
+            raise
+        log.info("texture added", extra={"key": key, "kind": kind, "file": name})
+        return texture
+
+    def delete_texture(self, key: str) -> str | None:
+        """Remove a texture from the manifest and move its file to `.housebook/trash/`. Refused
+        (409 `in_use`) while a room uses it, so no room silently loses its finish."""
+        repo = self._texture_repo()
+        manifest = self._manifest()
+        texture = manifest.get(key)
+        if texture is None:
+            raise not_found("No texture with this key")
+        house = self._state().house.house
+        users = [r.name for r in (house.rooms if house else []) if key in (r.floor, r.walls)]
+        if users:
+            raise conflict(f"used by {', '.join(sorted(users))}; choose another finish there first", "in_use")
+        keep = tuple(t for t in manifest.textures if t.key != key)
+        repo.write_manifest(serialize_manifest(TextureManifest(textures=keep)))
+        dest = repo.trash_file(texture.file, f"{key}-texture", self.clock())
+        log.info("texture deleted", extra={"key": key, "file": texture.file, "trash": dest})
+        return dest
 
     # helpers ---------------------------------------------------------------------------------
 

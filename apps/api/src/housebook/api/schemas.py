@@ -78,6 +78,18 @@ class ItemListOut(ApiModel):
     count: int
 
 
+class TextureOut(ApiModel):
+    """An uploaded texture (D43). Rooms use `key` in `floor` (kind `floor`) or `walls` (kind
+    `wallpaper`), like a built-in finish key."""
+
+    key: str
+    label: str
+    kind: Literal["floor", "wallpaper"]
+    size: tuple[float, float] = Field(description="Metres the image covers before it repeats [x, y]")
+    color: str = Field(description="Average colour: the flat look, and drawn while the image loads")
+    url: str | None = Field(description="The image; changes when the file does. Null when the file is missing")
+
+
 class SnapshotOut(ApiModel):
     today: date = Field(description="Today in HOUSEBOOK_TZ; statuses are computed against it")
     timezone: str
@@ -88,6 +100,8 @@ class SnapshotOut(ApiModel):
     items_version: str = Field(description="Version of the item index; the SSE `resync` event carries the same value")
     items: list[ItemDetailOut]
     problem_count: int
+    textures: list[TextureOut] = Field(description="Uploaded textures (D43)")
+    textures_version: str = Field(description="Changes with `textures`; the SSE `resync` event carries the same value")
 
 
 class ProblemsOut(ApiModel):

@@ -44,6 +44,13 @@ class Finishes(_Model):
     paints: tuple[Paint, ...]
     exterior_default: str = Field(pattern=HEX_COLOR)
 
+    @model_validator(mode="after")
+    def _no_own_prefix(self) -> Self:
+        # `my_` keys belong to uploaded textures (domain/textures.py, D43).
+        if any(f.key.startswith("my_") for f in (*self.floors, *self.wallpapers)):
+            raise ValueError("built-in finish keys must not start with 'my_'")
+        return self
+
     @property
     def floor_keys(self) -> frozenset[str]:
         return frozenset(f.key for f in self.floors)

@@ -27,6 +27,7 @@ import type {
   ItemDeletedEvent,
   ProblemsChangedEvent,
   ResyncEvent,
+  TexturesChangedEvent,
 } from '../api/types';
 import { type LoadResult, useData } from './data';
 
@@ -65,6 +66,7 @@ export interface SyncHandlers {
   'item.changed': (e: ItemChangedEvent) => unknown;
   'item.deleted': (e: ItemDeletedEvent) => unknown;
   'problems.changed': (e: ProblemsChangedEvent) => unknown;
+  'textures.changed': (e: TexturesChangedEvent) => unknown;
 }
 
 export interface SyncDeps {
@@ -80,7 +82,13 @@ export interface SyncDeps {
   timings?: Partial<Timings>;
 }
 
-const EVENTS = ['house.changed', 'item.changed', 'item.deleted', 'problems.changed'] as const;
+const EVENTS = [
+  'house.changed',
+  'item.changed',
+  'item.deleted',
+  'problems.changed',
+  'textures.changed',
+] as const;
 type TimerName = 'reconnect' | 'resync' | 'poll' | 'sseRetry' | 'hidden' | 'watchdog';
 
 export class SyncClient {
@@ -381,6 +389,7 @@ export function startSync(): () => void {
       'item.changed': data.itemChanged,
       'item.deleted': data.itemDeleted,
       'problems.changed': data.problemsChanged,
+      'textures.changed': data.texturesChanged,
     },
     onStatus: show,
     ...(timings ? { timings } : {}),

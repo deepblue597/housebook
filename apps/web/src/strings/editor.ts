@@ -222,6 +222,36 @@ export const EDITOR = {
   finishUnknown: (key: string) => `“${key}” isn’t a finish this version knows; pick another.`,
   finishSharedFloors: 'A room has the same finish on every floor it is on.',
 
+  // your own textures (D43)
+  ownTextures: 'Your own',
+  ownAdd: (kind: 'floor' | 'wallpaper') =>
+    kind === 'floor' ? 'Add your own floor…' : 'Add your own wallpaper…',
+  ownAddTitle: (kind: 'floor' | 'wallpaper') =>
+    kind === 'floor' ? 'Your own floor' : 'Your own wallpaper',
+  ownFile: 'Photo or scan (JPEG, PNG, WebP or HEIC)',
+  ownName: 'Name',
+  ownRepeat: 'The pattern repeats every',
+  ownAcross: 'across (cm)',
+  ownAlong: (kind: 'floor' | 'wallpaper') => (kind === 'floor' ? 'along (cm)' : 'up (cm)'),
+  ownRepeatHint:
+    'Measure one repeat: a tile with its grout line, a plank and its neighbours, or the pattern repeat printed on a wallpaper’s label. The image should show exactly that much.',
+  ownSave: 'Add and use',
+  ownSaving: 'Adding…',
+  ownCancel: 'Cancel',
+  ownNeedFile: 'Choose an image.',
+  ownNeedName: 'Give it a name.',
+  ownBadSize: 'Enter sizes between 1 and 2000 cm.',
+  ownTooLarge: 'The image is too large (25 MB at most).',
+  ownWrongType: 'Only JPEG, PNG, WebP or HEIC images can be textures.',
+  ownUnreachable: 'The server couldn’t be reached; try again.',
+  ownMissing: 'image missing',
+  ownDelete: (label: string) => `Delete ${label}`,
+  ownDeleteAsk: (label: string) => `Delete “${label}”? Its image goes to the trash.`,
+  ownDeleteYes: 'Delete',
+  ownDeleteNo: 'Keep',
+  ownInUse: (label: string, rooms: readonly string[]) =>
+    `“${label}” is used by ${listOf(rooms)}; choose another finish there first.`,
+
   // catalogue
   catalogue: 'Add item',
   catalogueHint: 'Choose a type, then click a tile.',

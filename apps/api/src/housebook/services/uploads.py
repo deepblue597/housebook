@@ -71,7 +71,9 @@ def prepare(upload: Path) -> Prepared:
     return Prepared(out, extension, media_type)
 
 
-def _clean_image(src: Path, dst: Path, extension: str) -> None:
+def _clean_image(src: Path, dst: Path, extension: str, max_side: int | None = None) -> str | None:
+    """Decode, fix the orientation, drop the metadata and save. With `max_side`, also shrink to
+    fit it and return the average colour (`#rrggbb`)."""
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
@@ -80,12 +82,56 @@ def _clean_image(src: Path, dst: Path, extension: str) -> None:
                 icc = img.info.get("icc_profile")
                 # Orientation lives in EXIF, which is dropped: bake it into the pixels.
                 fixed = ImageOps.exif_transpose(img)
+                color = None
+                if max_side:
+                    fixed.thumbnail((max_side, max_side), Image.Resampling.LANCZOS)
+                    color = average_color(fixed)
                 _save(fixed, dst, extension, icc)
+                return color
     except (Image.DecompressionBombError, Image.DecompressionBombWarning) as e:
         raise UploadRejected(422, f"the image is too large (more than {MAX_PIXELS // 1_000_000} megapixels)") from e
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as e:
         # Truncated or corrupt data, or a format variant Pillow can't decode.
         raise UploadRejected(422, "the image can't be read; it may be damaged") from e
+
+
+def average_color(img: Image.Image) -> str:
+    """Mean colour over the image (transparent pixels count as they are drawn: their colour)."""
+    r, g, b = img.convert("RGB").resize((1, 1), Image.Resampling.BOX).getpixel((0, 0))  # type: ignore[misc]
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+# --- textures (D43) ----------------------------------------------------------------------------
+
+# Built-in textures are 512 px (D42). Twice that keeps a photo of a wallpaper sharp up close
+# and is still small for a phone: a few hundred KB.
+TEXTURE_MAX_SIDE = 1024
+TEXTURE_TYPES = {k: v for k, v in EXTENSIONS.items() if k != "application/pdf"}
+
+
+@dataclass(frozen=True)
+class PreparedTexture:
+    path: Path
+    extension: str
+    color: str
+
+
+def prepare_texture(upload: Path) -> PreparedTexture:
+    """Check, clean and shrink an image uploaded as a texture. Like `prepare`, the new file is
+    created next to `upload`; the caller deletes both."""
+    with upload.open("rb") as f:
+        media_type = sniff(f.read(SNIFF_BYTES))
+    if media_type not in TEXTURE_TYPES:
+        raise UploadRejected(415, "only JPEG, PNG, WebP or HEIC images can be textures")
+    extension = TEXTURE_TYPES[media_type]
+    out = upload.with_name(f".{secrets.token_hex(6)}{extension}.tmp")
+    try:
+        color = _clean_image(upload, out, extension, max_side=TEXTURE_MAX_SIDE)
+    except BaseException:
+        out.unlink(missing_ok=True)
+        raise
+    assert color is not None
+    return PreparedTexture(out, extension, color)
 
 
 def _save(img: Image.Image, dst: Path, extension: str, icc: bytes | None) -> None:

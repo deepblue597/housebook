@@ -9,8 +9,9 @@ import stat
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
 
-from housebook.domain.paths import is_ignored_name
+from housebook.domain.paths import is_ignored_name, is_safe_name
 from housebook.domain.text import nfc
+from housebook.domain.textures import MANIFEST_NAME, MANIFEST_REL, TEXTURES_DIR
 from housebook.ports import FileEntry, Tree, UnsafePath
 
 log = logging.getLogger(__name__)
@@ -296,6 +297,88 @@ class MarkdownNoteRepo:
                 entry.unlink(missing_ok=True)
             purged += 1
         return purged
+
+
+class FsTextureRepo:
+    """`Textures/` at the data root (D43). Every path is checked to stay inside the data root, so
+    a `Textures` symlink pointing elsewhere is never written through or served."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    def _folder(self, create: bool = False) -> Path:
+        folder = self.root / TEXTURES_DIR
+        if create:
+            folder.mkdir(exist_ok=True)
+        if folder.exists() and not folder.resolve().is_relative_to(self.root.resolve()):
+            raise UnsafePath(TEXTURES_DIR)
+        return folder
+
+    @staticmethod
+    def _check(name: str) -> None:
+        if not is_safe_name(name) or is_ignored_name(name):
+            raise UnsafePath(name)
+
+    def read_manifest(self) -> bytes | None:
+        path = self._folder() / MANIFEST_NAME
+        if not path.exists() and not path.is_symlink():
+            return None
+        return resolve_inside(self.root, MANIFEST_REL).read_bytes()
+
+    def write_manifest(self, data: bytes) -> None:
+        path = self._folder(create=True) / MANIFEST_NAME
+        if path.exists() or path.is_symlink():
+            path = resolve_inside(self.root, MANIFEST_REL)
+        atomic_write(path, data)
+
+    def names(self) -> set[str]:
+        folder = self._folder()
+        if not folder.is_dir():
+            return set()
+        return {nfc(p.name).casefold() for p in folder.iterdir()}
+
+    def add_file(self, name: str, src: Path) -> None:
+        self._check(name)
+        folder = self._folder(create=True)
+        dest = folder / name
+        if dest.exists() or dest.is_symlink():
+            raise FileExistsError(name)
+        try:
+            os.link(src, dest)
+            src.unlink()
+        except OSError as e:
+            if isinstance(e, FileExistsError):
+                raise
+            shutil.move(src, dest)
+        _fsync_dir(folder)
+
+    def remove_file(self, name: str) -> None:
+        self._check(name)
+        (self._folder() / name).unlink(missing_ok=True)
+
+    def open_path(self, name: str) -> Path:
+        self._check(name)
+        path = resolve_inside(self.root, f"{TEXTURES_DIR}/{name}")
+        if not path.is_file():
+            raise UnsafePath(name)
+        return path
+
+    def stat(self, name: str) -> tuple[int, int] | None:
+        try:
+            st = self.open_path(name).stat()
+        except (UnsafePath, OSError):
+            return None
+        return st.st_size, st.st_mtime_ns
+
+    def trash_file(self, name: str, label: str, now: datetime) -> str | None:
+        try:
+            path = self.open_path(name)
+        except UnsafePath:
+            return None
+        dest = self.root / STATE_DIR / "trash" / f"{_stamp(now)}-{re.sub(r'[^A-Za-z0-9_-]', '_', label)}"
+        dest.mkdir(parents=True, exist_ok=False)
+        shutil.move(path, dest / path.name)
+        return dest.relative_to(self.root).as_posix()
 
 
 class FsAttachmentStore:

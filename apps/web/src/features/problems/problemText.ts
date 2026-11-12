@@ -32,7 +32,15 @@ export const PROBLEM_TEXT: Record<ProblemKind, { title: string; help: string }> 
   },
   house_unknown_finish: {
     title: 'Unknown floor or wall finishes',
-    help: 'A room names a finish this version doesn’t know (a typo, or a newer catalogue). It is shown in its plain colour; pick a finish again in the editor.',
+    help: 'A room names a finish this version doesn’t know (a typo, a newer catalogue, or a texture that was deleted). It is shown in its plain colour; pick a finish again in the editor.',
+  },
+  textures_invalid: {
+    title: 'Your own textures can’t be read',
+    help: 'Textures/textures.json is broken. The last valid list is still used, but no texture can be added or deleted until the file is fixed or removed.',
+  },
+  texture_missing: {
+    title: 'Texture images missing',
+    help: 'A texture listed in Textures/textures.json has no image file. Rooms using it show its colour; put the file back, or delete the texture in the editor’s Finish dialog.',
   },
   house_unknown_floor: {
     title: 'Unknown floors',
