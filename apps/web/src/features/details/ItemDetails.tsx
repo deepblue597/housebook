@@ -285,12 +285,13 @@ function ItemDetailsView({
           ))}
       </dl>
 
-      <div className="links">
-        {manual && <ExternalLink href={manual} label="Manual" primary />}
-        {support && <ExternalLink href={support} label="Support" />}
-        {item.obsidianUrl && <ExternalLink href={item.obsidianUrl} label="Open in Obsidian" />}
-        <a href={printPath('stickers', [item.id])}>{STICKERS.openOne}</a>
-      </div>
+      {(manual || support || item.obsidianUrl) && (
+        <div className="links">
+          {manual && <ExternalLink href={manual} label="Manual" primary />}
+          {support && <ExternalLink href={support} label="Support" />}
+          {item.obsidianUrl && <ExternalLink href={item.obsidianUrl} label="Open in Obsidian" />}
+        </div>
+      )}
 
       <section aria-label="Notes">
         <Notes body={item.body} resolve={resolve} onNavigate={onNavigate} />
@@ -307,6 +308,7 @@ function ItemDetailsView({
         <div className="links">
           <CopyButton text={item.path} fallbackTarget={pathRef} label="Copy path" />
           {findManual && <ExternalLink href={findManual} label="Find manual online" />}
+          <a href={printPath('stickers', [item.id])}>{STICKERS.openOne}</a>
         </div>
       </footer>
     </>

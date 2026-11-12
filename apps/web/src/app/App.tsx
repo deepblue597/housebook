@@ -20,8 +20,9 @@ import { useHouseProblems } from '../store/problems';
 import { type PlanStyle, type Selection, type View, useUi } from '../store/ui';
 import { choose3d, useShows3d } from './scene3d';
 import { Scene3dSlot } from './Scene3dSlot';
+import { MoreMenu } from './MoreMenu';
 import { SyncStatus } from './SyncStatus';
-import { NEXT_THEME, useApplyTheme } from './theme';
+import { useApplyTheme } from './theme';
 import { webglAvailable } from './webgl';
 
 function ViewToggle() {
@@ -95,41 +96,6 @@ function PlanStyleToggle({ onUnsupported }: { onUnsupported: () => void }) {
         </span>
       )}
     </div>
-  );
-}
-
-const THEME_ICON = {
-  auto: (
-    <>
-      <circle cx="12" cy="12" r="8" />
-      <path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor" />
-    </>
-  ),
-  light: (
-    <>
-      <circle cx="12" cy="12" r="4" />
-      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
-    </>
-  ),
-  dark: <path d="M19 14.5A7.5 7.5 0 0 1 9.5 5a7.5 7.5 0 1 0 9.5 9.5z" />,
-};
-
-function ThemeToggle() {
-  const theme = useUi((s) => s.theme);
-  const setTheme = useUi((s) => s.setTheme);
-  const label = `Theme: ${theme}`;
-  return (
-    <button
-      type="button"
-      className="ghost theme"
-      onClick={() => setTheme(NEXT_THEME[theme])}
-      title={label}
-      aria-label={`${label}. Change theme`}
-    >
-      <svg className="ico" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        {THEME_ICON[theme]}
-      </svg>
-    </button>
   );
 }
 
@@ -277,7 +243,7 @@ export function App() {
         <EditToggle />
         <ProblemsButton />
         <SyncStatus />
-        <ThemeToggle />
+        <MoreMenu />
       </header>
       <LazyEditorPanels />
       <main id="main" className="main">

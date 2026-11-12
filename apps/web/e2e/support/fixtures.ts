@@ -45,6 +45,12 @@ export async function planView(page: Page) {
   return { tx: Number(m[1]), ty: Number(m[2]), k: Number(m[3]) };
 }
 
+/** Open the top bar's "⋯" menu (D46) and return it. */
+export async function openMore(page: Page) {
+  await page.getByRole('button', { name: 'More', exact: true }).click();
+  return page.locator('#more-menu');
+}
+
 /** Wait until the app has rendered the plan for the first floor. */
 export async function gotoPlan(page: Page, url = '/') {
   await page.goto(url);

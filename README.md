@@ -5,6 +5,31 @@ warranty, quick fixes and maintenance log. Item info is plain Markdown with YAML
 (Obsidian-compatible, Obsidian optional); the layout is `house.json`. One Docker container,
 one household.
 
+![The 2D plan with the dishwasher open: warranty status, quick help for error E15, maintenance log](docs/screenshots/plan.webp)
+
+<table>
+  <tr>
+    <td width="66%" valign="top">
+      <img src="docs/screenshots/3d-home-look.webp" alt="The 3D view with the home look: wood, tile and carpet floors and painted walls"><br>
+      <sub>The 3D view with the home look (floor and wall finishes)</sub><br><br>
+      <img src="docs/screenshots/attention-dark.webp" alt="The Attention view in dark mode: overdue checks and a warranty ending soon"><br>
+      <sub>Attention: overdue checks and warranties ending soon (dark mode)</sub>
+    </td>
+    <td width="34%" valign="top">
+      <img src="docs/screenshots/phone.webp" alt="On a phone: the plan with the item's details in a bottom sheet"><br>
+      <sub>On a phone</sub>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2">
+      <img src="docs/screenshots/emergency-sheet.webp" alt="The printable emergency sheet: the floor plan with numbered markers for the fuse box, router and water valve" width="60%"><br>
+      <sub>The printable emergency sheet: where the fuse box, router and water valve are, and what to do</sub>
+    </td>
+  </tr>
+</table>
+
+Screenshots show the example house in `examples/house` (finishes added for the 3D view).
+
 Status: milestones 0–5: the data contract; the web UI with 2D plan, list, details, search and the
 3D view; writes (`PUT /api/house`, item create/patch/delete/log), the file watcher, server-sent
 events, live sync and the problems panel (milestone 4); and the **layout editor** (milestone 5):

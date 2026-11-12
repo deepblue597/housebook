@@ -2,7 +2,7 @@
  * Milestone 12: the printable emergency sheet (D44) against the real backend: what it shows,
  * how it prints, and the reminder to reprint it when the house changes.
  */
-import { expect, expectNoA11yViolations, gotoPlan, test } from './support/fixtures';
+import { expect, expectNoA11yViolations, gotoPlan, openMore, test } from './support/fixtures';
 
 const VALVE = 'it_2v9q6t';
 const FUSE_BOX = 'it_7n3d8f';
@@ -12,8 +12,7 @@ test('the sheet shows each emergency item on its floor plan, with where it is an
   page,
 }) => {
   await gotoPlan(page);
-  await page.getByRole('button', { name: 'Attention' }).click();
-  await page.getByRole('link', { name: 'Emergency sheet' }).click();
+  await (await openMore(page)).getByRole('link', { name: 'Emergency sheet' }).click();
   await expect(page).toHaveURL(/\/print\/emergency$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Emergency sheet' })).toBeVisible();
   await expect(page).toHaveTitle('Emergency sheet · Housebook');
