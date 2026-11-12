@@ -33,6 +33,26 @@ export function sectionLines(body: string, title: string): string[] {
   return out;
 }
 
+/** The body without the sections titled `title` (heading included), as `sectionLines` finds them. */
+export function withoutSection(body: string, title: string): string {
+  const want = title.toLowerCase();
+  const out: string[] = [];
+  let level: number | null = null;
+  for (const line of body.split('\n')) {
+    const m = HEADING.exec(line);
+    if (m) {
+      const depth = m[1]!.length;
+      if (level !== null && depth <= level) level = null;
+      if (level === null && m[2]!.trim().toLowerCase() === want) {
+        level = depth;
+        continue;
+      }
+    }
+    if (level === null) out.push(line);
+  }
+  return out.join('\n');
+}
+
 /** `- **E15**: water in the base` -> `E15` (a trailing `:` inside the bold is dropped). */
 export function errorCodes(body: string): string[] {
   const codes: string[] = [];

@@ -62,7 +62,7 @@ function StatusMark({ level }: { level: Level }) {
   return <rect className="mark warn" x="8.5" y="-19.5" width="11" height="11" rx="2" />;
 }
 
-function OpeningMark({ o, floor }: { o: Opening; floor: FloorModel }) {
+export function OpeningMark({ o, floor }: { o: Opening; floor: FloorModel }) {
   const s = openingSegment(o);
   const horizontal = o.side === 'n';
   const [x1, y1, x2, y2] = [s.x1 * S, s.y1 * S, s.x2 * S, s.y2 * S];

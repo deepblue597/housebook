@@ -3,7 +3,7 @@
  * 30 days and warranties ending within 60, by date. Each entry opens its item. Follows the
  * search like the List view. Arrow keys move between entries.
  */
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Item } from '../../api/types';
 import { TypeIcon } from '../../catalog/TypeIcon';
 import { moveFocus } from '../../components/listNav';
@@ -14,6 +14,9 @@ import { useData } from '../../store/data';
 import { type Model, floorOf, roomOf } from '../../store/model';
 import { useSearchResults } from '../../store/search';
 import { useUi } from '../../store/ui';
+import { EMERGENCY } from '../../strings/emergency';
+import { readPrinted } from '../emergency/printed';
+import { emergencySheet, sheetFingerprint } from '../emergency/sheet';
 import { CalendarDialog } from './CalendarDialog';
 import { type AttentionEntry, attentionEntries, entryText } from './entries';
 
@@ -89,6 +92,19 @@ function Group({
   );
 }
 
+/**
+ * The emergency sheet printed in this browser no longer matches the house (D44): the date it
+ * was printed, else null (never printed here, or still current).
+ */
+function useStaleSheet(model: Model): string | null {
+  const [printed] = useState(readPrinted);
+  return useMemo(() => {
+    if (!printed) return null;
+    const current = sheetFingerprint(model, emergencySheet(model));
+    return current === printed.fingerprint ? null : printed.date;
+  }, [model, printed]);
+}
+
 export function AttentionView() {
   const model = useData((s) => s.model)!;
   const search = useSearchResults();
@@ -98,6 +114,7 @@ export function AttentionView() {
   const { overdue, upcoming } = attentionEntries(items, (i) => currentStatus(i, model.snapshot));
   const none = overdue.length === 0 && upcoming.length === 0;
   const [calendar, setCalendar] = useState(false);
+  const staleSheet = useStaleSheet(model);
 
   return (
     // Arrow keys move between the buttons inside (keydown delegation, not a widget of its own).
@@ -111,7 +128,15 @@ export function AttentionView() {
         <button type="button" className="btn" onClick={() => setCalendar(true)}>
           Add to your calendar
         </button>
+        <a className="btn" href="/print/emergency">
+          {EMERGENCY.open}
+        </a>
       </div>
+      {staleSheet && (
+        <p className="banner warn attention-reprint" role="status">
+          {EMERGENCY.reprint(staleSheet)} <a href="/print/emergency">{EMERGENCY.reprintLink}</a>
+        </p>
+      )}
       {calendar && <CalendarDialog onClose={() => setCalendar(false)} />}
       {search.active && (
         <p className="list-summary" role="status">

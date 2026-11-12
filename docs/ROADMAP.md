@@ -132,7 +132,7 @@ Link receipts and invoices stored in Paperless-ngx to items.
 
 - **Printable emergency sheet** (`/print/emergency`): the plan of each floor with the critical
   items (water valve, fuse box, gas valve, boiler, router, or `critical: true`), their location
-  and quick help. The attention list reminds you to reprint when it's out of date.
+  and quick help. The attention list reminds you to reprint when it's out of date. (Done: D44.)
 - **QR stickers:** print sheets of QR codes linking to `/i/<item id>` (the route exists).
 - **Offline viewing (PWA):** the app and last known data stay readable without a connection,
   with an "Offline, data from <time>" banner. Editing stays online only.
