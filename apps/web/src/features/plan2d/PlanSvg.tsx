@@ -16,6 +16,7 @@ import {
   doorSwingsIntoKeyedTile,
   formatArea,
   labelPosition,
+  openingsOnWalls,
   roomTiles,
   walls,
 } from '../../domain/plan';
@@ -180,8 +181,9 @@ function PlanSvgImpl({
   };
 
   const totalArea = [...floor.roomAreas.values()].reduce((a, b) => a + b, 0);
-  const openings = (model.snapshot.house?.openings ?? []).filter(
-    (o) => o.floorId === floor.floor.id,
+  const openings = openingsOnWalls(
+    (model.snapshot.house?.openings ?? []).filter((o) => o.floorId === floor.floor.id),
+    floor.cells,
   );
   const by = H * S + 30;
   const scaleTiles = Math.min(5, W);

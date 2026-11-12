@@ -12,6 +12,7 @@ import type { Item } from '../../api/types';
 import { typeLabel } from '../../catalog/catalog';
 import { type Rect, cellKey } from '../../domain/coords';
 import { sectionLines, withoutSection } from '../../domain/notes';
+import { openingsOnWalls } from '../../domain/plan';
 import { type FloorModel, type Model, itemRect, roomOf } from '../../store/model';
 
 export interface SheetItem {
@@ -126,8 +127,10 @@ export function sheetFingerprint(model: Model, sheet: Sheet): string {
     const rooms = [...new Set(f.floor.cells.values())]
       .sort()
       .map((id) => [id, model.rooms.get(id)?.name ?? '']);
-    const doors = openings
-      .filter((o) => o.floorId === f.floor.floor.id)
+    const doors = openingsOnWalls(
+      openings.filter((o) => o.floorId === f.floor.floor.id),
+      f.floor.cells,
+    )
       .map((o) => [o.x, o.y, o.side, o.kind])
       .sort((a, b) => String(a).localeCompare(String(b)));
     return [f.floor.floor.name, cells, rooms, doors];

@@ -7,7 +7,7 @@
  */
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { cellKey } from '../../domain/coords';
-import { labelPosition, roomTiles, walls } from '../../domain/plan';
+import { labelPosition, openingsOnWalls, roomTiles, walls } from '../../domain/plan';
 import { EMERGENCY } from '../../strings/emergency';
 import { useData } from '../../store/data';
 import type { Model } from '../../store/model';
@@ -55,8 +55,9 @@ function PrintPlan({ model, sheetFloor }: { model: Model; sheetFloor: SheetFloor
     }),
   );
   const w = walls(floor.cells);
-  const openings = (model.snapshot.house?.openings ?? []).filter(
-    (o) => o.floorId === floor.floor.id,
+  const openings = openingsOnWalls(
+    (model.snapshot.house?.openings ?? []).filter((o) => o.floorId === floor.floor.id),
+    floor.cells,
   );
   return (
     <svg
