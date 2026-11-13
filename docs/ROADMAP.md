@@ -100,7 +100,7 @@ What it takes underneath:
 - Rooms are shared by all floors, so a room's finish is the same on every floor it appears on.
   Per-floor finishes would wait for a later version.
 
-## M10: Login (~2–3 days)
+## M10: Login (~2–3 days) — done
 
 Today: no login (`none`), or a login service in front of the app (`proxy`).
 
@@ -110,6 +110,8 @@ Today: no login (`none`), or a login service in front of the app (`proxy`).
 - **Show who is logged in**, with a log-out link, in both login modes.
 - **Setup guide** for each mode, including the simple one (one person, home network or
   Tailscale) and why it must not be exposed to the internet.
+
+Done: D48 (`docs/login.md`).
 
 ## M11: Paperless receipts (~2–4 days)
 

@@ -17,6 +17,8 @@ from housebook.domain.status import today_in
 from housebook.lock import ProcessLock
 from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer, IndexState
+from housebook.services.oidc import Oidc
+from housebook.services.sessions import Sessions, Signer
 from housebook.services.sync import Hub, Sync
 from housebook.services.writer import Writer
 
@@ -37,6 +39,10 @@ class AppContext:
     writer: Writer
     calendar_links: CalendarLinks
     clock: Callable[[], datetime] = _utcnow
+    # oidc mode only (D48): login cookies and the provider.
+    signer: Signer | None = None
+    sessions: Sessions | None = None
+    oidc: Oidc | None = None
     loop: asyncio.AbstractEventLoop | None = None  # set at startup; signal handlers post to it
     # (scan time, today) -> (body, etag); the snapshot is rebuilt only when either changes
     _snapshot: tuple[tuple[datetime, date], bytes, str] | None = field(default=None, repr=False)

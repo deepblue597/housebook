@@ -80,7 +80,13 @@ def test_every_endpoint_on_the_example(copy_examples: Path, serve: ServerFactory
     assert s.get("/api/problems").json()["count"] == 0
     cat = s.get("/api/catalog").json()
     assert {"boiler", "gas_valve", "fridge"} <= {t["key"] for t in cat["types"]}
-    assert s.get("/api/me").json() == {"user": None, "role": "viewer", "authMode": "none"}
+    assert s.get("/api/me").json() == {
+        "user": None,
+        "name": None,
+        "role": "viewer",
+        "authMode": "none",
+        "logoutUrl": None,
+    }
     assert s.get("/api/openapi.json").status_code == 200 and s.get("/api/docs").status_code == 200
 
     for path in ["/api/items/nope", "/api/items/it_7f3k2a/attachments/nope.pdf", "/api/nope", "/nope"]:
@@ -293,8 +299,10 @@ def test_proxy_auth_trusts_only_configured_peers(copy_examples: Path, serve: Ser
     with _client_from("127.0.0.2") as proxy, _client_from("127.0.0.3") as other:
         assert proxy.get(s.base + "/api/me", headers=editor).json() == {
             "user": "iasonas",
+            "name": "iasonas",
             "role": "editor",
             "authMode": "proxy",
+            "logoutUrl": "/oauth2/sign_out",
         }
         viewer = {"X-Forwarded-User": "kid", "X-Forwarded-Groups": "/family"}
         assert proxy.get(s.base + "/api/me", headers=viewer).json()["role"] == "viewer"

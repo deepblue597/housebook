@@ -523,7 +523,13 @@ def test_bare_link_to_escaping_symlink_is_unsafe(tmp_path: Path, root: Path, mak
 
 def test_none_mode_ignores_identity_headers(client: TestClient):
     h = {"X-Forwarded-User": "mallory", "X-Forwarded-Groups": "housebook-editors"}
-    assert client.get("/api/me", headers=h).json() == {"user": None, "role": "viewer", "authMode": "none"}
+    assert client.get("/api/me", headers=h).json() == {
+        "user": None,
+        "name": None,
+        "role": "viewer",
+        "authMode": "none",
+        "logoutUrl": None,
+    }
 
 
 @pytest.fixture
@@ -579,7 +585,13 @@ def test_proxy_untrusted_peers_get_401_even_with_xff(proxy, peer: str):
 
 def test_proxy_trusted_ipv6_peer(proxy):
     r = proxy("fd00::7").get("/api/me", headers={"X-Forwarded-User": "u"})
-    assert r.json() == {"user": "u", "role": "viewer", "authMode": "proxy"}
+    assert r.json() == {
+        "user": "u",
+        "name": "u",
+        "role": "viewer",
+        "authMode": "proxy",
+        "logoutUrl": "/oauth2/sign_out",
+    }
 
 
 def test_proxy_requires_user_header(proxy):

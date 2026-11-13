@@ -2,16 +2,24 @@
 
 Any GET outside /api returns index.html (client-side routes such as /i/<id>).
 Hashed assets are immutable; index.html, sw.js and everything else revalidate.
+
+With the built-in login (oidc, D48), a page load without a session is sent to the login, like
+a login proxy would. The app's files themselves (scripts, styles, icons, the manifest) are
+served to anyone: they hold no data, and the service worker and the manifest are fetched
+without a login.
 """
 
 import re
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 
 from housebook.adapters.fs import resolve_inside
+from housebook.api.auth import SESSION_COOKIE
+from housebook.api.context import AppContext
 from housebook.api.http import IMMUTABLE, NO_CACHE, matches_if_none_match
+from housebook.api.login import login_url
 from housebook.ports import UnsafePath
 
 # Vite emits assets/<name>-<hash>.<ext>; the hash is 8+ url-safe chars.
@@ -48,6 +56,10 @@ def mount_spa(app: FastAPI, static_dir: Path | None) -> None:
                 pass
             if _HASHED_RE.search(path):  # a missing hashed asset must not turn into HTML
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
+        ctx: AppContext = request.app.state.ctx
+        if ctx.sessions is not None and ctx.sessions.read(request.cookies.get(SESSION_COOKIE)) is None:
+            target = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+            return RedirectResponse(login_url(target), status_code=status.HTTP_302_FOUND)
         return _file_response(index, NO_CACHE, request)
 
 

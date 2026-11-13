@@ -112,6 +112,8 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   `not_adopted` note (`POST /api/items/adopt`); other fixes are read-only for now. Nothing is
   fixed automatically.
 - **Writes:** the role comes from `/api/me`; viewers (and an unknown role) see no write UI.
+- **Who is signed in (D48):** the ⋯ menu shows `/api/me`'s `name` and a "Log out" link to its
+  `logoutUrl`, which first clears the offline copy (`store/offlineCache.ts`).
   Editors get "Add to maintenance log" in the item panel (`POST /api/items/{id}/log`, no
   If-Match; disabled while the note is unreadable).
 - **Note editor (milestone 6, D31):** "Edit note" in the item panel (editors) edits the common
@@ -246,6 +248,9 @@ The shared contract is imported as `@contract/…` (`../../contract`).
     it elsewhere): a deep link with the server stopped opens from the saved app and data,
     read-only; a login redirect to an unreachable provider still opens it, with "Sign in again"
     and no reload; `?signin` is dropped from the address.
+  - `login.spec.ts`: `oidc` mode against a fake provider (`e2e/support/fakeIdp.ts`, real RS256
+    tokens, groups from userinfo): sign in and back to the deep link, "Signed in as", log out
+    (provider logout, offline copy gone, 401 after), a viewer without write UI, provider down.
   - `ui.spec.ts`: theme toggle and dark mode (axe), reduced motion, 360 px (no horizontal
     scroll, 44 px targets), the after-midnight status recompute, and four screenshots (incl. 3D)
     (`ui.spec.ts-snapshots/`, fixed clock and viewport, animations off). Update them with

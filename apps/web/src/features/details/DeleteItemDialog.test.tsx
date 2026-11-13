@@ -40,7 +40,9 @@ const confirm = () => userEvent.click(screen.getByRole('button', { name: 'Delete
 describe('delete item', () => {
   beforeEach(() => {
     resetEditorForTests();
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
   });
   afterEach(() => {
     resetEditorForTests();
@@ -49,7 +51,9 @@ describe('delete item', () => {
 
   it('an unplaced item: the note goes to the trash with If-Match; panel closes, notice shown', async () => {
     seedStore();
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     useUi.getState().select({ kind: 'item', id: 'it_dish' });
     const log = server({ 'DELETE /api/items/it_dish': () => new Response(null, { status: 204 }) });
     open();
@@ -67,7 +71,9 @@ describe('delete item', () => {
 
   it('a placed item is taken off the plan and saved first, then deleted', async () => {
     seedStore({ ...snapshot, house: placedHouse });
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     const log = server({
       'PUT /api/house': () => json({ ...placedHouse, placements: [] }, 200, { ETag: '"h2"' }),
       'DELETE /api/items/it_dish': () => new Response(null, { status: 204 }),
@@ -82,7 +88,9 @@ describe('delete item', () => {
 
   it('if the layout can’t be saved, nothing is deleted', async () => {
     seedStore({ ...snapshot, house: placedHouse });
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     const log = server({ 'PUT /api/house': () => json({ detail: 'disk full' }, 500) });
     open();
     await confirm();
@@ -95,7 +103,9 @@ describe('delete item', () => {
 
   it('a note changed meanwhile (412) is not deleted, and says so', async () => {
     seedStore();
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     server({ 'DELETE /api/items/it_dish': () => json({ detail: 'changed' }, 412) });
     open();
     await confirm();

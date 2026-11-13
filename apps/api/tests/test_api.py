@@ -262,7 +262,13 @@ def test_stale_item_is_served_with_flag(tmp_path: Path, make_client: ClientFacto
 
 
 def test_auth_none_defaults_to_viewer(client: TestClient):
-    assert client.get("/api/me").json() == {"user": None, "role": "viewer", "authMode": "none"}
+    assert client.get("/api/me").json() == {
+        "user": None,
+        "name": None,
+        "role": "viewer",
+        "authMode": "none",
+        "logoutUrl": None,
+    }
 
 
 def test_auth_none_editor_when_explicit(example_root: Path, make_client: ClientFactory):
@@ -288,7 +294,13 @@ def proxied(example_root: Path, make_client: ClientFactory):
 def test_auth_proxy_roles(proxied):
     c = proxied("10.0.0.7")
     me = c.get("/api/me", headers={"X-Forwarded-User": "iasonas", "X-Forwarded-Groups": "/family,/housebook-editors"})
-    assert me.json() == {"user": "iasonas", "role": "editor", "authMode": "proxy"}
+    assert me.json() == {
+        "user": "iasonas",
+        "name": "iasonas",
+        "role": "editor",
+        "authMode": "proxy",
+        "logoutUrl": "/oauth2/sign_out",
+    }
     me = c.get("/api/me", headers={"X-Forwarded-User": "kid", "X-Forwarded-Groups": "family"})
     assert me.json()["role"] == "viewer"
     assert c.get("/api/me").status_code == 401  # no user header

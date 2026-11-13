@@ -46,7 +46,9 @@ beforeEach(() => {
   getHouse.mockReset();
   post.mockReset();
   seedStore(snap());
-  useData.setState({ me: { user: null, role: 'editor', authMode: 'none' } });
+  useData.setState({
+    me: { user: null, role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+  });
   ed().setMode('edit');
 });
 afterEach(() => {
@@ -131,7 +133,9 @@ describe('edits and saving', () => {
   it('refuses edits for viewers and explains impossible ones', () => {
     ed().paintRect('fl_0', { x: 9, y: 9 }, { x: 9, y: 9 }, false);
     expect(ed().notices.at(-1)!.text).toMatch(/outside the house/);
-    useData.setState({ me: { user: null, role: 'viewer', authMode: 'none' } });
+    useData.setState({
+      me: { user: null, role: 'viewer', authMode: 'none', name: null, logoutUrl: null },
+    });
     ed().paintRect('fl_0', { x: 0, y: 1 }, { x: 0, y: 1 }, false);
     expect(ed().pending).toEqual([]);
   });
@@ -308,7 +312,9 @@ describe('ghosts', () => {
     const h = server();
     h.placements!.push({ itemId: 'it_gone', floorId: 'fl_0', x: 3, y: 1, rotation: 90 });
     seedStore({ ...snap(), house: h });
-    useData.setState({ me: { user: null, role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: null, role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     ed().relinkGhost('it_gone', 'it_heat');
     expect(shown().placements!.map((p) => p.itemId)).toEqual(['it_fridge', 'it_heat']);
     expect(shown().placements![1]).toMatchObject({ x: 3, y: 1, rotation: 90 });
@@ -428,7 +434,9 @@ describe('repairs (D30)', () => {
     const h = server();
     h.floors[0]!.cells!['3,1'] = 'rm_gone';
     seedStore({ ...snap(), house: h });
-    useData.setState({ me: { user: null, role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: null, role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
   };
   const issue = () => layoutIssues(shown(), () => [1, 1])[0]!;
 

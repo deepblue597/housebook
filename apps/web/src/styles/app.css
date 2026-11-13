@@ -357,6 +357,28 @@ code {
   padding: 4px 10px;
   font-size: 12.5px;
 }
+.more-account {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  padding: 4px 6px 8px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13.5px;
+}
+.more-account span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.more-account a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  padding: 0 4px;
+  color: var(--ink);
+  white-space: nowrap;
+}
 
 /* Narrow screens: brand and the small controls share the first row (so ⋯ stays at the right
    edge and its menu on screen), views the second, search the third. */

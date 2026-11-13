@@ -11,6 +11,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from housebook.api.auth import identify
 from housebook.config import Settings
+from housebook.services.sessions import Sessions
 
 
 class HeadAsGet:
@@ -144,16 +145,17 @@ class WriteGuard:
     (Content-Length up front, the streamed byte count for chunked bodies), all before the route
     reads or parses anything. A viewer's 150 MB upload is refused without being buffered."""
 
-    def __init__(self, app: ASGIApp, settings: Settings) -> None:
+    def __init__(self, app: ASGIApp, settings: Settings, sessions: Sessions | None = None) -> None:
         self.app = app
         self.settings = settings
+        self.sessions = sessions
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or scope["method"] in _SAFE_METHODS or not scope["path"].startswith("/api/"):
             await self.app(scope, receive, send)
             return
         try:
-            identity = identify(Request(scope), self.settings)
+            identity = identify(Request(scope), self.settings, self.sessions)
         except HTTPException as e:
             await _send_json(send, e.status_code, str(e.detail))
             return

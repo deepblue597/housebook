@@ -35,6 +35,7 @@ fixture first.
     history/                 previous house.json versions: house-<UTC stamp>.json, last 50 kept
     trash/                   deleted notes: <UTC stamp>-<id>/, purged after 90 days (at startup)
     calendar-links.json      calendar link fingerprints, one per person (§10)
+    session-key              key for login cookies (`oidc` mode, §11), mode 0600; delete to sign everyone out
 ```
 
 Ignored everywhere: dot-files and dot-dirs (`.housebook`, `.obsidian`, `.trash`, `.stversions`,
@@ -710,7 +711,7 @@ Calendar apps can't log in, so the feed is read with a private link instead of a
 | `DELETE` | `/api/calendar/link` | – | `204` (also when there was none) |
 | `GET` | `/api/calendar.ics?token=` | – | `200` `text/calendar; charset=utf-8`, `ETag` (`If-None-Match` → `304`); `404` for an unknown, replaced or missing code |
 
-- **Links.** One per person: the `proxy` user name, or one shared by the household in `none` mode
+- **Links.** One per person: the `proxy` or `oidc` user name, or one shared by the household in `none` mode
   (key `""`). The three `/api/calendar/link` routes need a login like the rest of `/api` but any
   role. `url` is `<origin>/api/calendar.ics?token=<code>`, the code 43 random URL-safe characters;
   it is returned **only** by the `POST`. `.housebook/calendar-links.json` keeps
@@ -727,3 +728,35 @@ Calendar apps can't log in, so the feed is read with a private link instead of a
   link (`<origin>/i/<id>`); `TRANSP:TRANSPARENT`. `DTSTAMP` is the time of the last scan.
   `X-WR-CALNAME:Housebook`, `REFRESH-INTERVAL` and `X-PUBLISHED-TTL` of 6 hours (a hint; Google
   refreshes on its own schedule). RFC 5545 text escaping, CRLF lines folded at 75 octets.
+
+## 11. Login (D48)
+
+`GET /api/me` says who is asking: `{user, name, role, authMode, logoutUrl}`. `user` is the stable
+key (calendar links, §10) and `name` the one to show (the provider's `name`, else `user`); both are
+`null` in `none` mode. `logoutUrl` is where "Log out" goes: `/api/auth/logout` (`oidc`),
+`HOUSEBOOK_LOGOUT_URL` or `/oauth2/sign_out` (`proxy`), `null` (`none`). Without a valid login,
+every `/api` route except the calendar feed answers `401`.
+
+With `HOUSEBOOK_AUTH_MODE=oidc` the server signs people in itself (authorization code flow with
+PKCE; setup in `docs/login.md`):
+
+| Method | Path | Response |
+|---|---|---|
+| `GET` | `/api/auth/login?next=` | `302` to the provider; sets `housebook_login` (signed state, nonce and PKCE verifier; `Path=/api/auth`, 10 minutes). `next` is kept only if it is a path on this site (`/…`, not `//…`), else `/`. `502` page when the provider can't be reached |
+| `GET` | `/api/auth/callback?code=&state=` | `302` to `next` with the session cookie set. `400` page when the state doesn't match `housebook_login` (expired, another browser, another tab's login) or the provider sent `error`; `502` page when the code exchange or the ID token check fails |
+| `GET` | `/api/auth/logout` | `302` to the provider's `end_session_endpoint` (`client_id`, `post_logout_redirect_uri=<public URL>/`), or `/` when it has none; the session cookie is deleted |
+
+In other modes these paths answer `404`.
+
+- **ID token:** signature against the provider's JWKS (asymmetric algorithms only; keys refetched
+  once for an unknown `kid`), `iss` = the configured issuer, `aud` contains the client id (`azp`
+  must be it when there are several), `exp`/`iat` with 60 s leeway, `nonce` = the one sent. When
+  the token lacks the groups claim, groups come from userinfo, whose `sub` must match.
+- **Session cookie** `housebook_session`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` when the
+  public URL is `https`, `Max-Age` = `HOUSEBOOK_SESSION_DAYS`. Its value is
+  `<base64url JSON>.<base64url HMAC-SHA256>` holding the user, name, the groups that grant a role
+  and an expiry; the server keeps no session list. A cookie that is altered, expired or signed
+  with another key counts as none.
+- **Page loads** (anything the SPA fallback answers with `index.html`) without a valid session get
+  `302 /api/auth/login?next=<path and query>`, like a login proxy. The app's own files (`/assets/*`,
+  `/sw.js`, the manifest, icons) are served without a login.
