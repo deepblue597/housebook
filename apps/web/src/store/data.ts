@@ -42,6 +42,7 @@ import type {
   TexturesChangedEvent,
 } from '../api/types';
 import { type Model, buildModel } from './model';
+import { readOffline } from './offlineCache';
 
 export type LoadState = 'loading' | 'ready' | 'error';
 /** How a snapshot load went; `unauthorized` means the login expired (the sync client reloads). */
@@ -59,7 +60,13 @@ interface DataState {
   itemsVersion: string | null;
   /** Last failure; with a model present it means "showing older data". */
   error: string | null;
+  /** When the data shown was last known to be current. */
   loadedAt: Date | null;
+  /**
+   * Set while the data shown is the offline copy (D47): the server couldn't be reached when the
+   * app started. The time the copy was last current; null once the server has answered.
+   */
+  offlineAt: Date | null;
   /** Integrity report size: from the snapshot, `resync` and `problems.changed`. */
   problemCount: number;
   /** Bumped whenever the integrity report may have changed (an open panel refetches). */
@@ -192,7 +199,7 @@ export const useData = create<DataState>()((set, get) => {
     try {
       const res = await fetchSnapshot(get().etag);
       if (res.notModified) {
-        set({ error: null, loadedAt: new Date() });
+        set({ error: null, loadedAt: new Date(), offlineAt: null });
       } else {
         set({
           state: 'ready',
@@ -202,13 +209,36 @@ export const useData = create<DataState>()((set, get) => {
           problemCount: res.snapshot.problemCount,
           error: null,
           loadedAt: new Date(),
+          offlineAt: null,
         });
       }
       return 'ok';
     } catch (e) {
+      if (!get().model) await loadOffline();
       set((s) => ({ error: errorText(e), state: s.model ? 'ready' : 'error' }));
       return e instanceof ApiError && e.status === 401 ? 'unauthorized' : 'failed';
     }
+  };
+
+  /** No server and nothing shown yet: show the offline copy, if there is one (D47). */
+  const loadOffline = async () => {
+    const copy = await readOffline();
+    if (!copy || get().model) return;
+    let model: Model;
+    try {
+      model = buildModel(overlay(copy.snapshot));
+    } catch {
+      return; // a copy this version can't read
+    }
+    set({
+      model,
+      // Unknown versions: the first answer from the server replaces the copy completely.
+      etag: null,
+      itemsVersion: null,
+      problemCount: copy.snapshot.problemCount,
+      loadedAt: copy.at,
+      offlineAt: copy.at,
+    });
   };
 
   /** Replace the held snapshot with an edited copy (single-item or layout updates). */
@@ -276,6 +306,7 @@ export const useData = create<DataState>()((set, get) => {
     itemsVersion: null,
     error: null,
     loadedAt: null,
+    offlineAt: null,
     problemCount: 0,
     problemsRev: 0,
     me: null,

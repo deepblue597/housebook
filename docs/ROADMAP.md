@@ -126,7 +126,7 @@ Link receipts and invoices stored in Paperless-ngx to items.
 - **When Paperless is down** a plain link is shown; a deleted document is reported in the
   problems panel (`paperless_missing`).
 
-## M12: Emergencies and offline (~3–4 days)
+## M12: Emergencies and offline (~3–4 days) — done
 
 "Where is the main water valve?" has to work when the internet, the server or the login doesn't.
 
@@ -136,7 +136,7 @@ Link receipts and invoices stored in Paperless-ngx to items.
 - **QR stickers:** print sheets of QR codes linking to `/i/<item id>` (the route exists).
   (Done: D45.)
 - **Offline viewing (PWA):** the app and last known data stay readable without a connection,
-  with an "Offline, data from <time>" banner. Editing stays online only.
+  with an "Offline, data from <time>" banner. Editing stays online only. (Done: D47.)
 
 ## M13: Releases and operations (~2 days)
 

@@ -192,6 +192,20 @@ compress middleware to `text/event-stream`. Uploads are up to 25 MiB: raise the 
 30m;`, ingress-nginx: `proxy-body-size`). Use HTTP/2 at the proxy: over HTTP/1.1 browsers allow
 6 connections per host and every open tab holds one stream.
 
+### Offline and the home screen
+
+Once opened, the app keeps working without the server: a saved copy of the app and of the data
+it last showed, read-only, with an "Offline, data from …" banner. That is when a QR sticker or
+"where is the water valve?" matters most. It needs **HTTPS** (or `localhost`): browsers allow
+service workers and their storage only there, so a plain `http://192.168.…` address gets no
+offline copy. Add the app to the phone's home screen: iOS otherwise clears a site's storage after
+about a week without use.
+
+Behind a login proxy nothing extra is needed: when the proxy sends a page load to the login
+provider and the provider can't be reached, the saved app opens with the saved data and a "Sign in
+again" link. The app adds `?signin=1` to a page load that must reach the proxy (after a login
+expired), so keep query strings in the proxy's redirect back (oauth2-proxy does).
+
 ## Restore test
 
 Stop the container, restore the data folder from backup, start it, and check

@@ -691,8 +691,13 @@ data: {}
 - `attachmentsEtag` is a 16-hex hash of the item's attachments (sorted name, size, mtime): it
   changes when a file is added, removed, replaced or resized. It is not a precondition for writes.
 - **Errors:** `EventSource` can't see a `401` or a redirect to the login page. On `error`, call
-  `GET /api/me`; on `401`, reload the page. After repeated errors fall back to polling
-  `/api/snapshot` with `If-None-Match` (DESIGN 15.7).
+  `GET /api/me`; on `401`, reload the page with `?signin=1` added (the web app's service worker
+  passes such page loads to the server instead of answering them itself, D47; the app removes the
+  parameter again). A page started from the service worker's saved copy doesn't reload by itself.
+  After repeated errors fall back to polling `/api/snapshot` with `If-None-Match` (DESIGN 15.7).
+- **Offline (D47):** no API response is ever answered from a cache: the service worker passes
+  every `/api/*` request to the network. The web app keeps its own copy of the last snapshot for
+  offline use and shows it, read-only, only when the server can't be reached at startup.
 
 ## 10. Calendar feed (D40)
 

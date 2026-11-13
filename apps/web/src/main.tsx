@@ -10,22 +10,31 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './app/App';
 import { startRouter } from './app/router';
+import { dropSigninParam, registerServiceWorker } from './app/pwa';
 import { installTestHook } from './app/testHook';
 import { preloadMarkdown } from './features/details/markdownLoader';
 import { LazyPrintPage } from './features/print/LazyPrintPage';
 import { printPageOf } from './features/print/pages';
 import { useData } from './store/data';
+import { startOfflineSave } from './store/offlineSave';
 import { startSync } from './store/sync';
 
 // Pages made for paper (D44, D45) stand alone: no live sync, no router.
 const printPage = printPageOf(location.pathname);
 
 installTestHook();
+registerServiceWorker();
 void useData.getState().load();
 if (!printPage) {
+  dropSigninParam();
   startRouter();
   void useData.getState().loadMe();
+  // Started without the server: who is signed in (and may edit) is known once it answers.
+  useData.subscribe((s, prev) => {
+    if (!s.me && prev.error !== null && s.error === null) void s.loadMe();
+  });
   startSync();
+  startOfflineSave();
   // Notes are opened often; fetch the Markdown chunk once the shell is idle.
   (window.requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500)))(() =>
     preloadMarkdown(),
