@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Item, ItemChangedEvent, ResyncEvent } from '../api/types';
+import { fakeCaches } from '../test/fakeCaches';
 import { makeItem, snapshot } from '../test/fixtures';
 import { relocate, useData } from './data';
+import { saveOffline } from './offlineCache';
 
 const reset = () =>
   useData.setState({
@@ -11,6 +13,7 @@ const reset = () =>
     itemsVersion: null,
     error: null,
     loadedAt: null,
+    offlineAt: null,
     problemCount: 0,
     me: null,
   });
@@ -307,5 +310,76 @@ describe('relocate', () => {
     expect(heat!.location).toMatchObject({ floorId: 'fl_x', roomId: null });
     const unplaced = { ...snapshot.items[0]!, location: null };
     expect(relocate([unplaced], { ...house, placements: [] })[0]).toBe(unplaced);
+  });
+});
+
+describe('offline copy (D47)', () => {
+  afterEach(() => {
+    reset();
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the offline copy when the first load fails, until the server answers', async () => {
+    reset();
+    const c = fakeCaches();
+    vi.stubGlobal('caches', c);
+    const at = new Date('2026-11-12T08:00:00Z');
+    await saveOffline({ ...snapshot, problemCount: 2 }, at, c);
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(snapshot), { status: 200, headers: { ETag: '"v1"' } }),
+      );
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await useData.getState().load()).toBe('failed');
+    let s = useData.getState();
+    expect(s.state).toBe('ready');
+    expect(s.model?.items.size).toBe(snapshot.items.length);
+    expect(s.offlineAt).toEqual(at);
+    expect(s.loadedAt).toEqual(at);
+    expect(s.problemCount).toBe(2);
+    expect(s.etag).toBeNull();
+    expect(s.error).toMatch(/Failed to fetch/);
+
+    // The server is back: a full load (no If-None-Match) replaces the copy.
+    expect(await useData.getState().load()).toBe('ok');
+    s = useData.getState();
+    expect(
+      new Headers((fetchMock.mock.calls[1] as [string, RequestInit])[1].headers).has(
+        'If-None-Match',
+      ),
+    ).toBe(false);
+    expect(s.offlineAt).toBeNull();
+    expect(s.etag).toBe('"v1"');
+    expect(s.problemCount).toBe(snapshot.problemCount);
+  });
+
+  it('never replaces data already shown with the copy', async () => {
+    reset();
+    const c = fakeCaches();
+    vi.stubGlobal('caches', c);
+    await saveOffline({ ...snapshot, items: [] }, new Date('2026-11-01T08:00:00Z'), c);
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce(new Response(JSON.stringify(snapshot), { status: 200 }))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch')),
+    );
+    await useData.getState().load();
+    expect(await useData.getState().load()).toBe('failed');
+    expect(useData.getState().model?.items.size).toBe(snapshot.items.length);
+    expect(useData.getState().offlineAt).toBeNull();
+  });
+
+  it('without a copy, a failed first load is an error as before', async () => {
+    reset();
+    vi.stubGlobal('caches', fakeCaches());
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new TypeError('Failed to fetch')));
+    expect(await useData.getState().load()).toBe('failed');
+    expect(useData.getState().state).toBe('error');
+    expect(useData.getState().model).toBeNull();
   });
 });

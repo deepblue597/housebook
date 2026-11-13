@@ -86,7 +86,8 @@ export async function startBackend(dataDir: string, env: Record<string, string> 
         HOUSEBOOK_DATA_DIR: dataDir,
         HOUSEBOOK_STATIC_DIR: join(WEB, 'dist-e2e'),
         HOUSEBOOK_PORT: String(port),
-        ...env,
+        // `{url}` in a value is this backend's own address (HOUSEBOOK_PUBLIC_URL).
+        ...Object.fromEntries(Object.entries(env).map(([k, v]) => [k, v.replaceAll('{url}', url)])),
       },
     },
   );

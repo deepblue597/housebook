@@ -4,6 +4,7 @@
 - proxy: oauth2-proxy (or similar) in front. X-Forwarded-User / X-Forwarded-Groups are
          trusted only when the TCP peer is in HOUSEBOOK_TRUSTED_PROXIES. Uvicorn runs with
          proxy_headers off, so request.client is the real peer, not X-Forwarded-For.
+- oidc:  the app's own login (D48): a signed session cookie set by /api/auth/callback.
 """
 
 import ipaddress
@@ -13,6 +14,9 @@ from typing import Literal
 from fastapi import HTTPException, Request, status
 
 from housebook.config import Settings
+from housebook.services.sessions import Sessions
+
+SESSION_COOKIE = "housebook_session"
 
 Role = Literal["viewer", "editor"]
 
@@ -22,6 +26,7 @@ class Identity:
     user: str | None
     role: Role
     groups: tuple[str, ...] = ()
+    name: str | None = None  # for display; `user` is the stable key (calendar links)
 
 
 def _peer_trusted(request: Request, settings: Settings) -> bool:
@@ -35,9 +40,20 @@ def _peer_trusted(request: Request, settings: Settings) -> bool:
     return any(ip in net for net in settings.trusted_proxies)
 
 
-def identify(request: Request, settings: Settings) -> Identity:
+def identify(request: Request, settings: Settings, sessions: Sessions | None = None) -> Identity:
     if settings.auth_mode == "none":
         return Identity(user=None, role=settings.anon_role)
+
+    if settings.auth_mode == "oidc":
+        session = sessions.read(request.cookies.get(SESSION_COOKIE)) if sessions else None
+        if session is None:
+            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+        return Identity(
+            user=session.user,
+            role=role_of(session.groups, settings),
+            groups=session.groups,
+            name=session.name,
+        )
 
     if not _peer_trusted(request, settings):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
@@ -46,8 +62,11 @@ def identify(request: Request, settings: Settings) -> Identity:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
     raw_groups = request.headers.get("x-forwarded-groups", "")
     groups = tuple(g.strip() for g in raw_groups.split(",") if g.strip())
-    role: Role = "editor" if any(is_editor_group(g, settings.editor_group) for g in groups) else "viewer"
-    return Identity(user=user, role=role, groups=groups)
+    return Identity(user=user, role=role_of(groups, settings), groups=groups)
+
+
+def role_of(groups: tuple[str, ...], settings: Settings) -> Role:
+    return "editor" if any(is_editor_group(g, settings.editor_group) for g in groups) else "viewer"
 
 
 def is_editor_group(group: str, editor_group: str) -> bool:

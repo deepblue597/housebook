@@ -108,9 +108,11 @@ exactly one instance per data root (`replicas: 1`, `strategy: Recreate` on k3s).
 | `HOUSEBOOK_OBSIDIAN_VAULT` | – | Vault name; enables `obsidian://` links in item responses |
 | `HOUSEBOOK_OBSIDIAN_VAULT_SUBPATH` | – | Path of the data root inside the vault, e.g. `Housebook` |
 | `HOUSEBOOK_TZ` | `$TZ`, else `UTC` | Household time zone; decides "today" for statuses |
-| `HOUSEBOOK_AUTH_MODE` | `none` | `none` or `proxy` (`oidc` is reserved, not implemented) |
+| `HOUSEBOOK_AUTH_MODE` | `none` | `none`, `proxy` or `oidc`: see [docs/login.md](docs/login.md) for which to choose and how to set each up |
 | `HOUSEBOOK_ANON_ROLE` | `viewer` | Role for everyone in `none` mode; `editor` must be set explicitly |
 | `HOUSEBOOK_TRUSTED_PROXIES` | – | Comma-separated IPs/CIDRs of the auth proxy. Required in `proxy` mode |
+| `HOUSEBOOK_LOGOUT_URL` | `/oauth2/sign_out` | `proxy` mode: where "Log out" goes (the proxy's sign-out page) |
+| `HOUSEBOOK_PUBLIC_URL`, `HOUSEBOOK_OIDC_*`, `HOUSEBOOK_SESSION_*` | – | `oidc` mode: the app's own login, see [docs/login.md](docs/login.md#settings) |
 | `HOUSEBOOK_EDITOR_GROUP` | `housebook-editors` | Group (from `X-Forwarded-Groups`) that grants `editor`. A full path such as `/home/housebook-editors` matches exactly that group (**recommended**, stricter). A bare name matches that name at any depth (`/housebook-editors`, `/kids/housebook-editors`, …). Case-sensitive, like Keycloak group names |
 | `HOUSEBOOK_WATCH` | `inotify` | How file changes made outside the app (Obsidian, Syncthing, a file manager) are noticed. `inotify`: native events (falls back to `poll` if they can't be set up). `poll`: a full rescan every `HOUSEBOOK_POLL_INTERVAL`; use it on NFS, SMB, 9p and Docker Desktop shares, which don't deliver events for changes made by other machines (a warning is logged at startup when the data folder is on one). `off`: only the periodic rescan |
 | `HOUSEBOOK_POLL_INTERVAL` | `5` | Seconds between rescans with `HOUSEBOOK_WATCH=poll` (0.1–3600) |
@@ -167,7 +169,8 @@ Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md
 | DELETE | `/api/textures/{key}` | Move a texture's image to `.housebook/trash/` (editor); 409 while a room uses it |
 | GET | `/api/problems` | Integrity report |
 | GET | `/api/catalog` | Item types |
-| GET | `/api/me` | Current user and role |
+| GET | `/api/me` | Who is signed in (`user`, `name`), their role, the login mode and where "Log out" goes |
+| GET | `/api/auth/login`, `/callback`, `/logout` | The built-in login (`oidc` mode only; data contract §11) |
 | GET, POST, DELETE | `/api/calendar/link` | The caller's calendar link (any signed-in role): whether there is one; make a new one (the URL is returned only then); turn it off |
 | GET | `/api/calendar.ics?token=` | Calendar feed of next checks and warranty ends (iCalendar). **No login**: the code in the link is the key |
 | GET | `/healthz`, `/readyz` | Liveness; readiness = first scan done and data root writable |
@@ -182,6 +185,7 @@ writes.
 
 Writes need `Content-Type: application/json` (CSRF guard) and the `editor` role. With
 `HOUSEBOOK_AUTH_MODE=none` everyone is a viewer unless `HOUSEBOOK_ANON_ROLE=editor` is set.
+Never expose `none` mode to the internet ([docs/login.md](docs/login.md)).
 
 ### Reverse proxy and SSE
 
@@ -191,6 +195,20 @@ proxy_read_timeout 1h;` (the app also sends `X-Accel-Buffering: no`); ingress-ng
 compress middleware to `text/event-stream`. Uploads are up to 25 MiB: raise the proxy's body limit (nginx defaults to 1 MB: `client_max_body_size
 30m;`, ingress-nginx: `proxy-body-size`). Use HTTP/2 at the proxy: over HTTP/1.1 browsers allow
 6 connections per host and every open tab holds one stream.
+
+### Offline and the home screen
+
+Once opened, the app keeps working without the server: a saved copy of the app and of the data
+it last showed, read-only, with an "Offline, data from …" banner. That is when a QR sticker or
+"where is the water valve?" matters most. It needs **HTTPS** (or `localhost`): browsers allow
+service workers and their storage only there, so a plain `http://192.168.…` address gets no
+offline copy. Add the app to the phone's home screen: iOS otherwise clears a site's storage after
+about a week without use.
+
+Behind a login proxy nothing extra is needed: when the proxy sends a page load to the login
+provider and the provider can't be reached, the saved app opens with the saved data and a "Sign in
+again" link. The app adds `?signin=1` to a page load that must reach the proxy (after a login
+expired), so keep query strings in the proxy's redirect back (oauth2-proxy does).
 
 ## Restore test
 

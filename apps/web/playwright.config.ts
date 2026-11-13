@@ -19,6 +19,9 @@ export default defineConfig({
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL,
+    // The service worker (D47) would answer requests that tests route or stub themselves; it
+    // has its own tests (offline.spec.ts), which allow it.
+    serviceWorkers: 'block',
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',

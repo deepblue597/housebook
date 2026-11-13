@@ -2450,6 +2450,17 @@
             ],
             "title": "User"
           },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -2462,16 +2473,30 @@
             "type": "string",
             "enum": [
               "none",
-              "proxy"
+              "proxy",
+              "oidc"
             ],
             "title": "Authmode"
+          },
+          "logoutUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logouturl"
           }
         },
         "type": "object",
         "required": [
           "user",
+          "name",
           "role",
-          "authMode"
+          "authMode",
+          "logoutUrl"
         ],
         "title": "MeOut"
       },

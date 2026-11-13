@@ -58,7 +58,7 @@ Ctx = Annotated[AppContext, Depends(get_ctx)]
 
 
 def current_identity(request: Request, ctx: Ctx) -> Identity:
-    identity = identify(request, ctx.settings)
+    identity = identify(request, ctx.settings, ctx.sessions)
     request.state.identity = identity
     return identity
 
@@ -223,7 +223,15 @@ def get_catalog(ctx: Ctx) -> Response:
 @api.get("/me", response_model=MeOut)
 def get_me(request: Request, ctx: Ctx) -> MeOut:
     identity: Identity = request.state.identity
-    return MeOut(user=identity.user, role=identity.role, auth_mode=ctx.settings.auth_mode)
+    s = ctx.settings
+    logout = {"none": None, "proxy": s.logout_url or "/oauth2/sign_out", "oidc": "/api/auth/logout"}[s.auth_mode]
+    return MeOut(
+        user=identity.user,
+        name=identity.name or identity.user,
+        role=identity.role,
+        auth_mode=s.auth_mode,
+        logout_url=logout,
+    )
 
 
 @health.get("/healthz", response_model=HealthOut)

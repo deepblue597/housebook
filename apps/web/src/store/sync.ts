@@ -21,6 +21,7 @@
  */
 import { create } from 'zustand';
 import { type AuthCheck, checkAuth } from '../api/client';
+import { shellFromCache, signinUrl } from '../app/pwa';
 import type {
   HouseChangedEvent,
   ItemChangedEvent,
@@ -352,8 +353,17 @@ export function settleStatus(
 export const useSync = create<{ status: SyncStatus }>()(() => ({ status: 'connecting' }));
 
 const RELOAD_KEY = 'housebook.authReloadAt';
-/** Reload so the proxy can re-authenticate, at most once a minute (no reload loop). */
+/**
+ * Reload so the proxy can re-authenticate, at most once a minute (no reload loop). The reload
+ * asks for `?signin`, which the service worker passes to the server instead of answering with
+ * the saved app (D47).
+ *
+ * Declined when this page *is* the saved app: the server or the login provider was out of reach
+ * when it started, and leaving would swap the data shown for an error page. The offline banner
+ * offers signing in instead.
+ */
 export function reloadForAuth(now = Date.now()): boolean {
+  if (shellFromCache()) return false;
   try {
     const last = Number(sessionStorage.getItem(RELOAD_KEY) ?? 0);
     if (now - last < 60_000) return false;
@@ -361,7 +371,7 @@ export function reloadForAuth(now = Date.now()): boolean {
   } catch {
     // no storage: reload anyway
   }
-  window.location.reload();
+  window.location.assign(signinUrl());
   return true;
 }
 

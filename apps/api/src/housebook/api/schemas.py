@@ -112,8 +112,13 @@ class ProblemsOut(ApiModel):
 
 class MeOut(ApiModel):
     user: str | None
+    """Who is signed in, for display: the provider's `name`, else `user`. Null without a login."""
+    name: str | None
     role: Literal["viewer", "editor"]
-    auth_mode: Literal["none", "proxy"]
+    auth_mode: Literal["none", "proxy", "oidc"]
+    """Where "Log out" goes (D48): `/api/auth/logout` (oidc), the proxy's sign-out page (proxy,
+    HOUSEBOOK_LOGOUT_URL), null without a login."""
+    logout_url: str | None
 
 
 class CalendarLinkIn(ApiModel):

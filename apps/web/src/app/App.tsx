@@ -13,14 +13,17 @@ import { ProblemsButton } from '../features/problems/ProblemsButton';
 import { ListView } from '../features/list/ListView';
 import { PlanView } from '../features/plan2d/PlanView';
 import { SearchBox } from '../features/search/SearchBox';
+import { dataTime } from '../components/dataTime';
 import { readOnlyNotice } from '../components/houseNotice';
 import { useData } from '../store/data';
 import { useEditor } from '../store/editor';
 import { useHouseProblems } from '../store/problems';
+import { useSync } from '../store/sync';
 import { type PlanStyle, type Selection, type View, useUi } from '../store/ui';
 import { choose3d, useShows3d } from './scene3d';
 import { Scene3dSlot } from './Scene3dSlot';
 import { MoreMenu } from './MoreMenu';
+import { signinUrl } from './pwa';
 import { SyncStatus } from './SyncStatus';
 import { useApplyTheme } from './theme';
 import { webglAvailable } from './webgl';
@@ -143,11 +146,48 @@ function Scene3dBanner() {
   );
 }
 
-function Banners({ why3d }: { why3d: boolean }) {
+/**
+ * The data shown isn't live (D47): the server can't be reached (or the app started from its
+ * offline copy), or the login expired. Says how old the data is; editing waits for the server.
+ */
+function ConnectionBanner() {
   const model = useData((s) => s.model);
   const error = useData((s) => s.error);
   const loadedAt = useData((s) => s.loadedAt);
+  const offlineAt = useData((s) => s.offlineAt);
   const load = useData((s) => s.load);
+  const status = useSync((s) => s.status);
+  if (!model) return null;
+  const from = offlineAt ?? loadedAt;
+  const since = from ? `data from ${dataTime(from)}` : 'the last loaded data';
+  if (status === 'signed_out')
+    return (
+      <p className="banner warn" role="status" data-reason="signed_out">
+        Your login has expired; showing {since}. <a href={signinUrl()}>Sign in again</a>
+      </p>
+    );
+  if (offlineAt || status === 'offline')
+    return (
+      <p className="banner warn" role="status" data-reason="offline">
+        Offline, {since}. Changes can be made once the server is back.{' '}
+        <button type="button" className="link" onClick={() => void load()}>
+          Retry
+        </button>
+      </p>
+    );
+  if (!error) return null;
+  return (
+    <p className="banner warn" role="status" data-reason="stale">
+      Couldn’t refresh; showing {since}.{' '}
+      <button type="button" className="link" onClick={() => void load()}>
+        Retry
+      </button>
+    </p>
+  );
+}
+
+function Banners({ why3d }: { why3d: boolean }) {
+  const model = useData((s) => s.model);
   return (
     <>
       {model?.snapshot.houseReadOnly && (
@@ -156,14 +196,7 @@ function Banners({ why3d }: { why3d: boolean }) {
           etag={model.snapshot.houseEtag}
         />
       )}
-      {model && error && (
-        <p className="banner warn" role="status">
-          Couldn’t refresh{loadedAt ? `; showing data from ${loadedAt.toLocaleTimeString()}` : ''}.{' '}
-          <button type="button" className="link" onClick={() => void load()}>
-            Retry
-          </button>
-        </p>
-      )}
+      <ConnectionBanner />
       <Scene3dBanner />
       {why3d && (
         <p className="banner" role="status" data-reason="no_webgl">

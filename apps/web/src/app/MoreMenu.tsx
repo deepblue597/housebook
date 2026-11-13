@@ -1,12 +1,14 @@
 /**
  * The "⋯" menu at the end of the top bar (D46): things done now and then (printing, the
  * calendar link, the theme), kept out of the views people use every day. A disclosure, not an
- * ARIA menu: plain links and buttons in Tab order; Esc or a click outside closes it.
+ * ARIA menu: plain links and buttons in Tab order; Esc or a click outside closes it. With a
+ * login, it also says who is signed in and offers "Log out" (D48).
  */
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDialog } from '../features/attention/CalendarDialog';
 import { printPath } from '../features/print/pages';
 import { useData } from '../store/data';
+import { logOut } from './logout';
 import { useSearchResults } from '../store/search';
 import { type Theme, useUi } from '../store/ui';
 import { EMERGENCY } from '../strings/emergency';
@@ -26,6 +28,7 @@ export function MoreMenu() {
   const theme = useUi((s) => s.theme);
   const setTheme = useUi((s) => s.setTheme);
   const model = useData((s) => s.model);
+  const me = useData((s) => s.me);
   const search = useSearchResults();
   // While searching, the stickers start with the items that match (D45).
   const stickerIds =
@@ -78,6 +81,24 @@ export function MoreMenu() {
       </button>
       {open && (
         <div id="more-menu" className="more-pop">
+          {me?.user && (
+            <div className="more-account">
+              <span>
+                Signed in as <b>{me.name ?? me.user}</b>
+              </span>
+              {me.logoutUrl && (
+                <a
+                  href={me.logoutUrl}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void logOut(me.logoutUrl!);
+                  }}
+                >
+                  Log out
+                </a>
+              )}
+            </div>
+          )}
           <ul>
             <li>
               <a href={printPath('stickers', stickerIds)}>{STICKERS.open}</a>

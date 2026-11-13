@@ -70,7 +70,9 @@ describe('problems panel', () => {
   });
 
   it('editors adopt a note explicitly; the list is refetched', async () => {
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     const adopted = {
       ...useData.getState().model!.snapshot.items[0]!,
       id: 'it_new01',

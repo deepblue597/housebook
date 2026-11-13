@@ -87,7 +87,8 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   Loads, events and writes run through one ordered queue, so the event for the app's own write
   is checked after the write's response is in and is ignored (no refetch).
 - **Fallback:** on an SSE error the stream closes and `GET /api/me` is called: 401 (or a
-  redirect to the login page) reloads the page, at most once a minute; otherwise reconnect after
+  redirect to the login page) reloads the page with `?signin=1`, at most once a minute (not on a
+  page started from the service worker's saved copy, D47); otherwise reconnect after
   5 s. A stream that opens without a `resync` within 15 s (buffering proxy) counts as an error.
   After 3 errors in a row: polling `/api/snapshot` every 30 s, with an SSE retry every 60 s.
   Focus and visibility revalidate the snapshot in every mode. Hidden tab: no polling, and the
@@ -95,6 +96,12 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   Polling / Offline / Connecting (text + shape, `role="status"`; dot only on phones). A failed
   refresh keeps the last data and shows a banner. `houseReadOnly` shows a note. Timings can be
   shortened in non-production builds via `window.__housebookSyncTimings` (e2e).
+- **Offline (D47):** `src/sw/sw.ts` is the service worker, built to `/sw.js` by
+  `vite-plugin-sw.ts` (production builds only; `pnpm dev` has none). `src/sw/routes.ts` decides
+  what it answers (never `/api/*`), `src/sw/precache.ts` what it saves on install. The data copy
+  is the app's: `store/offlineCache.ts` (Cache Storage) written by `store/offlineSave.ts`, read
+  by `store/data.ts` when the first load fails (`offlineAt`). `app/pwa.ts` registers the worker
+  and handles `?signin`. To try it locally: `pnpm build && pnpm preview`, or `make e2e`.
 - **Inconsistent states (DESIGN 15.2):** a placement whose note is missing is a dashed "note
   missing" ghost (2D button with `data-ghost-id`; translucent box + label in 3D) that opens a
   "Note missing" panel; a stale (unparseable) note keeps its last good content with a dashed
@@ -105,6 +112,8 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   `not_adopted` note (`POST /api/items/adopt`); other fixes are read-only for now. Nothing is
   fixed automatically.
 - **Writes:** the role comes from `/api/me`; viewers (and an unknown role) see no write UI.
+- **Who is signed in (D48):** the ⋯ menu shows `/api/me`'s `name` and a "Log out" link to its
+  `logoutUrl`, which first clears the offline copy (`store/offlineCache.ts`).
   Editors get "Add to maintenance log" in the item panel (`POST /api/items/{id}/log`, no
   If-Match; disabled while the note is unreadable).
 - **Note editor (milestone 6, D31):** "Edit note" in the item panel (editors) edits the common
@@ -235,6 +244,13 @@ The shared contract is imported as `@contract/…` (`../../contract`).
     notes, polling fallback with If-None-Match and the way back to live, offline, 401 → one
     reload, the problems panel (axe, viewer read-only, editor adopt), the log entry (written to
     disk, no refetch of the app's own write), viewers without write UI.
+  - `offline.spec.ts` (the only spec with the service worker on; `playwright.config.ts` blocks
+    it elsewhere): a deep link with the server stopped opens from the saved app and data,
+    read-only; a login redirect to an unreachable provider still opens it, with "Sign in again"
+    and no reload; `?signin` is dropped from the address.
+  - `login.spec.ts`: `oidc` mode against a fake provider (`e2e/support/fakeIdp.ts`, real RS256
+    tokens, groups from userinfo): sign in and back to the deep link, "Signed in as", log out
+    (provider logout, offline copy gone, 401 after), a viewer without write UI, provider down.
   - `ui.spec.ts`: theme toggle and dark mode (axe), reduced motion, 360 px (no horizontal
     scroll, 44 px targets), the after-midnight status recompute, and four screenshots (incl. 3D)
     (`ui.spec.ts-snapshots/`, fixed clock and viewport, animations off). Update them with

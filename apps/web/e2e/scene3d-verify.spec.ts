@@ -71,6 +71,8 @@ test.beforeEach(({ page }) => {
     if (/GL Driver Message/.test(m.text())) return;
     // Tracked separately by the M2-04 test below.
     if (/THREE\.Clock: This module has been deprecated/.test(m.text())) return;
+    // playwright.config.ts blocks the service worker (D47) outside offline.spec.ts.
+    if (/Service Worker registration blocked by Playwright/.test(m.text())) return;
     list.push(`${m.type()}: ${m.text()}`);
   });
 });

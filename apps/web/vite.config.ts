@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { visualizer } from 'rollup-plugin-visualizer';
 import { defineConfig } from 'vite';
+import { serviceWorker } from './vite-plugin-sw.ts';
 
 // The shared contract (catalog, golden fixtures) lives at the repo root.
 const contractDir = fileURLToPath(new URL('../../contract', import.meta.url));
@@ -14,6 +15,8 @@ const apiTarget = process.env.HOUSEBOOK_API ?? 'http://127.0.0.1:8000';
 export default defineConfig({
   plugins: [
     react(),
+    // /sw.js: the app keeps working offline (D47).
+    serviceWorker(),
     // ANALYZE=1 pnpm build -> dist/stats.html (treemap of every chunk)
     process.env.ANALYZE ? visualizer({ filename: 'dist/stats.html', gzipSize: true }) : null,
   ],

@@ -22,13 +22,17 @@ describe('maintenance log entry', () => {
   it('viewers (and an unknown role) see no write UI', () => {
     renderItem();
     expect(screen.queryByRole('form', { name: 'Add to maintenance log' })).not.toBeInTheDocument();
-    useData.setState({ me: { user: 'v', role: 'viewer', authMode: 'proxy' } });
+    useData.setState({
+      me: { user: 'v', role: 'viewer', authMode: 'proxy', name: null, logoutUrl: null },
+    });
     renderItem();
     expect(screen.queryByRole('form', { name: 'Add to maintenance log' })).not.toBeInTheDocument();
   });
 
   it('editors add an entry; the item is updated from the response', async () => {
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     const written = { ...dishwasher, etag: 'w', body: '## Maintenance log\n- 2026-11-06 Filter' };
     const f = vi.fn().mockResolvedValue(new Response(JSON.stringify(written), { status: 200 }));
     vi.stubGlobal('fetch', f);
@@ -46,7 +50,9 @@ describe('maintenance log entry', () => {
   });
 
   it('shows why a write failed', async () => {
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     vi.stubGlobal(
       'fetch',
       vi
@@ -60,7 +66,9 @@ describe('maintenance log entry', () => {
   });
 
   it('an empty entry is not sent', async () => {
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
     const f = vi.fn();
     vi.stubGlobal('fetch', f);
     renderItem();
@@ -105,7 +113,9 @@ describe('next check after a log entry (D39)', () => {
 
   beforeEach(() => {
     seedStore({ ...snapshot, items: [item] });
-    useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+    useData.setState({
+      me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+    });
   });
 
   it('offers the entry date plus the interval and sets it against the logged version', async () => {

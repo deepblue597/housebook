@@ -417,14 +417,28 @@ describe('settleStatus', () => {
 });
 
 describe('reloadForAuth', () => {
-  it('reloads at most once a minute', () => {
-    const reload = vi.fn();
-    vi.stubGlobal('location', { ...window.location, reload });
+  const assign = vi.fn();
+  beforeEach(() => {
+    assign.mockReset();
+    vi.stubGlobal('location', { ...window.location, href: 'http://h/i/it_1?x=2', assign });
     sessionStorage.clear();
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    delete document.documentElement.dataset.shell;
+  });
+
+  it('reloads at most once a minute, past the service worker', () => {
     expect(reloadForAuth(1_000_000)).toBe(true);
     expect(reloadForAuth(1_030_000)).toBe(false);
     expect(reloadForAuth(1_061_000)).toBe(true);
-    expect(reload).toHaveBeenCalledTimes(2);
-    vi.unstubAllGlobals();
+    expect(assign).toHaveBeenCalledTimes(2);
+    expect(assign).toHaveBeenCalledWith('http://h/i/it_1?x=2&signin=1');
+  });
+
+  it('stays on the saved app, which shows its data and offers signing in (D47)', () => {
+    document.documentElement.dataset.shell = 'cached';
+    expect(reloadForAuth(1_000_000)).toBe(false);
+    expect(assign).not.toHaveBeenCalled();
   });
 });
