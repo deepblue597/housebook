@@ -45,7 +45,10 @@ function server(patches: Response[], latest?: Item) {
   return { f, patchCalls };
 }
 
-const editor = () => useData.setState({ me: { user: 'e', role: 'editor', authMode: 'none' } });
+const editor = () =>
+  useData.setState({
+    me: { user: 'e', role: 'editor', authMode: 'none', name: null, logoutUrl: null },
+  });
 const field = (name: string) => screen.getByLabelText(name);
 const save = () => userEvent.click(screen.getByRole('button', { name: 'Save' }));
 

@@ -55,7 +55,10 @@ def test_settings_from_env_values():
     "env, message",
     [
         ({"HOUSEBOOK_AUTH_MODE": "proxy"}, "TRUSTED_PROXIES"),
-        ({"HOUSEBOOK_AUTH_MODE": "oidc"}, "not implemented"),
+        (
+            {"HOUSEBOOK_AUTH_MODE": "oidc"},
+            "needs HOUSEBOOK_PUBLIC_URL, HOUSEBOOK_OIDC_ISSUER, HOUSEBOOK_OIDC_CLIENT_ID",
+        ),
         ({"HOUSEBOOK_AUTH_MODE": "basic"}, "AUTH_MODE"),
         ({"HOUSEBOOK_ANON_ROLE": "admin"}, "ANON_ROLE"),
         ({"HOUSEBOOK_TZ": "Mars/Base"}, "time zone"),

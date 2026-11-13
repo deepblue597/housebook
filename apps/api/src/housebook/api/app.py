@@ -15,6 +15,7 @@ from fastapi.responses import JSONResponse
 from housebook import __version__
 from housebook.adapters.fs import FsAttachmentStore, FsHouseRepo, FsTextureRepo, MarkdownNoteRepo
 from housebook.api.context import AppContext
+from housebook.api.login import login
 from housebook.api.middleware import Compression, HeadAsGet, WriteGuard
 from housebook.api.routes import api, calendar_feed, health
 from housebook.api.spa import mount_spa
@@ -24,6 +25,8 @@ from housebook.domain.finishes import load_finishes
 from housebook.lock import LockHeld, ProcessLock, network_fs_type
 from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer
+from housebook.services.oidc import Oidc
+from housebook.services.sessions import Sessions, Signer, session_key
 from housebook.services.sync import Hub, Sync, watch
 from housebook.services.writer import WriteError, Writer
 
@@ -122,6 +125,10 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
     )
     if clock:
         ctx.clock = clock
+    if settings.auth_mode == "oidc":
+        ctx.signer = Signer(session_key(settings.session_secret, data), ctx.clock)
+        ctx.sessions = Sessions(ctx.signer, settings.session_days)
+        ctx.oidc = Oidc(settings)
 
     app = FastAPI(
         title="Housebook",
@@ -146,11 +153,12 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
         return response
 
     app.include_router(health)
+    app.include_router(login)  # the built-in login's own routes (D48), outside the api auth
     app.include_router(calendar_feed)  # its own code instead of a login (D40)
     app.include_router(api)
     mount_spa(app, settings.static_dir)  # last: catch-all
     # Outermost last: HEAD is turned into GET before gzip decides on headers.
-    app.add_middleware(WriteGuard, settings=settings)
+    app.add_middleware(WriteGuard, settings=settings, sessions=ctx.sessions)
     app.add_middleware(Compression)
     app.add_middleware(HeadAsGet)
     return app

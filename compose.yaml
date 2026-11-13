@@ -20,6 +20,7 @@ services:
     security_opt: ["no-new-privileges:true"]
     environment:
       HOUSEBOOK_TZ: Europe/Athens
+      # none / proxy / oidc: see docs/login.md. `none` only on a home network or a tailnet.
       HOUSEBOOK_AUTH_MODE: none
       HOUSEBOOK_ANON_ROLE: viewer
       # HOUSEBOOK_OBSIDIAN_VAULT: homepage

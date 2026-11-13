@@ -855,6 +855,8 @@ export interface components {
         MeOut: {
             /** User */
             user: string | null;
+            /** Name */
+            name: string | null;
             /**
              * Role
              * @enum {string}
@@ -864,7 +866,9 @@ export interface components {
              * Authmode
              * @enum {string}
              */
-            authMode: "none" | "proxy";
+            authMode: "none" | "proxy" | "oidc";
+            /** Logouturl */
+            logoutUrl: string | null;
         };
         /** Opening */
         Opening: {

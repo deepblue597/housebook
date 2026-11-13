@@ -14,7 +14,9 @@ src/housebook/
                writer:  the write operations (preconditions against the file on disk)
                sync:    one lock for all changes; rescan -> diff -> SSE events (delete grace,
                         parse retry, echo suppression by hash); the watchfiles watcher
-  api/         FastAPI app, routes, auth, SPA serving
+               oidc, sessions: the built-in login (D48): provider calls and ID token checks,
+                        signed cookies and the session key
+  api/         FastAPI app, routes, auth (who is asking), login (/api/auth/*), SPA serving
   config.py    settings from HOUSEBOOK_* env vars
   lock.py      single-process flock on <data>/.housebook/lock; network-filesystem check
 
