@@ -27,7 +27,8 @@ upgrading go first, in bold.
 
 1. On a branch (`chore/release-0.2.0`):
    - in `CHANGELOG.md`, rename `## [Unreleased]` to `## [0.2.0] - 2027-01-10` (today) and add a
-     new empty `## [Unreleased]` above it;
+     new empty `## [Unreleased]` above it; at the bottom, point `[Unreleased]` at
+     `compare/v0.2.0...HEAD` and add `[0.2.0]: …/compare/v0.1.0...v0.2.0`;
    - set the version in `apps/api/pyproject.toml` and `apps/web/package.json`, then run
      `cd apps/api && uv lock` (the lock file records the project's version too);
    - for a new minor version, set the image tag in `deploy/compose.yaml` (the install file) to it
