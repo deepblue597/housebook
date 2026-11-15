@@ -140,7 +140,11 @@ Link receipts and invoices stored in Paperless-ngx to items.
 - **Offline viewing (PWA):** the app and last known data stay readable without a connection,
   with an "Offline, data from <time>" banner. Editing stays online only. (Done: D47.)
 
-## M13: Releases and operations (~2 days)
+## M13: Releases and operations (~2 days) — done, first tag after M14
+
+Built as D49 (export, `docs/backup.md`) and D50 (release workflow, `CHANGELOG.md`,
+`docs/releasing.md`, Dependabot). The first version tag waits for M14, so that open-plan rooms
+join `house.json` version 2 instead of needing version 3 right after the first release.
 
 - **Publish the Docker image** to GitHub's container registry on version tags, with a changelog.
 - **Export** (`/api/export`, editors only): a zip of the data folder, streamed.

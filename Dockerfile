@@ -6,7 +6,9 @@
 ARG PYTHON_VERSION=3.13
 
 # ---- web: the SPA (apps/web) -> /repo/apps/web/dist ---------------------------------------
-FROM node:24-slim AS web
+# Built on the build machine's own platform: the output is the same JavaScript for every image,
+# so a multi-platform build (amd64 + arm64) doesn't run Node under emulation.
+FROM --platform=$BUILDPLATFORM node:24-slim AS web
 ARG PNPM_VERSION=12.6.0
 RUN npm install --global --no-fund --no-audit pnpm@${PNPM_VERSION}
 WORKDIR /repo/apps/web
@@ -34,6 +36,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # ---- runtime ---------------------------------------------------------------------------
 FROM python:${PYTHON_VERSION}-slim AS runtime
+# Version, source and revision labels are added by the release workflow (D50).
+LABEL org.opencontainers.image.title="Housebook" \
+      org.opencontainers.image.description="Self-hosted household app: floor plan, appliances, manuals and maintenance"
 ARG UID=1000
 ARG GID=1000
 RUN groupadd --gid "${GID}" housebook \

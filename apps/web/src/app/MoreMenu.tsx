@@ -2,7 +2,8 @@
  * The "⋯" menu at the end of the top bar (D46): things done now and then (printing, the
  * calendar link, the theme), kept out of the views people use every day. A disclosure, not an
  * ARIA menu: plain links and buttons in Tab order; Esc or a click outside closes it. With a
- * login, it also says who is signed in and offers "Log out" (D48).
+ * login, it also says who is signed in and offers "Log out" (D48). Editors can download the whole
+ * data folder as a zip (D49).
  */
 import { useEffect, useRef, useState } from 'react';
 import { CalendarDialog } from '../features/attention/CalendarDialog';
@@ -119,6 +120,14 @@ export function MoreMenu() {
                 Add to your calendar
               </button>
             </li>
+            {me?.role === 'editor' && (
+              <li>
+                {/* A download, not a page: the browser saves the streamed zip (D49). */}
+                <a href="/api/export" download onClick={() => setOpen(false)}>
+                  Download a backup (.zip)
+                </a>
+              </li>
+            )}
           </ul>
           <div className="more-theme">
             <span id="more-theme-label">Theme</span>

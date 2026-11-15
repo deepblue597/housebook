@@ -60,3 +60,21 @@ describe('who is signed in (D48)', () => {
     expect(order).toEqual(['clear', 'go /api/auth/logout']);
   });
 });
+
+describe('backup download (D49)', () => {
+  beforeEach(() => seedStore());
+
+  it('offers editors the whole data folder as a zip', async () => {
+    useData.setState({ me: me({ role: 'editor' }) });
+    await openMenu();
+    const link = screen.getByRole('link', { name: 'Download a backup (.zip)' });
+    expect(link).toHaveAttribute('href', '/api/export');
+    expect(link).toHaveAttribute('download');
+  });
+
+  it('is not offered to viewers', async () => {
+    useData.setState({ me: me({ role: 'viewer' }) });
+    await openMenu();
+    expect(screen.queryByRole('link', { name: /Download a backup/ })).toBeNull();
+  });
+});
