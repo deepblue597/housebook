@@ -10,6 +10,12 @@ Before 1.0, a minor version (0.**x**.0) may change the data format; the app upgr
 
 ## [Unreleased]
 
+### Changed
+
+- Housebook is free software under the GNU Affero General Public License, version 3 or later
+  (`LICENSE`). You may run, change and share it; if you let others use a changed version over
+  a network, you must offer them its source code.
+
 ## [0.1.0] - 2026-11-15
 
 The first release. Everything below is new.

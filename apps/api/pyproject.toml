@@ -3,6 +3,7 @@ name = "housebook-api"
 version = "0.1.0"
 description = "Housebook backend: a thin read API over a folder of Markdown notes and house.json"
 readme = "README.md"
+license = "AGPL-3.0-or-later"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.162.0",

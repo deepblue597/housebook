@@ -57,3 +57,10 @@ CI fails when they are out of date.
 - The frontend's initial JavaScript must stay under 200 KB gzipped (`pnpm size`, part of
   `make check`). Heavy code (3D, PDF, Markdown) is loaded lazily.
 - The app never deletes a user's notes without a way back (trash, undo). Keep it that way.
+
+## License
+
+Housebook is licensed under the GNU Affero General Public License, version 3 or later
+(`LICENSE`). By opening a pull request you agree that your contribution is licensed the same way.
+Code or assets copied from elsewhere must have a compatible licence; note where they came from
+(as `apps/web/src/assets/models/LICENSES.md` does for the 3D models).

@@ -38,13 +38,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM python:${PYTHON_VERSION}-slim AS runtime
 # Version, source and revision labels are added by the release workflow (D50).
 LABEL org.opencontainers.image.title="Housebook" \
-      org.opencontainers.image.description="Self-hosted household app: floor plan, appliances, manuals and maintenance"
+      org.opencontainers.image.description="Self-hosted household app: floor plan, appliances, manuals and maintenance" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
 ARG UID=1000
 ARG GID=1000
 RUN groupadd --gid "${GID}" housebook \
  && useradd --uid "${UID}" --gid "${GID}" --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin housebook \
  && mkdir -p /data && chown "${UID}:${GID}" /data
 COPY --from=api /app/.venv /app/.venv
+COPY LICENSE /app/LICENSE
 COPY contract/ /app/contract/
 COPY --from=web /repo/apps/web/dist /app/web
 ENV PATH=/app/.venv/bin:$PATH \
