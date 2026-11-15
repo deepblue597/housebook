@@ -1288,6 +1288,31 @@
         }
       }
     },
+    "/api/export": {
+      "get": {
+        "summary": "Export",
+        "description": "The data folder as a zip, for backups and moving house (editors only: it holds receipts\nand serial numbers). Streamed while it is made, so there is no `Content-Length`; a file that\ncan't be read ends the download as failed. Leaves out the lock, unfinished uploads and the\nlogin key (data contract §12).",
+        "operationId": "export_api_export_get",
+        "responses": {
+          "200": {
+            "description": "The data folder as a zip",
+            "content": {
+              "application/zip": {}
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/events": {
       "get": {
         "summary": "Events",

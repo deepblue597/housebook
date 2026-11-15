@@ -47,6 +47,7 @@ from housebook.domain.status import due_sort_key, is_due_within
 from housebook.domain.text import nfc
 from housebook.ports import UnsafePath
 from housebook.services.calendar_links import clean_origin
+from housebook.services.export import export_zip
 from housebook.services.indexer import MAX_HOUSE_BYTES, IndexState, display_name
 from housebook.services.sync import items_version, resync_payload, sse_frame, textures_version
 from housebook.services.uploads import UploadRejected, prepare, prepare_texture
@@ -587,6 +588,29 @@ async def delete_texture(key: str, ctx: Ctx) -> Response:
     it, 409 `in_use`: choose another finish there first."""
     await ctx.sync.write(lambda: ctx.writer.delete_texture(key))
     return Response(status_code=204)
+
+
+# --- export (milestone 13, D49) -----------------------------------------------------------------
+
+
+@api.get(
+    "/export",
+    response_class=StreamingResponse,
+    dependencies=[Depends(require_editor)],
+    responses={200: {"content": {"application/zip": {}}, "description": "The data folder as a zip"}, **_errors(403)},
+)
+def export(request: Request, ctx: Ctx) -> Response:
+    """The data folder as a zip, for backups and moving house (editors only: it holds receipts
+    and serial numbers). Streamed while it is made, so there is no `Content-Length`; a file that
+    can't be read ends the download as failed. Leaves out the lock, unfinished uploads and the
+    login key (data contract §12)."""
+    stamp = ctx.clock().astimezone(UTC).strftime("%Y%m%d-%H%M%SZ")
+    headers = {"Content-Disposition": f'attachment; filename="housebook-{stamp}.zip"', "Cache-Control": "no-store"}
+    if request.scope.get("housebook.head"):  # HEAD: don't build a zip only to drop it
+        return Response(media_type="application/zip", headers=headers)
+    identity: Identity = request.state.identity
+    log.info("export started", extra={"user": identity.user})
+    return StreamingResponse(export_zip(ctx.settings.data_dir), media_type="application/zip", headers=headers)
 
 
 # --- events (DESIGN 15.7) -----------------------------------------------------------------------

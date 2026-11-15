@@ -1,0 +1,75 @@
+name: Release
+
+# Pushing a tag v<major>.<minor>.<patch> on main publishes the Docker image to
+# ghcr.io/<owner>/housebook and a GitHub release with that version's CHANGELOG section (D50).
+# How to cut one: docs/releasing.md.
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Image and release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write # the GitHub release
+      packages: write # ghcr.io
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # to check that the tag is on main
+
+      # Before anything is published: the tag must be on main (where CI ran), and the versions
+      # in the code and the changelog must agree with it.
+      - name: Tag is on main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main \
+            || { echo "::error::$GITHUB_REF_NAME is not on main; tag a commit that was merged"; exit 1; }
+      - name: Versions and changelog match the tag
+        run: python3 -I scripts/release-notes.py "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # 1.2.3, 1.2, 1 (from 1.0 on) and latest.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref_name, 'v0.') }}
+          labels: org.opencontainers.image.title=Housebook
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag \
+            --title "Housebook ${GITHUB_REF_NAME#v}" \
+            --notes-file "$RUNNER_TEMP/notes.md"

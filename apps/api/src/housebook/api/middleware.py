@@ -47,6 +47,7 @@ GZIP_EXCLUDED = (
     "text/event-stream",
     "application/pdf",
     "application/octet-stream",
+    "application/zip",
     "image/*",
 )
 

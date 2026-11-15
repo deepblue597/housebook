@@ -760,3 +760,24 @@ In other modes these paths answer `404`.
 - **Page loads** (anything the SPA fallback answers with `index.html`) without a valid session get
   `302 /api/auth/login?next=<path and query>`, like a login proxy. The app's own files (`/assets/*`,
   `/sw.js`, the manifest, icons) are served without a login.
+
+## 12. Export (D49)
+
+| Method | Path | Response |
+|---|---|---|
+| `GET` | `/api/export` | `200` `application/zip`, `Content-Disposition: attachment; filename="housebook-<YYYYMMDD-HHMMSS>Z.zip"` (UTC), `Cache-Control: no-store`; `403` for viewers |
+
+- **Editors only** (it holds receipts, serial numbers and purchase dates).
+- **Contents:** every regular file under the data root, with its path relative to the root (no
+  top folder; `/` separators; names as on disk), except names that are ignored everywhere (§1:
+  dot-files and dot-folders, `*.tmp`, `*~`, ...). From `.housebook/` only `history/`, `trash/` and
+  `calendar-links.json`; never `lock`, `uploads/` or `session-key`. Symlinks are not included (the
+  files they point to inside the root are, under their own names). Empty folders are not included.
+- **Streamed:** no `Content-Length`; entries use data descriptors, zip64 when needed. JPEG, PNG,
+  WebP, GIF, HEIC, PDF and archives are stored, everything else deflated. The response is never
+  gzip-compressed. A file that can't be read aborts the response (the download fails) rather
+  than being left out. `HEAD` answers with the headers only.
+- **Not a snapshot:** files are read one after another while the server keeps working. Each file
+  is whole (the server writes by rename); an edit made during the export may be in some files and
+  not in others.
+- **Restoring** is unzipping into an empty folder and starting Housebook on it (`docs/backup.md`).

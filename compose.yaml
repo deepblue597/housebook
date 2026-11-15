@@ -5,6 +5,8 @@
 # and put the service behind your reverse proxy instead of publishing the port.
 services:
   housebook:
+    # To run a released image instead of building one, replace `build:` and `image:` with
+    # image: ghcr.io/deepblue597/housebook:0.1
     build:
       context: .
       args:

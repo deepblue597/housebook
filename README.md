@@ -50,6 +50,9 @@ apps/web/           React SPA (pnpm project; see apps/web/README.md)
 examples/house/     example data root: house.json + House/<Room>/<Item>.md
 docs/DESIGN.md      design and architecture review
 docs/data-contract.md   house.json v1, frontmatter, status, search, problems
+docs/login.md       choosing and setting up login
+docs/backup.md      backing up and restoring the data folder
+docs/releasing.md   versions, the changelog and cutting a release
 ```
 
 ## Run locally
@@ -85,6 +88,18 @@ uv run housebook schema --out ../../contract/house.schema.json
 ```
 
 ## Docker
+
+From the first release (0.1.0) on, images are on GitHub's registry for amd64 and arm64 (Raspberry Pi 4/5); `0.1` follows
+the newest fixes of 0.1, `latest` the newest release ([CHANGELOG.md](CHANGELOG.md)):
+
+```sh
+docker pull ghcr.io/deepblue597/housebook:0.1
+```
+
+In `compose.yaml`, replace the `build:` section with `image: ghcr.io/deepblue597/housebook:0.1`
+and point the volume at your data folder. Back that folder up: [docs/backup.md](docs/backup.md).
+
+To build it yourself instead:
 
 ```sh
 docker build -t housebook .
@@ -173,6 +188,7 @@ Full rules (preconditions, error bodies, event payloads): `docs/data-contract.md
 | GET | `/api/auth/login`, `/callback`, `/logout` | The built-in login (`oidc` mode only; data contract §11) |
 | GET, POST, DELETE | `/api/calendar/link` | The caller's calendar link (any signed-in role): whether there is one; make a new one (the URL is returned only then); turn it off |
 | GET | `/api/calendar.ics?token=` | Calendar feed of next checks and warranty ends (iCalendar). **No login**: the code in the link is the key |
+| GET | `/api/export` | The data folder as a zip, streamed (editor): notes, attachments, layout, textures, layout history and trash; not the lock, unfinished uploads or the login key ([docs/backup.md](docs/backup.md)) |
 | GET | `/healthz`, `/readyz` | Liveness; readiness = first scan done and data root writable |
 | GET | `/api/docs`, `/api/openapi.json` | OpenAPI (same auth as `/api`) |
 
