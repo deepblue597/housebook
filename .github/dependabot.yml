@@ -30,6 +30,14 @@ updates:
       web:
         update-types: [minor, patch]
     open-pull-requests-limit: 10
+    ignore:
+      # three.js stays on 0.182 until react-three-fiber 10 is stable: r3f 9.x still creates a
+      # THREE.Clock, which three 0.183+ reports as deprecated on every 3D load (apps/web/README.md,
+      # e2e test M2-04). Upgrade both together, by hand.
+      - dependency-name: three
+        versions: ['>=0.183.0']
+      - dependency-name: '@types/three'
+        versions: ['>=0.183.0']
 
   # Base images in the Dockerfile. Security fixes in them reach users only through a new
   # release. Node stays on its LTS line (24) and Python is set by an ARG (not updated here):
