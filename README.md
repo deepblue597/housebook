@@ -254,3 +254,10 @@ expired), so keep query strings in the proxy's redirect back (oauth2-proxy does)
 
 Stop the container, restore the data folder from backup, start it, and check
 `GET /api/problems` is empty. There is no cache to delete: the index is in memory.
+
+## License
+
+Housebook is free software: you can redistribute it and/or modify it under the terms of the
+[GNU Affero General Public License](LICENSE), version 3 or (at your option) any later version.
+In short: you may run, change and share it; if you let other people use a changed version over a
+network, you must offer them its source code. Security problems: see [SECURITY.md](SECURITY.md).
