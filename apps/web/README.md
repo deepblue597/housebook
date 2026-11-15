@@ -135,6 +135,9 @@ The shared contract is imported as `@contract/…` (`../../contract`).
 - **Doors and windows (milestone 7, D36):** the Door (D) and Window (W) tools: click near a wall
   edge to add one there, click it again to remove it, or with the other tool to swap it. Only on
   walls (between rooms, or a room and the outside); the targeted edge is highlighted in 2D and 3D.
+- **Open walls (milestone 14, D51):** the Open wall (O) tool: press near the wall between two
+  rooms and drag along it to open the run (no wall; a dashed line in 2D, nothing in 3D), or start
+  on an open edge to close it again. One undo step; outside walls can't be opened.
 - **First run (milestone 6, D34):** with no `house.json`, editors get "Set up your house" (floor
   name and size), which creates the layout and opens the editor with "Room 1" ready to paint.
   Existing items and notes still to adopt are counted. An unreadable `house.json` is never

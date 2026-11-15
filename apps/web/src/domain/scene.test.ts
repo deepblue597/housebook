@@ -2,7 +2,7 @@ import fixtures from '@contract/fixtures/placement_cases.json';
 import houseRaw from '../../../../examples/house/house.json?raw';
 import { describe, expect, it } from 'vitest';
 import { backEdge, cellKey, facing, occupiedRect, tileCenterWorld } from './coords';
-import { type CellMap, type Walls, floorCells, walls } from './plan';
+import { type CellMap, type Walls, edgeKey, floorCells, walls } from './plan';
 import {
   type Box,
   CEILING_HEIGHT,
@@ -171,6 +171,16 @@ describe('walls in 3D (same edges as the 2D plan)', () => {
     expect(inner!.sz).toBeCloseTo(2 + wallThickness('interior', 1), 9);
     // Exterior walls are thicker.
     expect(g.walls.filter((b) => b.sx === 0.2 || b.sz === 0.2)).toHaveLength(w.exterior.length);
+  });
+
+  it('an open wall (D51) is no wall at all; the rest of that wall line stays', () => {
+    const plain = wallGeometry(walls(twoRooms), [], 1, CUT_HEIGHT);
+    const open = wallGeometry(walls(twoRooms, new Set([edgeKey(2, 0, 'w')])), [], 1, CUT_HEIGHT);
+    const t = wallThickness('interior', 1);
+    // The interior wall along x = 2 loses its upper tile.
+    expect(volume(plain.walls) - volume(open.walls)).toBeCloseTo(1 * CUT_HEIGHT * t, 9);
+    const inner = open.walls.find((b) => b.x === 2 && b.sx === t);
+    expect(inner!.z).toBeCloseTo(1.5, 9); // y 1..2 now
   });
 
   it('a door cuts a gap; with walls up a lintel stays above it', () => {

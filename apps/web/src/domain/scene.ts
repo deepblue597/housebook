@@ -413,8 +413,9 @@ export function facingWalls(
   cells: CellMap,
   heading: Heading,
 ): { facing: Walls; other: Walls } {
-  const facing: Walls = { interior: [], exterior: [] };
-  const other: Walls = { interior: [], exterior: [] };
+  // Open walls (D51) are no walls in 3D: nothing to fade or keep.
+  const facing: Walls = { interior: [], exterior: [], open: [] };
+  const other: Walls = { interior: [], exterior: [], open: [] };
   const lookNS = heading === 'north' || heading === 'south';
   for (const kind of ['interior', 'exterior'] as const) {
     for (const s of w[kind]) {

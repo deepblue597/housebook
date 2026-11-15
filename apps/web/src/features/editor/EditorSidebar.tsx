@@ -16,7 +16,7 @@ import { DeleteFloorDialog } from './DeleteFloorDialog';
 import { FinishDialog } from './FinishDialog';
 import { TRAY_MIME } from './useToolPointer';
 
-const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase', 'door', 'window'];
+const TOOLS: Exclude<Tool, 'place'>[] = ['select', 'paint', 'erase', 'door', 'window', 'open'];
 
 const TOOL_ICON: Record<Exclude<Tool, 'place'>, string> = {
   select: 'M5 3l12 9-5 1 3 6-2 1-3-6-4 4z',
@@ -25,6 +25,8 @@ const TOOL_ICON: Record<Exclude<Tool, 'place'>, string> = {
   // A wall with a door swinging open; a wall with a window (two panes).
   door: 'M3 20h18M6 20V4h9v16M15 4l4 3v13M12 12h.01',
   window: 'M3 12h3M18 12h3M6 6h12v12H6zM12 6v12M6 12h12',
+  // A wall that stops, a dashed gap, and goes on: one floor across two rooms.
+  open: 'M3 4v16M21 4v16M3 12h3M18 12h3M9 12h1.5M13.5 12h1.5',
 };
 
 function SaveStatus() {
@@ -189,7 +191,7 @@ function ToolHint() {
     const room = paintRoomId ? rooms?.get(paintRoomId)?.name : null;
     text = room ? EDITOR.toolHint.paint(room) : EDITOR.toolHint.paintNoRoom;
   } else if (tool === 'erase') text = EDITOR.toolHint.erase;
-  else if (tool === 'door' || tool === 'window') text = EDITOR.toolHint[tool];
+  else if (tool === 'door' || tool === 'window' || tool === 'open') text = EDITOR.toolHint[tool];
   else if (tool === 'place' && place)
     text =
       place.kind === 'type'

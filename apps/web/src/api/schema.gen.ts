@@ -909,9 +909,10 @@ export interface components {
             side: "n" | "w";
             /**
              * Kind
+             * @description open: no wall on this edge between two rooms (open plan, D51); ignored elsewhere
              * @enum {string}
              */
-            kind: "door" | "window";
+            kind: "door" | "window" | "open";
         };
         /** Placement */
         Placement: {

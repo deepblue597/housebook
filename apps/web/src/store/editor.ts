@@ -35,11 +35,13 @@ import {
   type Edge,
   type Layout,
   type LayoutIssue,
+  type LayoutOpening,
   type LayoutPlacement,
   type ResizeDeltas,
   addsProblems,
   canonicalLayout,
   inferShift,
+  isRoomDivide,
   isWallEdge,
   cleanRoomName,
   isRoomColor,
@@ -62,7 +64,7 @@ const MAX_HISTORY = 200;
 const MAX_SAVE_ATTEMPTS = 5;
 const RETRY_MS = [2_000, 5_000, 10_000, 30_000];
 
-export type Tool = 'select' | 'paint' | 'erase' | 'place' | 'door' | 'window';
+export type Tool = 'select' | 'paint' | 'erase' | 'place' | 'door' | 'window' | 'open';
 /** What the place tool puts down: a new note of a catalogue type, or an unplaced item. */
 export type PlaceSource = { kind: 'type'; type: string } | { kind: 'item'; itemId: string };
 export type SaveState = 'saved' | 'pending' | 'saving' | 'error';
@@ -72,7 +74,9 @@ export type Gesture =
   | { kind: 'rect'; erase: boolean; floorId: string; from: Cell; to: Cell }
   | { kind: 'move'; itemId: string; floorId: string; from: Cell; to: Cell }
   | { kind: 'place'; floorId: string; cell: Cell }
-  | { kind: 'edge'; floorId: string; edge: Edge; opening: 'door' | 'window' };
+  | { kind: 'edge'; floorId: string; edge: Edge; opening: 'door' | 'window' }
+  /** Open wall (D51): a drag along one wall line, from the pressed edge to `to`. */
+  | { kind: 'run'; floorId: string; from: Edge; to: Edge };
 
 export interface Notice {
   id: number;
@@ -152,6 +156,12 @@ interface EditorState {
   deleteRoom: (roomId: string) => void;
   /** Doors/windows (D36): add `kind` on a wall edge, swap the other kind, or remove the same. */
   toggleOpening: (floorId: string, edge: Edge, kind: 'door' | 'window') => boolean;
+  /**
+   * Open walls (D51): when the first edge of the run is open, close every open edge in it;
+   * otherwise open every edge in it that is between two rooms (a door or window there becomes
+   * open). One undo step.
+   */
+  toggleOpenRun: (floorId: string, edges: readonly Edge[]) => boolean;
   /** A new empty floor above the top one or below the lowest (D35); shows it. Its id. */
   addFloor: (where: 'above' | 'below') => string | null;
   renameFloor: (floorId: string, name: string) => boolean;
@@ -813,6 +823,40 @@ export const useEditor: UseBoundStore<StoreApi<EditorState>> = create<EditorStat
         { kind: 'openings', add: [opening], remove: [] },
         here ? EDITOR.label.openingSwap(here.kind, kind) : EDITOR.label.openingAdd(kind),
       );
+    },
+
+    toggleOpenRun: (floorId, edges) => {
+      const h = house();
+      const floor = h?.floors.find((f) => f.id === floorId);
+      if (!h || !floor || edges.length === 0) return false;
+      const at = (e: Edge) =>
+        (h.openings ?? []).find(
+          (o) => o.floorId === floorId && o.x === e.x && o.y === e.y && o.side === e.side,
+        );
+      if (at(edges[0]!)?.kind === 'open') {
+        const remove = edges.flatMap((e) => {
+          const o = at(e);
+          return o?.kind === 'open' ? [o] : [];
+        });
+        return run(
+          { kind: 'openings', add: [], remove },
+          EDITOR.label.openWallClose(remove.length),
+        );
+      }
+      const add: LayoutOpening[] = [];
+      const remove: LayoutOpening[] = [];
+      for (const e of edges) {
+        if (!isRoomDivide(floor.cells, e, h.grid)) continue;
+        const here = at(e);
+        if (here?.kind === 'open') continue;
+        if (here) remove.push(here);
+        add.push({ floorId, x: e.x, y: e.y, side: e.side, kind: 'open' });
+      }
+      if (add.length === 0) {
+        notify('warn', EDITOR.openWallNotBetweenRooms);
+        return false;
+      }
+      return run({ kind: 'openings', add, remove }, EDITOR.label.openWallOpen(add.length));
     },
 
     addFloor: (where) => {

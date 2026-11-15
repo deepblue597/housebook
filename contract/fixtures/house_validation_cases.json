@@ -985,6 +985,64 @@
           ]
         }
       ]
+    },
+    {
+      "id": "opening-unknown-kind",
+      "description": "kind is door, window or open",
+      "house": {
+        "schemaVersion": 2,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "arch"
+          }
+        ]
+      },
+      "errors": [
+        {
+          "type": "literal_error",
+          "loc": [
+            "openings",
+            0,
+            "kind"
+          ]
+        }
+      ]
     }
   ],
   "valid": [
@@ -1282,6 +1340,67 @@
           }
         ],
         "openings": [
+          {
+            "floorId": "f1",
+            "x": 4,
+            "y": 0,
+            "side": "w",
+            "kind": "window"
+          }
+        ]
+      }
+    },
+    {
+      "id": "open-wall",
+      "description": "kind open: no wall between the kitchen and the living room (D51)",
+      "house": {
+        "schemaVersion": 2,
+        "grid": {
+          "tileSize": 1,
+          "width": 4,
+          "depth": 3
+        },
+        "rooms": [
+          {
+            "id": "r1",
+            "name": "Kitchen",
+            "color": "#E3A94B"
+          },
+          {
+            "id": "r2",
+            "name": "Living room",
+            "color": "#8FB3D9"
+          }
+        ],
+        "floors": [
+          {
+            "id": "f1",
+            "name": "Ground",
+            "level": 0,
+            "cells": {
+              "0,0": "r1",
+              "1,0": "r2",
+              "3,2": "r1"
+            }
+          }
+        ],
+        "placements": [
+          {
+            "itemId": "it_a",
+            "floorId": "f1",
+            "x": 0,
+            "y": 0,
+            "rotation": 0
+          }
+        ],
+        "openings": [
+          {
+            "floorId": "f1",
+            "x": 1,
+            "y": 0,
+            "side": "w",
+            "kind": "open"
+          },
           {
             "floorId": "f1",
             "x": 4,

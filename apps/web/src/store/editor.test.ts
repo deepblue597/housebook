@@ -516,3 +516,55 @@ describe('rooms shared by floors (#14)', () => {
     expect(notices().at(-1)).toMatch(/^Terrace changed colour on .* and Ground/);
   });
 });
+
+describe('open walls (D51)', () => {
+  const openings = () => shown().openings ?? [];
+  const wallAt = (y: number) => ({ x: 2, y, side: 'w' as const });
+  beforeEach(() => {
+    // Two rows: kitchen kitchen | bathroom, so the wall between them runs along x = 2.
+    ed().paintRect('fl_0', { x: 0, y: 1 }, { x: 1, y: 1 }, false);
+    ed().setPaintRoom('rm_bat');
+    ed().paintRect('fl_0', { x: 2, y: 1 }, { x: 2, y: 1 }, false);
+  });
+
+  it('opens a run between two rooms as one step, and undo closes it again', () => {
+    expect(ed().toggleOpenRun('fl_0', [wallAt(0), wallAt(1)])).toBe(true);
+    expect(openings()).toEqual([
+      { floorId: 'fl_0', x: 2, y: 0, side: 'w', kind: 'open' },
+      { floorId: 'fl_0', x: 2, y: 1, side: 'w', kind: 'open' },
+    ]);
+    expect(ed().undo.at(-1)!.label).toBe('open 2 tiles of wall');
+    ed().undoLast();
+    expect(openings()).toEqual([]);
+  });
+
+  it('skips edges that are not between two rooms, and refuses a run with none', () => {
+    // (2,0,n) is the bathroom's outside wall; (3,0,w) is between the bathroom and nothing.
+    ed().toggleOpenRun('fl_0', [{ x: 2, y: 0, side: 'n' }, wallAt(0)]);
+    expect(openings()).toEqual([{ floorId: 'fl_0', x: 2, y: 0, side: 'w', kind: 'open' }]);
+    expect(ed().toggleOpenRun('fl_0', [{ x: 3, y: 0, side: 'w' }])).toBe(false);
+    expect(ed().notices.at(-1)!.text).toMatch(/between two rooms/);
+  });
+
+  it('a door in the run becomes open; undo puts the door back', () => {
+    ed().toggleOpening('fl_0', wallAt(1), 'door');
+    ed().toggleOpenRun('fl_0', [wallAt(0), wallAt(1)]);
+    expect(openings().map((o) => o.kind)).toEqual(['open', 'open']);
+    ed().undoLast();
+    expect(openings()).toEqual([{ floorId: 'fl_0', x: 2, y: 1, side: 'w', kind: 'door' }]);
+  });
+
+  it('a run starting on an open edge closes the open edges in it', () => {
+    ed().toggleOpenRun('fl_0', [wallAt(0), wallAt(1)]);
+    ed().toggleOpenRun('fl_0', [wallAt(1)]);
+    expect(openings()).toEqual([{ floorId: 'fl_0', x: 2, y: 0, side: 'w', kind: 'open' }]);
+    expect(ed().undo.at(-1)!.label).toBe('close 1 tile of open wall');
+  });
+
+  it('the door tool puts a door in an open wall', () => {
+    ed().toggleOpenRun('fl_0', [wallAt(0)]);
+    ed().toggleOpening('fl_0', wallAt(0), 'door');
+    expect(openings().map((o) => o.kind)).toEqual(['door']);
+    expect(ed().undo.at(-1)!.label).toBe('put a door in an open wall');
+  });
+});

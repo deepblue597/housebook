@@ -6,7 +6,7 @@ export { LazyEditorPanels } from './LazyEditorPanels';
 export type { PreviewRect } from './preview';
 export { useEditorShortcuts } from './useEditorShortcuts';
 export type { PreviewEdge } from './preview';
-export { usePreviewEdge, usePreviewRects } from './usePreview';
+export { usePreviewEdges, usePreviewRects } from './usePreview';
 export {
   type EditPointerHandlers,
   type PointerHandlers,

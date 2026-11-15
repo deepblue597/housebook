@@ -6,7 +6,14 @@
 import type { Item } from '../../api/types';
 import { modelSpec, placementSpec, type ModelSpec } from '../../catalog/models';
 import type { Cell } from '../../domain/coords';
-import { type CellMap, type Walls, labelPosition, roomTiles, walls } from '../../domain/plan';
+import {
+  type CellMap,
+  type Walls,
+  labelPosition,
+  openEdges,
+  roomTiles,
+  walls,
+} from '../../domain/plan';
 import {
   type Box,
   CEILING_HEIGHT,
@@ -85,10 +92,12 @@ export function sceneLayout(model: Model, floor: FloorModel, wallHeight: number)
     };
   });
 
-  const openings = (model.snapshot.house?.openings ?? []).filter(
+  const onFloor = (model.snapshot.house?.openings ?? []).filter(
     (o) => o.floorId === floor.floor.id,
   );
-  const segments = walls(floor.cells);
+  // Open walls (D51) aren't built at all; doors and windows cut the walls that remain.
+  const segments = walls(floor.cells, openEdges(onFloor));
+  const openings = onFloor.filter((o) => o.kind !== 'open');
   const wg = wallGeometry(segments, openings, ts, wallHeight);
 
   const items: SceneItem[] = floor.items.flatMap((item) => {

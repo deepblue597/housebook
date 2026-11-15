@@ -30,32 +30,56 @@ export interface Walls {
   interior: Segment[];
   /** Between a room and an empty tile (or the grid edge); drawn thicker. */
   exterior: Segment[];
+  /** Between two different rooms, left open (D51): no wall, a thin dashed line in 2D. */
+  open: Segment[];
+}
+
+/** `x,y,side`: one key per tile edge, the house.json way (`n`/`w` of the tile, data contract §2.2). */
+export const edgeKey = (x: number, y: number, side: 'n' | 'w'): string => `${x},${y},${side}`;
+
+/**
+ * The edges of a floor whose opening is `open` (D51). Only the ones between two different rooms
+ * count; `walls()` ignores the rest, so the outside of the house always keeps its walls.
+ */
+export function openEdges(
+  openings: readonly { x: number; y: number; side: 'n' | 'w'; kind: string }[],
+): Set<string> {
+  return new Set(openings.filter((o) => o.kind === 'open').map((o) => edgeKey(o.x, o.y, o.side)));
 }
 
 /**
- * Wall edges: an edge between a room tile and a different room or an empty tile is a wall.
+ * Wall edges: an edge between a room tile and a different room or an empty tile is a wall,
+ * unless it is between two rooms and in `open` (`edgeKey`s, see `openEdges`).
  * Collinear neighbouring edges of the same kind are merged into one segment.
  */
-export function walls(cells: CellMap): Walls {
+export function walls(cells: CellMap, open: ReadonlySet<string> = NO_EDGES): Walls {
   const interior: Segment[] = [];
   const exterior: Segment[] = [];
+  const opened: Segment[] = [];
   const at = (x: number, y: number) => cells.get(cellKey(x, y));
   for (const [key, room] of cells) {
     const { x, y } = parseCellKey(key)!;
-    const edges: [string | undefined, Segment, boolean][] = [
-      // [neighbour, edge, owns the interior edge (each shared edge is emitted once)]
-      [at(x + 1, y), { x1: x + 1, y1: y, x2: x + 1, y2: y + 1 }, true],
-      [at(x, y + 1), { x1: x, y1: y + 1, x2: x + 1, y2: y + 1 }, true],
-      [at(x - 1, y), { x1: x, y1: y, x2: x, y2: y + 1 }, false],
-      [at(x, y - 1), { x1: x, y1: y, x2: x + 1, y2: y }, false],
+    const edges: [string | undefined, Segment, string | null][] = [
+      // [neighbour, edge, its key when this tile owns it (each shared edge is emitted once)]
+      [at(x + 1, y), { x1: x + 1, y1: y, x2: x + 1, y2: y + 1 }, edgeKey(x + 1, y, 'w')],
+      [at(x, y + 1), { x1: x, y1: y + 1, x2: x + 1, y2: y + 1 }, edgeKey(x, y + 1, 'n')],
+      [at(x - 1, y), { x1: x, y1: y, x2: x, y2: y + 1 }, null],
+      [at(x, y - 1), { x1: x, y1: y, x2: x + 1, y2: y }, null],
     ];
-    for (const [neighbour, edge, owns] of edges) {
+    for (const [neighbour, edge, owned] of edges) {
       if (neighbour === undefined) exterior.push(edge);
-      else if (neighbour !== room && owns) interior.push(edge);
+      else if (neighbour !== room && owned !== null)
+        (open.has(owned) ? opened : interior).push(edge);
     }
   }
-  return { interior: mergeSegments(interior), exterior: mergeSegments(exterior) };
+  return {
+    interior: mergeSegments(interior),
+    exterior: mergeSegments(exterior),
+    open: mergeSegments(opened),
+  };
 }
+
+const NO_EDGES: ReadonlySet<string> = new Set();
 
 /** Join unit edges that touch end to end along the same line. */
 export function mergeSegments(segments: readonly Segment[]): Segment[] {
@@ -132,15 +156,17 @@ export function labelPosition(
 }
 
 /**
- * Openings whose edge is a wall on this floor: tiles of two different rooms, or a room and no
- * room. A door or window whose wall went away (its rooms were repainted) stays in `house.json`
- * but isn't drawn, in 2D as in 3D (`openingPlacements`).
+ * Doors and windows whose edge is a wall on this floor: tiles of two different rooms, or a room
+ * and no room. A door or window whose wall went away (its rooms were repainted) stays in
+ * `house.json` but isn't drawn, in 2D as in 3D (`openingPlacements`). Open walls (D51) are not
+ * doors or windows: `walls()` draws them.
  */
-export function openingsOnWalls<T extends { x: number; y: number; side: 'n' | 'w' }>(
+export function openingsOnWalls<T extends { x: number; y: number; side: 'n' | 'w'; kind: string }>(
   openings: readonly T[],
   cells: CellMap,
 ): T[] {
   return openings.filter((o) => {
+    if (o.kind === 'open') return false;
     const a = cells.get(cellKey(o.x, o.y));
     const b = cells.get(o.side === 'n' ? cellKey(o.x, o.y - 1) : cellKey(o.x - 1, o.y));
     return (a !== undefined || b !== undefined) && a !== b;

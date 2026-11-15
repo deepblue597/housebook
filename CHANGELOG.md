@@ -26,6 +26,8 @@ The first release. Everything below is new.
 
 - A layout editor for editors: draw rooms, place, move and rotate items, resize the house, add
   and reorder floors, doors and windows, with undo and redo.
+- Open-plan rooms: drag along the wall between two rooms (a kitchen open to the living room) to
+  remove it while each room keeps its name, area and finish.
 - Edit an item's fields and notes in the app (Markdown, with a preview), upload photos, manuals
   and receipts (photos lose their location data; HEIC becomes JPEG), and delete items (kept in
   the trash for 90 days).

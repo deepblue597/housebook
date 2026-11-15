@@ -2555,9 +2555,11 @@
             "type": "string",
             "enum": [
               "door",
-              "window"
+              "window",
+              "open"
             ],
-            "title": "Kind"
+            "title": "Kind",
+            "description": "open: no wall on this edge between two rooms (open plan, D51); ignored elsewhere"
           }
         },
         "additionalProperties": false,

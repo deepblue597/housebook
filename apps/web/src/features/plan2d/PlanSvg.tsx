@@ -16,6 +16,7 @@ import {
   doorSwingsIntoKeyedTile,
   formatArea,
   labelPosition,
+  openEdges,
   openingsOnWalls,
   roomTiles,
   walls,
@@ -159,10 +160,12 @@ function PlanSvgImpl({
         return r ? [[i.id, r] as const] : [];
       }),
     );
-    const below = underlay ? walls(underlay.cells) : null;
+    const openings = model.snapshot.house?.openings ?? [];
+    const openOn = (floorId: string) => openEdges(openings.filter((o) => o.floorId === floorId));
+    const below = underlay ? walls(underlay.cells, openOn(underlay.floor.id)) : null;
     return {
       labels,
-      walls: walls(floor.cells),
+      walls: walls(floor.cells, openOn(floor.floor.id)),
       grid,
       items,
       underlay: below ? path([...below.exterior, ...below.interior]) : null,
@@ -241,6 +244,9 @@ function PlanSvgImpl({
 
       <path className="wall-in" d={path(geometry.walls.interior)} />
       <path className="wall-ex" d={path(geometry.walls.exterior)} />
+      {geometry.walls.open.length > 0 && (
+        <path className="wall-open" d={path(geometry.walls.open)} />
+      )}
       {openings.map((o) => (
         <OpeningMark key={`${o.x},${o.y},${o.side}`} o={o} floor={floor} />
       ))}

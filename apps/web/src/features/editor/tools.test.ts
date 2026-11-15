@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Layout } from '../../domain/layout';
 import { itemsAt } from '../../domain/layout';
-import { previewRects } from './preview';
+import { previewEdges, previewRects } from './preview';
 import { type ToolContext, toolDown, toolMove, toolUp } from './tools';
 
 const layout: Layout = {
@@ -151,5 +151,90 @@ describe('preview', () => {
         hover: { floorId: 'fl', cell: { x: 5, y: 0 } },
       }),
     ).toEqual([{ rect: { x: 5, y: 0, w: 1, h: 1 }, tone: 'item' }]);
+  });
+});
+
+describe('open wall tool (D51)', () => {
+  const rooms: Layout = {
+    ...layout,
+    rooms: [
+      { id: 'rm_a', name: 'A', color: '#112233' },
+      { id: 'rm_b', name: 'B', color: '#445566' },
+    ],
+    // A A B on rows 0 and 1: the wall between A and B runs along x = 2.
+    floors: [
+      {
+        id: 'fl',
+        name: 'F',
+        level: 0,
+        cells: {
+          '0,0': 'rm_a',
+          '1,0': 'rm_a',
+          '2,0': 'rm_b',
+          '0,1': 'rm_a',
+          '1,1': 'rm_a',
+          '2,1': 'rm_b',
+        },
+      },
+    ],
+    openings: [],
+  };
+  const open = ctx({ tool: 'open', grid: rooms.grid });
+
+  it('starts on the nearest edge and follows its wall line as the pointer moves', () => {
+    const g = toolDown(open, { x: 2, y: 0, fx: 0.05, fy: 0.5 })!;
+    expect(g).toEqual({
+      kind: 'run',
+      floorId: 'fl',
+      from: { x: 2, y: 0, side: 'w' },
+      to: { x: 2, y: 0, side: 'w' },
+    });
+    const moved = toolMove(g, { x: 5, y: 1 }, rooms.grid); // sideways drift is ignored
+    expect(moved).toMatchObject({ to: { x: 2, y: 1, side: 'w' } });
+    expect(toolUp(open, moved)).toEqual({
+      type: 'openRun',
+      floorId: 'fl',
+      edges: [
+        { x: 2, y: 0, side: 'w' },
+        { x: 2, y: 1, side: 'w' },
+      ],
+    });
+  });
+
+  it('previews every edge of the run, marking those that can’t be opened', () => {
+    const input = {
+      floorId: 'fl',
+      layout: rooms,
+      footprintOf: fp,
+      tool: 'open' as const,
+      hover: null,
+      place: null,
+      paintColor: null,
+    };
+    // Along x = 2 down to y = 3: two edges between A and B, then two with no rooms.
+    const gesture = {
+      kind: 'run' as const,
+      floorId: 'fl',
+      from: { x: 2, y: 0, side: 'w' as const },
+      to: { x: 2, y: 3, side: 'w' as const },
+    };
+    expect(previewEdges({ ...input, gesture }).map((e) => e.ok)).toEqual([
+      true,
+      true,
+      false,
+      false,
+    ]);
+    // Starting on an open edge closes: only open edges are marked.
+    const opened: Layout = {
+      ...rooms,
+      openings: [{ floorId: 'fl', x: 2, y: 0, side: 'w', kind: 'open' }],
+    };
+    expect(previewEdges({ ...input, layout: opened, gesture }).map((e) => [e.kind, e.ok])).toEqual([
+      ['open', true],
+      ['open', false],
+      ['open', false],
+      ['open', false],
+    ]);
+    expect(previewEdges({ ...input, tool: 'paint', gesture: null })).toEqual([]);
   });
 });

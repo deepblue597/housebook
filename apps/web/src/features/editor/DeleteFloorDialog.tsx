@@ -34,7 +34,9 @@ export function DeleteFloorDialog({ floorId, onClose }: { floorId: string; onClo
           <ul className="delete-what">
             {loss.tiles > 0 && <li>{EDITOR.floorLossTiles(loss.tiles, roomNames)}</li>}
             {loss.placements.length > 0 && <li>{EDITOR.floorLossItems(itemNames)}</li>}
-            {loss.openings.length > 0 && <li>{EDITOR.floorLossOpenings(loss.openings.length)}</li>}
+            {loss.openings.length > 0 && (
+              <li>{EDITOR.floorLossOpenings(loss.openings.map((o) => o.opening))}</li>
+            )}
           </ul>
         </>
       )}

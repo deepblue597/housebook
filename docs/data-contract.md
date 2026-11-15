@@ -69,7 +69,7 @@ reported (`symlink_outside_root`).
 | `rooms[]` | `{id, name, color, floor?, walls?}` | Global, shared by all floors. `color` is `#RRGGBB` (the plan colour). `floor`: a floor finish key (§6.1, or your own, §6.2). `walls`: a paint `#RRGGBB` or a wallpaper key (§6.1, §6.2). Keys match `^[a-z][a-z0-9_]{0,39}$`; an unknown key is a `house_unknown_finish` warning, drawn as if unset. A room has the same finish on every floor it is on |
 | `floors[]` | `{id, name, level, cells}` | At least one. `level` −20…200. `cells` maps `"x,y"` → room id |
 | `placements[]` | `{itemId, floorId, x, y, rotation, footprint?}` | `rotation` ∈ {0, 90, 180, 270}. `footprint` `[w, d]` (each 1–512) overrides the catalogue |
-| `openings[]` | `{floorId, x, y, side, kind}` | Doors and windows on tile edges. `side` ∈ {`n`, `w`}, `kind` ∈ {`door`, `window`} |
+| `openings[]` | `{floorId, x, y, side, kind}` | Doors, windows and open walls on tile edges. `side` ∈ {`n`, `w`}, `kind` ∈ {`door`, `window`, `open`}. At most one per edge |
 
 Ids (`rooms[].id`, `floors[].id`, item ids) match `^[A-Za-z0-9_-]{1,64}$`. The app generates
 `rm_…`, `fl_…` and `it_` + 6 base36 characters, but any id matching the pattern is fine.
@@ -130,7 +130,14 @@ Serialisation when the server writes: 2-space indent, trailing newline, cell key
   `n` of `(x, y+1)`; the east edge is `w` of `(x+1, y)`. So `x == width` is valid for `w`
   (east boundary) and `y == depth` for `n` (south boundary).
 - An item's **room is derived** from the tile at `(x, y)` on its floor; it is never stored.
-  Walls are derived from cells.
+  Walls are derived from cells: an edge is a wall when the tiles on its two sides belong to
+  different rooms, or one is a room and the other isn't (or is off the grid).
+- **Open walls** (`kind: "open"`, D51): an edge between tiles of two **different rooms** is not a
+  wall. Each room keeps its own name, area and finish; the 2D plan draws a thin dashed line there
+  and the 3D view nothing. On any other edge (the outside of the house, inside one room, no
+  rooms) `open` is ignored, like a door whose wall went away: it stays in the file and applies
+  again if two rooms meet there later. Doors and windows are drawn only on walls, so never on an
+  open edge (one opening per edge).
 
 ### 2.3 Versions and migrations
 

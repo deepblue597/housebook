@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { house as exampleHouse } from '../test/exampleHouse';
 import {
+  edgeRun,
+  isRoomDivide,
   isWallEdge,
   nearestEdge,
   firstLayout,
@@ -349,6 +351,31 @@ describe('edges for doors and windows (D36)', () => {
     expect(isWallEdge(cells, { x: 0, y: 1, side: 'n' }, grid)).toBe(true); // outside below
     expect(isWallEdge(cells, { x: 3, y: 1, side: 'n' }, grid)).toBe(false); // nothing on either side
     expect(isWallEdge(cells, { x: 9, y: 0, side: 'w' }, grid)).toBe(false); // off the grid
+  });
+});
+
+describe('open walls (D51)', () => {
+  const cells = { '0,0': 'a', '1,0': 'a', '2,0': 'b' };
+  const grid = { width: 4, depth: 2 };
+  it('isRoomDivide: only between two different rooms', () => {
+    expect(isRoomDivide(cells, { x: 2, y: 0, side: 'w' }, grid)).toBe(true); // a | b
+    expect(isRoomDivide(cells, { x: 1, y: 0, side: 'w' }, grid)).toBe(false); // inside a
+    expect(isRoomDivide(cells, { x: 0, y: 0, side: 'n' }, grid)).toBe(false); // the outside
+    expect(isRoomDivide(cells, { x: 3, y: 0, side: 'w' }, grid)).toBe(false); // b | nothing
+  });
+  it('edgeRun follows the pressed edge’s line, in drag order, kept on the grid', () => {
+    expect(edgeRun({ x: 1, y: 2, side: 'n' }, { x: 3, y: 0 }, grid)).toEqual([
+      { x: 1, y: 2, side: 'n' },
+      { x: 2, y: 2, side: 'n' },
+      { x: 3, y: 2, side: 'n' },
+    ]);
+    expect(edgeRun({ x: 2, y: 1, side: 'w' }, { x: 9, y: -5 }, grid)).toEqual([
+      { x: 2, y: 1, side: 'w' },
+      { x: 2, y: 0, side: 'w' },
+    ]);
+    expect(edgeRun({ x: 2, y: 1, side: 'w' }, { x: 0, y: 1 }, grid)).toEqual([
+      { x: 2, y: 1, side: 'w' },
+    ]);
   });
 });
 
