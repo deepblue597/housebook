@@ -5,6 +5,9 @@ import ipaddress
 import json
 import mimetypes
 import os
+import random
+import re
+import time
 from pathlib import Path
 
 import pytest
@@ -18,6 +21,7 @@ from starlette.routing import Route
 import vault_builders as vb
 from conftest import ClientFactory
 from housebook.api.middleware import GZIP_EXCLUDED
+from housebook.api.spa import is_hashed_asset
 from housebook.config import ConfigError, Settings
 from housebook.domain.catalog import Catalog
 from housebook.domain.filetypes import sniff
@@ -420,6 +424,50 @@ def test_spa_gltf_media_types_ignore_host_mime_db(
     assert r.status_code == 200 and r.headers["content-type"] == media_type
     assert r.headers["x-content-type-options"] == "nosniff"
     assert r.headers["cache-control"] == "public, max-age=31536000, immutable"
+
+
+# The pattern is_hashed_asset replaced: same answers, but it backtracks quadratically.
+_OLD_HASHED_RE = re.compile(r"(^|/)assets/.+[-.][A-Za-z0-9_-]{8,}\.[a-z0-9]+$")
+
+
+@pytest.mark.parametrize(
+    "path, hashed",
+    [
+        ("assets/index-B4x9KqZ1.js", True),
+        ("assets/pdf.worker.min-CIqJB0yW.mjs", True),
+        ("assets/ibm-plex-sans-cyrillic-ext-400-normal-g30qAdWV.woff2", True),
+        ("assets/models/door-Ab3dE9fG.glb", True),
+        ("assets/x.Ab3dE9fG.js", True),
+        ("assets/-Ab3dE9fG.js", False),  # nothing before the separator
+        ("assets/index-Short1.js", False),
+        ("assets/index-B4x9KqZ1.JS", False),
+        ("assets/index-B4x9KqZ1", False),
+        ("other/index-B4x9KqZ1.js", False),
+        ("myassets/index-B4x9KqZ1.js", False),
+        ("sw.js", False),
+        ("index.html", False),
+        ("", False),
+    ],
+)
+def test_hashed_asset_names(path: str, hashed: bool):
+    assert is_hashed_asset(path) is hashed
+    assert bool(_OLD_HASHED_RE.search(path)) is hashed
+
+
+def test_hashed_asset_check_agrees_with_the_old_pattern():
+    rnd = random.Random(7)
+    parts = ["assets", "/", "-", ".", "a", "B", "9", "_", "js", "x", "!", "assets/", "/assets/", "aaaaaaaa"]
+    for _ in range(20000):
+        path = "".join(rnd.choice(parts) for _ in range(rnd.randint(1, 12)))
+        assert is_hashed_asset(path) is bool(_OLD_HASHED_RE.search(path)), path
+
+
+@pytest.mark.parametrize("path", ["assets/" + "-" * 16000 + "!", "assets/" * 2300 + "!"])
+def test_long_paths_are_checked_in_linear_time(path: str):
+    # The old pattern took ~150 ms on these (CodeQL py/polynomial-redos); before any login.
+    start = time.perf_counter()
+    assert not is_hashed_asset(path)
+    assert time.perf_counter() - start < 0.02
 
 
 def test_pdf_is_sandboxed_and_range_still_works(client: TestClient):
