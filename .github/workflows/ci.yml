@@ -114,6 +114,15 @@ jobs:
       - name: All shards passed
         run: test "${{ needs.e2e.result }}" = success
 
+  install-file:
+    name: Install file
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      # deploy/compose.yaml is what people download (README, "Install"): it must stay valid.
+      - run: docker compose -f deploy/compose.yaml config --quiet
+
   docker:
     name: Docker image
     # Slow and rarely broken by ordinary changes: only after merging to main.

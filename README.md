@@ -55,6 +55,30 @@ docs/backup.md      backing up and restoring the data folder
 docs/releasing.md   versions, the changelog and cutting a release
 ```
 
+## Install
+
+You need Docker with Compose on a machine that stays on (a home server, a NAS, a Raspberry Pi
+4/5). From the first release (0.1.0) on:
+
+```sh
+mkdir housebook && cd housebook
+curl -fsSLO https://raw.githubusercontent.com/deepblue597/housebook/main/deploy/compose.yaml
+mkdir data
+printf 'HB_UID=%s\nHB_GID=%s\nTZ=Europe/Athens\n' "$(id -u)" "$(id -g)" > .env   # your time zone
+docker compose up -d
+```
+
+Open http://127.0.0.1:8000 and draw your first room. Your house is stored as plain files in
+`data/`. Next:
+
+- **Phones:** to open it from other devices, set `HB_BIND` in `.env` to this machine's address
+  on your home network or tailnet. There is no login in this setup, so never make it reachable
+  from the internet; [docs/login.md](docs/login.md) explains when you need one and how to add it.
+- **Backups:** back up the `data` folder ([docs/backup.md](docs/backup.md)).
+- **Upgrading:** download a backup (⋯ menu), then `docker compose pull && docker compose up -d`.
+
+The comments in [deploy/compose.yaml](deploy/compose.yaml) list every setting it reads from `.env`.
+
 ## Run locally
 
 Working on the code? `make setup && make dev` starts the backend and the frontend together on a
@@ -96,10 +120,9 @@ the newest fixes of 0.1, `latest` the newest release ([CHANGELOG.md](CHANGELOG.m
 docker pull ghcr.io/deepblue597/housebook:0.1
 ```
 
-In `compose.yaml`, replace the `build:` section with `image: ghcr.io/deepblue597/housebook:0.1`
-and point the volume at your data folder. Back that folder up: [docs/backup.md](docs/backup.md).
-
-To build it yourself instead:
+[Install](#install) uses them through [deploy/compose.yaml](deploy/compose.yaml). The
+`compose.yaml` at the root of the repository is for development: it builds the image from source
+and serves the example house.
 
 ```sh
 docker build -t housebook .

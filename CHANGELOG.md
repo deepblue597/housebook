@@ -45,4 +45,5 @@ The first release. Everything below is new.
   sign-in with Keycloak, Authentik or Authelia. See `docs/login.md`.
 - "Download a backup (.zip)" in the ⋯ menu for editors, and a backup and restore guide
   (`docs/backup.md`).
-- A Docker image for amd64 and arm64 at `ghcr.io/deepblue597/housebook`.
+- A Docker image for amd64 and arm64 at `ghcr.io/deepblue597/housebook`, and
+  `deploy/compose.yaml` to install it with Docker Compose in a few commands (README, "Install").

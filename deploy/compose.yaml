@@ -1,0 +1,48 @@
+# Housebook: install with Docker Compose (no need to clone the repository).
+#
+#   mkdir housebook && cd housebook
+#   curl -fsSLO https://raw.githubusercontent.com/deepblue597/housebook/main/deploy/compose.yaml
+#   mkdir data                                   # your house lives here: back it up (docs/backup.md)
+#   printf 'HB_UID=%s\nHB_GID=%s\nTZ=Europe/Athens\n' "$(id -u)" "$(id -g)" > .env
+#   docker compose up -d
+#
+# Then open http://127.0.0.1:8000 and draw your first room. Settings go in `.env` next to this
+# file (Compose reads it by itself); the full list is in the README's "Configuration" table.
+#
+#   HB_BIND   where the app can be reached. The default, 127.0.0.1, is this computer only. For
+#             phones on your home network use this machine's LAN address (e.g. 192.168.1.20);
+#             with Tailscale its tailnet address (100.x.y.z). Never 0.0.0.0 on a machine
+#             reachable from the internet: there is no login (docs/login.md).
+#   HB_PORT   the port on that address (default 8000).
+#   HB_UID / HB_GID   the user that owns ./data (`id -u` / `id -g`), so the files stay yours.
+#   TZ        your time zone; decides "today" for due dates (default UTC).
+#   HB_ROLE   `editor` (default): everyone who can open it may change things. `viewer`: read only.
+#
+# Upgrading: download a backup (⋯ menu), then `docker compose pull && docker compose up -d`.
+# The image tag below follows fixes within one minor version; a new minor version (0.2) may
+# change the data format, so switch to it by editing the tag after reading CHANGELOG.md.
+
+services:
+  housebook:
+    image: ghcr.io/deepblue597/housebook:0.1
+    # The host user, so files in ./data stay editable (Obsidian, backups) and owned by you.
+    user: "${HB_UID:-1000}:${HB_GID:-1000}"
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      HOUSEBOOK_TZ: ${TZ:-UTC}
+      # No login: only for this computer, the home network or a tailnet (docs/login.md, which
+      # also covers signing in with Keycloak, Authentik or Authelia).
+      HOUSEBOOK_AUTH_MODE: none
+      HOUSEBOOK_ANON_ROLE: ${HB_ROLE:-editor}
+    volumes:
+      # A folder, never a single file. Create it before the first start (`mkdir data`):
+      # otherwise Docker creates it owned by root and Housebook can't write to it.
+      - ./data:/data
+    ports:
+      - "${HB_BIND:-127.0.0.1}:${HB_PORT:-8000}:8000"
+    restart: unless-stopped
+    # One Housebook per data folder: never scale this service.

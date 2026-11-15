@@ -30,6 +30,8 @@ upgrading go first, in bold.
      new empty `## [Unreleased]` above it;
    - set the version in `apps/api/pyproject.toml` and `apps/web/package.json`, then run
      `cd apps/api && uv lock` (the lock file records the project's version too);
+   - for a new minor version, set the image tag in `deploy/compose.yaml` (the install file) to it
+     (`:0.2`), and mention in the changelog that people switch to it by editing that line;
    - check: `python3 -I scripts/release-notes.py v0.2.0` prints the notes.
 2. Open the pull request, let CI pass, merge.
 3. Tag the merge commit on `main` and push the tag:
@@ -42,7 +44,8 @@ upgrading go first, in bold.
 
 4. Watch the *Release* workflow in the Actions tab (about 15 minutes: the arm64 image is built
    under emulation). It refuses a tag that isn't on `main`, or whose version doesn't match
-   both files and a dated changelog section, before anything is published.
+   both files, a dated changelog section and the install file's image tag, before anything is
+   published.
 
 **First release only:** packages on ghcr.io start out private. After the first run, open the
 package (the repository's *Packages* box → *housebook* → *Package settings*) and set its

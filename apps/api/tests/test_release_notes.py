@@ -59,3 +59,10 @@ def test_the_tag_must_match_both_versions():
     r = _run("v99.0.0")
     assert r.returncode == 1
     assert "apps/api/pyproject.toml has" in r.stderr and "apps/web/package.json has" in r.stderr
+
+
+def test_the_install_file_uses_the_minor_version_tag():
+    text = (REPO / "deploy" / "compose.yaml").read_text(encoding="utf-8")
+    assert release_notes.IMAGE.findall(text) == ["0.1"]
+    assert release_notes.IMAGE.findall("    image: ghcr.io/someone/housebook:0.2\n") == ["0.2"]
+    assert release_notes.IMAGE.findall("    # image: ghcr.io/someone/housebook:0.2\n") == []
