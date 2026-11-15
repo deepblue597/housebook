@@ -21,7 +21,7 @@ COPY apps/web/ ./
 RUN pnpm build && node scripts/check-size.mjs
 
 # ---- api: resolve and install Python deps into /app/.venv -------------------------------
-FROM ghcr.io/astral-sh/uv:0.9.5 AS uv
+FROM ghcr.io/astral-sh/uv:0.13.8 AS uv
 FROM python:${PYTHON_VERSION}-slim AS api
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never UV_PROJECT_ENVIRONMENT=/app/.venv
