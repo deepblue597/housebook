@@ -162,6 +162,26 @@ one room today, which loses the separate names, finishes, areas and "item in the
 - **`house.json`:** a new `kind` value. Until a release has shipped version 2 it can join it;
   after that it needs version 3 (an older image would refuse the unknown kind).
 
+## M15: Furniture (~3–4 days)
+
+Furniture makes the 3D view and the home look feel like the home, and helps find things ("the
+valve is behind the sofa"), but a sofa needs no note, manual or maintenance log.
+
+- **Layout-only furniture:** a `furniture[]` list in `house.json` (`floorId`, `x`, `y`,
+  `rotation`, `kind`, optional `footprint`), like doors and windows (D37): no note files. Kinds
+  such as sofa, armchair, bed, table, chairs, desk, wardrobe, shelves, kitchen counter, rug, plant.
+- **Drawn** in 3D and in the 2D home look with CC0 Kenney Furniture Kit models (one style with
+  the appliances); a faint outline (or nothing) in the plain plan. Never in the List, search,
+  Attention, QR stickers or the emergency sheet.
+- **Bigger than one tile:** most pieces need footprints over 1×1 (settles DESIGN open
+  question 1; the anchor and rotation rules already allow it).
+- **Editing:** a Furniture tool in the editor: place, move, rotate, resize, delete; commands with
+  exact inverses (D24), undo as for any edit.
+- **Furniture worth a note** (a bed with a 10-year warranty, a sofa's receipt) stays an item:
+  add a few furniture types (sofa, bed, wardrobe) to the item catalogue for that.
+- **`house.json`:** a new optional key, so a format change: best done with M14 before the first
+  release, else version 3.
+
 ---
 
 ## Later (not scheduled)
@@ -181,7 +201,7 @@ one room today, which loses the separate names, finishes, areas and "item in the
 | Track | Milestones | Main code areas |
 |---|---|---|
 | Items | M6 → M11 | `features/details`, backend writer and attachments |
-| Layout | M7 → M9 → M14 | `commands/`, `features/editor`, `features/plan2d`, `features/scene3d` |
+| Layout | M7 → M9 → M14 → M15 | `commands/`, `features/editor`, `features/plan2d`, `features/scene3d` |
 | Attention | M8 → M12 | new pages, `domain/status`, a new backend route |
 | Platform | M10, M13 | backend auth, CI, Docker |
 
