@@ -6,7 +6,8 @@
 Fails (exit 1, the reason on stderr) unless:
 - the tag is `v<major>.<minor>.<patch>`;
 - apps/api/pyproject.toml and apps/web/package.json both have that version;
-- CHANGELOG.md has a non-empty `## [<version>] - <YYYY-MM-DD>` section.
+- CHANGELOG.md has a non-empty `## [<version>] - <YYYY-MM-DD>` section;
+- deploy/compose.yaml (the install file people download) uses the image tag `<major>.<minor>`.
 Prints that section's body, which becomes the GitHub release's text. Standard library only.
 """
 
@@ -18,6 +19,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 TAG = re.compile(r"^v(\d+\.\d+\.\d+)$")
+IMAGE = re.compile(r"^\s*image:\s*ghcr\.io/[^/\s]+/housebook:(?P<tag>\S+)\s*$", re.MULTILINE)
 HEADING = re.compile(r"^## \[(?P<version>[^\]]+)\](?: - (?P<date>\d{4}-\d{2}-\d{2}))?\s*$")
 
 
@@ -56,6 +58,12 @@ def main(argv: list[str]) -> None:
     wrong = [f"{name} has {v}" for name, v in (("apps/api/pyproject.toml", api), ("apps/web/package.json", web)) if v != version]
     if wrong:
         fail(f"the tag says {version} but " + " and ".join(wrong) + " (see docs/releasing.md)")
+
+    minor = version.rsplit(".", 1)[0]
+    tags = IMAGE.findall((REPO / "deploy/compose.yaml").read_text(encoding="utf-8"))
+    if tags != [minor]:
+        found = ", ".join(tags) or "no ghcr.io image line"
+        fail(f"deploy/compose.yaml should use the image tag {minor} (found {found})")
 
     notes = changelog_section((REPO / "CHANGELOG.md").read_text(encoding="utf-8"), version)
     if notes is None:
