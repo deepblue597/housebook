@@ -1033,9 +1033,7 @@ test.describe('repairs of a hand-broken house.json (D30)', () => {
     await expect(repairs(page).locator('[data-issue]')).toHaveCount(4);
     await expect(repairs(page)).toContainText('Fridge is placed 3 times');
     await expect(repairs(page)).toContainText('Outside the house: 1 tile; it_far01.');
-    await expect(repairs(page)).toContainText(
-      'On a floor that doesn’t exist: it_ghostx; 1 door or window.',
-    );
+    await expect(repairs(page)).toContainText('On a floor that doesn’t exist: it_ghostx; 1 door.');
     await expect(repairs(page).getByRole('button', { name: 'Grow to 31 × 31' })).toBeVisible();
     // An unrelated edit saves on the broken layout.
     await paintAt(page, 'Kitchen', 2, 9);

@@ -120,9 +120,7 @@ export function ResizeDialog({ onClose }: { onClose: () => void }) {
                   )}
                 </li>
               )}
-              {loss.openings.length > 0 && (
-                <li>{EDITOR.resizeLossOpenings(loss.openings.length)}</li>
-              )}
+              {loss.openings.length > 0 && <li>{EDITOR.resizeLossOpenings(loss.openings)}</li>}
             </ul>
             <label className="check">
               <input

@@ -38,7 +38,8 @@ the house, undo/redo, debounced saving with replay on `412`, the Unplaced tray a
 in 2D and 3D. Milestone 6 (see `docs/ROADMAP.md`): **first-run setup** on an empty data folder, the **note editor** (edit an
 item's fields and notes in the app) **deleting items** (to the trash) and
 **uploading attachments** (photos lose their GPS data; HEIC becomes JPEG). Milestone 7: **editing floors** (add,
-rename, reorder, delete; the floor below shown while drawing) and **door and window tools**. See `apps/web/README.md`.
+rename, reorder, delete; the floor below shown while drawing) and **door and window tools**.
+Milestone 14: **open-plan rooms** (no wall between two rooms that share a space). See `apps/web/README.md`.
 
 ```
 contract/           shared by backend and frontend

@@ -6,6 +6,19 @@ import type { ConflictCode, RepairFix } from '../commands';
 import type { LayoutIssue } from '../domain/layout';
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+/** "1 door", "2 windows and 1 open wall": openings counted by kind (D51). */
+const openingsByKind = (openings: readonly { kind: string }[]) => {
+  const count = (k: string) => openings.filter((o) => o.kind === k).length;
+  const parts = [
+    ['door', 'doors'],
+    ['window', 'windows'],
+    ['open', 'open walls'],
+  ].flatMap(([kind, many]) => {
+    const n = count(kind!);
+    return n ? [plural(n, kind === 'open' ? 'open wall' : kind!, many!)] : [];
+  });
+  return listOf(parts);
+};
 /** "A", "A and B", "A, B and C". */
 const listOf = (names: readonly string[]) =>
   names.length <= 1 ? (names[0] ?? '') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
@@ -27,6 +40,7 @@ export const EDITOR = {
     place: { label: 'Place item', key: 'P' },
     door: { label: 'Door', key: 'D' },
     window: { label: 'Window', key: 'W' },
+    open: { label: 'Open wall', key: 'O' },
   },
   toolHint: {
     select:
@@ -39,6 +53,7 @@ export const EDITOR = {
     door: 'Click a wall to add a door there; click a door to remove it, a window to make it a door.',
     window:
       'Click a wall to add a window there; click a window to remove it, a door to make it a window.',
+    open: 'Drag along a wall between two rooms to open it (open plan); drag along an open wall to close it.',
     cancel: 'Esc cancels.',
   },
   undo: 'Undo',
@@ -131,7 +146,10 @@ export const EDITOR = {
     roomRemove: (name: string) => `delete room ${name}`,
     openingAdd: (kind: 'door' | 'window') => `add a ${kind}`,
     openingRemove: (kind: 'door' | 'window') => `remove a ${kind}`,
-    openingSwap: (from: 'door' | 'window', to: 'door' | 'window') => `make a ${from} a ${to}`,
+    openingSwap: (from: 'door' | 'window' | 'open', to: 'door' | 'window') =>
+      from === 'open' ? `put a ${to} in an open wall` : `make a ${from} a ${to}`,
+    openWallOpen: (tiles: number) => `open ${plural(tiles, 'tile', 'tiles')} of wall`,
+    openWallClose: (tiles: number) => `close ${plural(tiles, 'tile', 'tiles')} of open wall`,
     floorAdd: (name: string) => `add floor ${name}`,
     floorRename: (from: string, to: string) => `rename ${from} to ${to}`,
     floorMove: (name: string, dir: 'up' | 'down') => `move ${name} ${dir}`,
@@ -140,6 +158,8 @@ export const EDITOR = {
   },
 
   openingNotWall: 'Doors and windows go on walls: between two rooms, or a room and the outside.',
+  openWallNotBetweenRooms:
+    'Only walls between two rooms can be opened; the outside of the house keeps its walls.',
 
   // floors (D35)
   floors: 'Floors',
@@ -172,7 +192,7 @@ export const EDITOR = {
       ? `${plural(n, 'tile', 'tiles')} of ${rooms[0]!.name}`
       : `${plural(n, 'tile', 'tiles')}: ${rooms.map((r) => `${r.name} ${r.n}`).join(', ')}`,
   floorLossItems: (names: string) => `from the plan, to the Unplaced tray (notes stay): ${names}`,
-  floorLossOpenings: (n: number) => plural(n, 'door or window', 'doors and windows'),
+  floorLossOpenings: (openings: readonly { kind: string }[]) => openingsByKind(openings),
   floorDeleteEmpty: 'The floor is empty.',
   floorDeleteUndo: 'Undo (Ctrl+Z) brings it all back.',
   floorDeleteConfirm: 'Delete floor',
@@ -304,7 +324,7 @@ export const EDITOR = {
   resizeLossCells: (n: number, rooms: string) =>
     `${plural(n, 'painted tile', 'painted tiles')} (${rooms})`,
   resizeLossItems: (names: string) => `from the plan, to the Unplaced tray: ${names}`,
-  resizeLossOpenings: (n: number) => plural(n, 'door or window', 'doors and windows'),
+  resizeLossOpenings: (openings: readonly { kind: string }[]) => openingsByKind(openings),
   resizeConfirm: 'Remove these',
   resizeApply: 'Resize',
   resizeApplyLoss: 'Resize and remove',
@@ -327,18 +347,14 @@ export const EDITOR = {
           const parts = [
             issue.cells.length ? plural(issue.cells.length, 'tile', 'tiles') : null,
             issue.itemIds.length ? issue.itemIds.map(name).join(', ') : null,
-            issue.openings.length
-              ? plural(issue.openings.length, 'door or window', 'doors and windows')
-              : null,
+            issue.openings.length ? openingsByKind(issue.openings) : null,
           ].filter(Boolean);
           return `Outside the house: ${parts.join('; ')}.`;
         }
         case 'unknown_floor': {
           const parts = [
             issue.itemIds.length ? issue.itemIds.map(name).join(', ') : null,
-            issue.openings.length
-              ? plural(issue.openings.length, 'door or window', 'doors and windows')
-              : null,
+            issue.openings.length ? openingsByKind(issue.openings) : null,
           ].filter(Boolean);
           return `On a floor that doesn’t exist: ${parts.join('; ')}.`;
         }

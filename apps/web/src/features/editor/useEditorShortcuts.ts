@@ -31,6 +31,7 @@ export function useEditorShortcuts(): void {
       else if (key === 'e') ed.setTool('erase');
       else if (key === 'd') ed.setTool('door');
       else if (key === 'w') ed.setTool('window');
+      else if (key === 'o') ed.setTool('open');
       else if (key === 'r' && selectedId) ed.rotateItem(selectedId);
       else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId)
         ed.unplaceItem(selectedId);

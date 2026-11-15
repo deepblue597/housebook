@@ -44,7 +44,8 @@ export interface LayoutOpening {
   x: number;
   y: number;
   side: 'n' | 'w';
-  kind: 'door' | 'window';
+  /** `open`: no wall here, between two rooms (D51). */
+  kind: 'door' | 'window' | 'open';
 }
 export interface Layout {
   $schema?: string | null;
@@ -327,6 +328,39 @@ export function isWallEdge(
   const ra = cells?.[cellKey(a.x, a.y)];
   const rb = cells?.[cellKey(b.x, b.y)];
   return (ra !== undefined || rb !== undefined) && ra !== rb;
+}
+
+/**
+ * Whether a wall can be opened (D51): the edge separates tiles of two different rooms. The
+ * outside of the house always keeps its walls.
+ */
+export function isRoomDivide(
+  cells: Readonly<Record<string, string>> | undefined,
+  e: Edge,
+  grid: { width: number; depth: number },
+): boolean {
+  if (!isWallEdge(cells, e, grid)) return false;
+  const [a, b] = edgeTiles(e);
+  return cells?.[cellKey(a.x, a.y)] !== undefined && cells?.[cellKey(b.x, b.y)] !== undefined;
+}
+
+/**
+ * The edges a drag along a wall covers (D51): from `from` along its own line to the tile under
+ * the pointer, kept on the grid. An `n` edge runs east-west (x changes), a `w` edge north-south.
+ * In the order the drag went.
+ */
+export function edgeRun(from: Edge, to: Cell, grid: { width: number; depth: number }): Edge[] {
+  const along = from.side === 'n';
+  const start = along ? from.x : from.y;
+  const max = (along ? grid.width : grid.depth) - 1;
+  const end = Math.max(0, Math.min(max, along ? to.x : to.y));
+  const step = end >= start ? 1 : -1;
+  const out: Edge[] = [];
+  for (let i = start; ; i += step) {
+    out.push(along ? { x: i, y: from.y, side: 'n' } : { x: from.x, y: i, side: 'w' });
+    if (i === end) break;
+  }
+  return out;
 }
 
 // ---- ids and names --------------------------------------------------------------------------

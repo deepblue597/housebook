@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { cellKey } from './coords';
 import {
+  edgeKey,
+  openEdges,
   openingsOnWalls,
   area,
   floorCells,
@@ -51,6 +53,27 @@ describe('walls', () => {
     );
     expect(w.exterior).toHaveLength(4);
   });
+  it('has no open walls unless asked', () => {
+    expect(w.open).toEqual([]);
+  });
+  it('leaves out open edges between two rooms and lists them as open (D51)', () => {
+    // The wall between a and b runs along x = 2 for y 0..2; open its upper tile.
+    const o = walls(cells, new Set([edgeKey(2, 0, 'w')]));
+    expect(o.interior).toEqual([{ x1: 2, y1: 1, x2: 2, y2: 2 }]);
+    expect(o.open).toEqual([{ x1: 2, y1: 0, x2: 2, y2: 1 }]);
+    expect(o.exterior).toEqual(w.exterior);
+  });
+  it('keeps outside walls and walls inside a room whatever the open set says', () => {
+    const o = walls(cells, new Set([edgeKey(0, 0, 'n'), edgeKey(3, 0, 'w'), edgeKey(1, 0, 'w')]));
+    expect(o).toEqual(w);
+  });
+  it('openEdges keys only the open kind', () => {
+    const keys = openEdges([
+      { x: 2, y: 0, side: 'w', kind: 'open' },
+      { x: 1, y: 2, side: 'n', kind: 'door' },
+    ]);
+    expect([...keys]).toEqual(['2,0,w']);
+  });
   it('mergeSegments keeps gaps', () => {
     expect(
       mergeSegments([
@@ -97,5 +120,8 @@ describe('openingsOnWalls', () => {
     const inRoom = { x: 1, y: 0, side: 'w' as const, kind: 'door' }; // a | a
     const nowhere = { x: 1, y: 3, side: 'n' as const, kind: 'window' }; // no room either side
     expect(openingsOnWalls([between, outside, inRoom, nowhere], cells)).toEqual([between, outside]);
+  });
+  it('never returns open walls: they are not doors or windows (D51)', () => {
+    expect(openingsOnWalls([{ x: 2, y: 0, side: 'w' as const, kind: 'open' }], cells)).toEqual([]);
   });
 });

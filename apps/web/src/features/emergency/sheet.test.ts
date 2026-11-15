@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Snapshot } from '../../api/types';
 import { buildModel } from '../../store/model';
+import { walls } from '../../domain/plan';
 import { exampleSnapshot } from '../../test/exampleHouse';
 import { makeItem } from '../../test/fixtures';
 import { emergencySheet, floorBounds, helpOf, sheetFingerprint } from './sheet';
@@ -95,5 +96,27 @@ describe('emergency sheet (D44)', () => {
     expect(print(edit(oven, { name: 'Big oven' }))).toBe(fp);
     expect(print(edit(valve, { body: '## Maintenance log\n- 2026-01-01 serviced' }))).toBe(fp);
     expect(print({ ...base, today: '2027-01-01' })).toBe(fp);
+  });
+
+  it('an open wall changes the printed plan, so the fingerprint (D51)', () => {
+    const base = snapshot();
+    const print = (s: Snapshot) => {
+      const m = buildModel(s);
+      return sheetFingerprint(m, emergencySheet(m));
+    };
+    const floor = buildModel(base).floors[0]!;
+    const s = walls(floor.cells).interior[0]!; // some wall between two rooms
+    const edge = { x: s.x1, y: s.y1, side: s.x1 === s.x2 ? ('w' as const) : ('n' as const) };
+    const opened: Snapshot = {
+      ...base,
+      house: {
+        ...base.house!,
+        openings: [
+          ...(base.house!.openings ?? []),
+          { floorId: floor.floor.id, ...edge, kind: 'open' },
+        ],
+      },
+    };
+    expect(print(opened)).not.toBe(print(base));
   });
 });

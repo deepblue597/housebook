@@ -1,5 +1,5 @@
 /** Edit mode on the 2D plan: the grid's outline and the active tool's preview (see editor). */
-import { usePreviewEdge, usePreviewRects } from '../editor';
+import { usePreviewEdges, usePreviewRects } from '../editor';
 import { useEditor } from '../../store/editor';
 import { S } from './geometry';
 
@@ -12,7 +12,7 @@ export function EditOverlay({
 }) {
   const editing = useEditor((s) => s.mode === 'edit');
   const rects = usePreviewRects(floorId);
-  const edge = usePreviewEdge(floorId);
+  const edges = usePreviewEdges(floorId);
   if (!editing) return null;
   return (
     <g className="edit-overlay" aria-hidden="true" pointerEvents="none">
@@ -34,16 +34,17 @@ export function EditOverlay({
           )}
         </g>
       ))}
-      {edge && (
+      {edges.map(({ edge, kind, ok }) => (
         <line
-          className={`edit-edge${edge.ok ? '' : ' bad'}`}
-          data-preview={edge.ok ? edge.kind : 'not-a-wall'}
-          x1={edge.edge.x * S}
-          y1={edge.edge.y * S}
-          x2={(edge.edge.x + (edge.edge.side === 'n' ? 1 : 0)) * S}
-          y2={(edge.edge.y + (edge.edge.side === 'w' ? 1 : 0)) * S}
+          key={`${edge.x},${edge.y},${edge.side}`}
+          className={`edit-edge${ok ? '' : ' bad'}`}
+          data-preview={ok ? kind : 'not-a-wall'}
+          x1={edge.x * S}
+          y1={edge.y * S}
+          x2={(edge.x + (edge.side === 'n' ? 1 : 0)) * S}
+          y2={(edge.y + (edge.side === 'w' ? 1 : 0)) * S}
         />
-      )}
+      ))}
     </g>
   );
 }

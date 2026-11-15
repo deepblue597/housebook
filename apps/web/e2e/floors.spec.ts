@@ -83,7 +83,7 @@ test.describe('floors', () => {
     const dialog = page.getByRole('dialog', { name: 'Delete “Basement”?' });
     await expect(dialog).toContainText('20 tiles of');
     await expect(dialog).toContainText('Chest freezer');
-    await expect(dialog).toContainText('1 door or window');
+    await expect(dialog).toContainText('1 door');
     await expectNoA11yViolations(page);
     await dialog.getByRole('button', { name: 'Delete floor' }).click();
 
@@ -161,6 +161,60 @@ test.describe('doors and windows', () => {
     await page.keyboard.press('Control+z');
     await saved(page);
     expect(kitchenWall(readHouse(dataDir))?.kind).toBe('window');
+    await expectNoA11yViolations(page);
+  });
+});
+
+test.describe('open walls (D51)', () => {
+  const openOnKitchenWall = (h: House) =>
+    h.openings
+      .filter((o) => o.floorId === 'fl_0' && o.x === 7 && o.side === 'w' && o.kind === 'open')
+      .map((o) => o.y)
+      .sort();
+
+  test('drag along a wall to open it, drag from an open edge to close it, undo', async ({
+    page,
+    backend,
+  }) => {
+    const { url, dataDir } = await backend({}, { HOUSEBOOK_ANON_ROLE: 'editor' });
+    await startEditing(page, url);
+    // The living room (x 6) and the kitchen (x 7) share the wall along x = 7 for y 1..4.
+    await page.keyboard.press('o');
+    await expect(sidebar(page).getByRole('button', { name: 'Open wall' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    const from = await at(page, 7.08, 1.5);
+    const to = await at(page, 7.3, 4.5); // drifting sideways keeps to the wall line
+    await page.mouse.move(from.x, from.y);
+    await expect(page.locator('.edit-edge')).toHaveAttribute('data-preview', 'open');
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 6 });
+    await expect(page.locator('.edit-edge[data-preview="open"]')).toHaveCount(4);
+    await page.mouse.up();
+    await saved(page);
+    expect(openOnKitchenWall(readHouse(dataDir))).toEqual([1, 2, 3, 4]);
+    // The plan draws a dashed line there and no wall.
+    await expect(page.locator('.plan .wall-open')).toHaveAttribute('d', /M280 40L280 200/);
+
+    // A click on an open edge closes that one tile.
+    const middle = await at(page, 7.08, 2.5);
+    await page.mouse.click(middle.x, middle.y);
+    await saved(page);
+    expect(openOnKitchenWall(readHouse(dataDir))).toEqual([1, 3, 4]);
+
+    // The outside of the house can't be opened.
+    const outside = await at(page, 7.5, 0.95); // north wall of the kitchen
+    await page.mouse.click(outside.x, outside.y);
+    await expect(page.locator('.ed-notice').last()).toContainText(
+      'Only walls between two rooms can be opened',
+    );
+
+    await page.keyboard.press('Control+z');
+    await page.keyboard.press('Control+z');
+    await saved(page);
+    expect(openOnKitchenWall(readHouse(dataDir))).toEqual([]);
+    await expect(page.locator('.plan .wall-open')).toHaveCount(0);
     await expectNoA11yViolations(page);
   });
 });

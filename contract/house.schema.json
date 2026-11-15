@@ -105,9 +105,11 @@
           "type": "string"
         },
         "kind": {
+          "description": "open: no wall on this edge between two rooms (open plan, D51); ignored elsewhere",
           "enum": [
             "door",
-            "window"
+            "window",
+            "open"
           ],
           "title": "Kind",
           "type": "string"

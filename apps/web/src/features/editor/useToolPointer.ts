@@ -88,6 +88,9 @@ function apply(fx: ToolEffect) {
     case 'opening':
       ed.toggleOpening(fx.floorId, fx.edge, fx.kind);
       break;
+    case 'openRun':
+      ed.toggleOpenRun(fx.floorId, fx.edges);
+      break;
   }
 }
 
@@ -117,7 +120,10 @@ export function useToolPointer({
   const hoverAt = (cell: PointerCell | null) => {
     const ed = useEditor.getState();
     if (!cell || !insideGrid(cell, grid())) return ed.setHover(null);
-    const edge = ed.tool === 'door' || ed.tool === 'window' ? nearestEdge(cell) : undefined;
+    const edge =
+      ed.tool === 'door' || ed.tool === 'window' || ed.tool === 'open'
+        ? nearestEdge(cell)
+        : undefined;
     ed.setHover({ floorId, cell: { x: cell.x, y: cell.y }, ...(edge !== undefined && { edge }) });
   };
   const toPan = (e: PointerEvent) => {

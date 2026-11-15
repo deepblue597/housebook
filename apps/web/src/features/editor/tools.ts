@@ -5,7 +5,14 @@
  * through `useToolPointer`. Pure: no React, no stores.
  */
 import type { Cell, PointerCell } from '../../domain/coords';
-import { type Edge, clampToGrid, cycleStack, insideGrid, nearestEdge } from '../../domain/layout';
+import {
+  type Edge,
+  clampToGrid,
+  cycleStack,
+  edgeRun,
+  insideGrid,
+  nearestEdge,
+} from '../../domain/layout';
 import type { Gesture, Tool } from '../../store/editor';
 
 export interface ToolContext {
@@ -24,7 +31,8 @@ export type ToolEffect =
   | { type: 'move'; itemId: string; dx: number; dy: number }
   | { type: 'select'; itemId: string }
   | { type: 'place'; floorId: string; cell: Cell }
-  | { type: 'opening'; floorId: string; edge: Edge; kind: 'door' | 'window' };
+  | { type: 'opening'; floorId: string; edge: Edge; kind: 'door' | 'window' }
+  | { type: 'openRun'; floorId: string; edges: Edge[] };
 
 /** Top of the stack first: what a click sees. */
 const topFirst = (stack: readonly string[]) => [...stack].reverse();
@@ -59,12 +67,21 @@ export function toolDown(
     const edge = nearestEdge(cell);
     return edge ? { kind: 'edge', floorId: ctx.floorId, edge, opening: ctx.tool } : null;
   }
+  if (ctx.tool === 'open') {
+    // From the nearest edge, then along its wall line as the pointer moves (D51).
+    const edge = nearestEdge(cell);
+    return edge ? { kind: 'run', floorId: ctx.floorId, from: edge, to: edge } : null;
+  }
   return { kind: 'rect', erase: ctx.tool === 'erase', floorId: ctx.floorId, from: cell, to: cell };
 }
 
 /** Pointer move during a gesture: follow the pointer, staying on the grid. */
 export function toolMove(g: Gesture, cell: Cell | null, grid: ToolContext['grid']): Gesture {
   if (!cell || g.kind === 'edge') return g; // a door or window stays where it was pressed
+  if (g.kind === 'run') {
+    const to = edgeRun(g.from, cell, grid).at(-1)!;
+    return to.x === g.to.x && to.y === g.to.y ? g : { ...g, to };
+  }
   const c = clampToGrid(cell, grid);
   if (g.kind === 'place') return c.x === g.cell.x && c.y === g.cell.y ? g : { ...g, cell: c };
   return c.x === g.to.x && c.y === g.to.y ? g : { ...g, to: c };
@@ -79,6 +96,8 @@ export function toolUp(ctx: ToolContext, g: Gesture): ToolEffect | null {
       return { type: 'place', floorId: g.floorId, cell: g.cell };
     case 'edge':
       return { type: 'opening', floorId: g.floorId, edge: g.edge, kind: g.opening };
+    case 'run':
+      return { type: 'openRun', floorId: g.floorId, edges: edgeRun(g.from, g.to, ctx.grid) };
     case 'move': {
       const dx = g.to.x - g.from.x;
       const dy = g.to.y - g.from.y;

@@ -1063,6 +1063,14 @@ code {
   stroke-width: 7;
   stroke-linecap: square;
 }
+/* Open plan (D51): where one room ends and the next begins, without a wall. */
+.wall-open {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+  opacity: 0.55;
+}
 .opening-gap {
   stroke: var(--paper);
   stroke-width: 9;

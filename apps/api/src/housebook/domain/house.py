@@ -114,7 +114,9 @@ class Opening(_Model):
     x: int = Field(ge=0)
     y: int = Field(ge=0)
     side: Literal["n", "w"] = Field(description="Edge of tile (x,y): n = north (towards y-1), w = west (towards x-1)")
-    kind: Literal["door", "window"]
+    kind: Literal["door", "window", "open"] = Field(
+        description="open: no wall on this edge between two rooms (open plan, D51); ignored elsewhere"
+    )
 
 
 class House(_Model):

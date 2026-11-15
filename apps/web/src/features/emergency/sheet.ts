@@ -127,10 +127,12 @@ export function sheetFingerprint(model: Model, sheet: Sheet): string {
     const rooms = [...new Set(f.floor.cells.values())]
       .sort()
       .map((id) => [id, model.rooms.get(id)?.name ?? '']);
-    const doors = openingsOnWalls(
-      openings.filter((o) => o.floorId === f.floor.floor.id),
-      f.floor.cells,
-    )
+    // Doors, windows and open walls (D51) all change the printed plan.
+    const onFloor = openings.filter((o) => o.floorId === f.floor.floor.id);
+    const doors = [
+      ...openingsOnWalls(onFloor, f.floor.cells),
+      ...onFloor.filter((o) => o.kind === 'open'),
+    ]
       .map((o) => [o.x, o.y, o.side, o.kind])
       .sort((a, b) => String(a).localeCompare(String(b)));
     return [f.floor.floor.name, cells, rooms, doors];

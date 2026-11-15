@@ -143,15 +143,17 @@ Link receipts and invoices stored in Paperless-ngx to items.
 ## M13: Releases and operations (~2 days) — done, first tag after M14
 
 Built as D49 (export, `docs/backup.md`) and D50 (release workflow, `CHANGELOG.md`,
-`docs/releasing.md`, Dependabot). The first version tag waits for M14, so that open-plan rooms
-join `house.json` version 2 instead of needing version 3 right after the first release.
+`docs/releasing.md`, Dependabot). The first version tag waited for M14, so that open-plan rooms
+joined `house.json` version 2 instead of needing version 3 right after the first release.
 
 - **Publish the Docker image** to GitHub's container registry on version tags, with a changelog.
 - **Export** (`/api/export`, editors only): a zip of the data folder, streamed.
 - **Backup and restore guide** (what to back up, how to test a restore).
 - **Dependency updates:** Dependabot (or Renovate) for GitHub Actions, Python and npm packages.
 
-## M14: Open-plan rooms (~1–2 days)
+## M14: Open-plan rooms (~1–2 days) — done
+
+Built as D51: the `open` opening kind, joined to `house.json` version 2 before the first release.
 
 Two rooms without a wall between them (a kitchen open to the living room) can only be drawn as
 one room today, which loses the separate names, finishes, areas and "item in the Kitchen".
@@ -166,29 +168,16 @@ one room today, which loses the separate names, finishes, areas and "item in the
 - **`house.json`:** a new `kind` value. Until a release has shipped version 2 it can join it;
   after that it needs version 3 (an older image would refuse the unknown kind).
 
-## M15: Furniture (~3–4 days)
-
-Furniture makes the 3D view and the home look feel like the home, and helps find things ("the
-valve is behind the sofa"), but a sofa needs no note, manual or maintenance log.
-
-- **Layout-only furniture:** a `furniture[]` list in `house.json` (`floorId`, `x`, `y`,
-  `rotation`, `kind`, optional `footprint`), like doors and windows (D37): no note files. Kinds
-  such as sofa, armchair, bed, table, chairs, desk, wardrobe, shelves, kitchen counter, rug, plant.
-- **Drawn** in 3D and in the 2D home look with CC0 Kenney Furniture Kit models (one style with
-  the appliances); a faint outline (or nothing) in the plain plan. Never in the List, search,
-  Attention, QR stickers or the emergency sheet.
-- **Bigger than one tile:** most pieces need footprints over 1×1 (settles DESIGN open
-  question 1; the anchor and rotation rules already allow it).
-- **Editing:** a Furniture tool in the editor: place, move, rotate, resize, delete; commands with
-  exact inverses (D24), undo as for any edit.
-- **Furniture worth a note** (a bed with a 10-year warranty, a sofa's receipt) stays an item:
-  add a few furniture types (sofa, bed, wardrobe) to the item catalogue for that.
-- **`house.json`:** a new optional key, so a format change: best done with M14 before the first
-  release, else version 3.
-
 ---
 
 ## Later (not scheduled)
+
+- **Furniture (was M15),** postponed: it might clutter the plan more than it helps find things.
+  If it comes back, it is a new optional `furniture[]` key, so `house.json` version 3 (the first
+  release ships version 2). The plan it had: layout-only furniture without note files, drawn
+  with the Kenney Furniture Kit in 3D and the home look, a faint outline or nothing in the plain
+  plan, footprints over one tile, a Furniture tool with undo, and a few furniture types in the
+  item catalogue for pieces worth a note (a bed with a warranty).
 
 - Paperless, phase 2: tag documents in Paperless to link them from that side; fill in purchase
   date and warranty from the document.
@@ -205,7 +194,7 @@ valve is behind the sofa"), but a sofa needs no note, manual or maintenance log.
 | Track | Milestones | Main code areas |
 |---|---|---|
 | Items | M6 → M11 | `features/details`, backend writer and attachments |
-| Layout | M7 → M9 → M14 → M15 | `commands/`, `features/editor`, `features/plan2d`, `features/scene3d` |
+| Layout | M7 → M9 → M14 | `commands/`, `features/editor`, `features/plan2d`, `features/scene3d` |
 | Attention | M8 → M12 | new pages, `domain/status`, a new backend route |
 | Platform | M10, M13 | backend auth, CI, Docker |
 

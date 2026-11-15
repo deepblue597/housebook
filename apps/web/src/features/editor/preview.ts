@@ -9,7 +9,9 @@ import {
   type Edge,
   type FootprintOf,
   type Layout,
+  edgeRun,
   insideGrid,
+  isRoomDivide,
   isWallEdge,
   movedPlacement,
   placementRect,
@@ -80,24 +82,53 @@ function placeRect(p: PreviewInput, cell: { x: number; y: number }): Rect {
   };
 }
 
-/** The wall edge a door or window would go on (D36): from the press, else the hover. */
+/** A wall edge a door, window or open wall would go on (D36, D51). */
 export interface PreviewEdge {
   edge: Edge;
-  kind: 'door' | 'window';
-  /** On a wall (else the tool refuses it). */
+  kind: 'door' | 'window' | 'open';
+  /** The tool can act here (else it refuses or skips this edge). */
   ok: boolean;
 }
 
-export function previewEdge(p: PreviewInput): PreviewEdge | null {
-  if (p.tool !== 'door' && p.tool !== 'window') return null;
+/**
+ * The edges the door, window or open-wall tool would act on: the pressed edge (or the run
+ * dragged along a wall, for open walls), else the edge under the pointer.
+ */
+export function previewEdges(p: PreviewInput): PreviewEdge[] {
+  if (p.tool !== 'door' && p.tool !== 'window' && p.tool !== 'open') return [];
   const g = p.gesture;
+  const floor = p.layout.floors.find((f) => f.id === p.floorId);
+  const openHere = (e: Edge) =>
+    (p.layout.openings ?? []).some(
+      (o) =>
+        o.floorId === p.floorId &&
+        o.x === e.x &&
+        o.y === e.y &&
+        o.side === e.side &&
+        o.kind === 'open',
+    );
+  if (p.tool === 'open') {
+    const run =
+      g?.kind === 'run' && g.floorId === p.floorId
+        ? edgeRun(g.from, g.to, p.layout.grid)
+        : p.hover?.floorId === p.floorId && p.hover.edge
+          ? [p.hover.edge]
+          : [];
+    if (!run.length) return [];
+    // Same rule as the store (toggleOpenRun): starting on an open edge closes, else opens.
+    const closing = openHere(run[0]!);
+    return run.map((edge) => ({
+      edge,
+      kind: 'open',
+      ok: closing ? openHere(edge) : isRoomDivide(floor?.cells, edge, p.layout.grid),
+    }));
+  }
   const edge =
     g?.kind === 'edge' && g.floorId === p.floorId
       ? g.edge
       : p.hover?.floorId === p.floorId
         ? (p.hover.edge ?? null)
         : null;
-  if (!edge) return null;
-  const floor = p.layout.floors.find((f) => f.id === p.floorId);
-  return { edge, kind: p.tool, ok: isWallEdge(floor?.cells, edge, p.layout.grid) };
+  if (!edge) return [];
+  return [{ edge, kind: p.tool, ok: isWallEdge(floor?.cells, edge, p.layout.grid) }];
 }

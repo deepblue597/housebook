@@ -7,7 +7,7 @@
  */
 import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { cellKey } from '../../domain/coords';
-import { labelPosition, openingsOnWalls, roomTiles, walls } from '../../domain/plan';
+import { labelPosition, openEdges, openingsOnWalls, roomTiles, walls } from '../../domain/plan';
 import { EMERGENCY } from '../../strings/emergency';
 import { useData } from '../../store/data';
 import type { Model } from '../../store/model';
@@ -55,11 +55,11 @@ function PrintPlan({ model, sheetFloor }: { model: Model; sheetFloor: SheetFloor
       return keys;
     }),
   );
-  const w = walls(floor.cells);
-  const openings = openingsOnWalls(
-    (model.snapshot.house?.openings ?? []).filter((o) => o.floorId === floor.floor.id),
-    floor.cells,
+  const onFloor = (model.snapshot.house?.openings ?? []).filter(
+    (o) => o.floorId === floor.floor.id,
   );
+  const w = walls(floor.cells, openEdges(onFloor));
+  const openings = openingsOnWalls(onFloor, floor.cells);
   return (
     <svg
       className="es-plan"
@@ -83,6 +83,7 @@ function PrintPlan({ model, sheetFloor }: { model: Model; sheetFloor: SheetFloor
       ))}
       <path className="wall-in" d={path(w.interior)} />
       <path className="wall-ex" d={path(w.exterior)} />
+      {w.open.length > 0 && <path className="wall-open" d={path(w.open)} />}
       {openings.map((o) => (
         <OpeningMark key={`${o.x},${o.y},${o.side}`} o={o} floor={floor} />
       ))}
