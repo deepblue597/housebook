@@ -10,6 +10,8 @@ Before 1.0, a minor version (0.**x**.0) may change the data format; the app upgr
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-15
+
 The first release. Everything below is new.
 
 ### Plan and views
@@ -49,3 +51,6 @@ The first release. Everything below is new.
   (`docs/backup.md`).
 - A Docker image for amd64 and arm64 at `ghcr.io/deepblue597/housebook`, and
   `deploy/compose.yaml` to install it with Docker Compose in a few commands (README, "Install").
+
+[Unreleased]: https://github.com/deepblue597/housebook/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/deepblue597/housebook/releases/tag/v0.1.0
