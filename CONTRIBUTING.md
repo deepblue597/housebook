@@ -23,6 +23,46 @@ Change things freely; `make reset-data` gives you a fresh copy. `make help` list
    directly.
 4. Keep pull requests to one topic. Write commit messages in the imperative ("Add floor editing").
 
+## Running parts on their own
+
+`make dev` is enough for most work. To run only the backend on the example data (with
+[uv](https://docs.astral.sh/uv/), which fetches Python 3.13 if needed):
+
+```sh
+cd apps/api
+uv sync
+HOUSEBOOK_DATA_DIR=../../examples/house HOUSEBOOK_TZ=Europe/Athens uv run housebook serve
+# http://127.0.0.1:8000/api/snapshot   http://127.0.0.1:8000/api/docs
+```
+
+The server creates `<data>/.housebook/lock` (git-ignored) and refuses to start if another
+instance holds it.
+
+Backend tests and lint, without the rest of `make check`:
+
+```sh
+cd apps/api
+uv run pytest          # parser + nasty vault, golden fixtures, problems, API, path safety
+uv run ruff check src tests && uv run ruff format --check src tests
+```
+
+After changing the `house.json` model, regenerate the schema (a test fails otherwise):
+
+```sh
+uv run housebook schema --out ../../contract/house.schema.json
+```
+
+To build the image from source and run it on the example house with the development
+`compose.yaml` at the root of the repository (the install file is `deploy/compose.yaml`):
+
+```sh
+docker build -t housebook .
+HB_UID=$(id -u) HB_GID=$(id -g) docker compose up --build    # serves examples/house on 127.0.0.1:8000
+```
+
+Use `HB_UID`/`HB_GID`, not `UID`/`GID`: bash treats `UID` as read-only, so `UID=… docker compose`
+fails or is ignored and the container quietly runs as 1000.
+
 ## Where things live
 
 ```
@@ -32,6 +72,8 @@ apps/api/      FastAPI backend (see apps/api/README.md for its layers)
 apps/web/      React frontend (see apps/web/README.md for its layout)
 examples/      example data, used by the dev server and the tests
 docs/          DESIGN.md (architecture and decisions), data-contract.md (file formats, API rules)
+               configuration.md, api.md, login.md, backup.md, releasing.md: for people who
+               run it
 ```
 
 ## Generated files

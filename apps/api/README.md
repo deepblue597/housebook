@@ -1,6 +1,6 @@
 # housebook-api
 
-FastAPI backend for Housebook. See the repository README for running it and
+FastAPI backend for Housebook. See `CONTRIBUTING.md` at the repository root for running it and
 `docs/data-contract.md` for the file formats.
 
 ```
