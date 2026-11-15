@@ -186,7 +186,8 @@ The shared contract is imported as `@contract/…` (`../../contract`).
   back to 2D with a "Reload 3D" button (focus moves there if it was in the 3D view); a failed
   chunk load falls back with "Try 3D again" and is retried only on that action. three.js is
   pinned to 0.182: react-three-fiber 9.8 (latest stable) still creates a `THREE.Clock`,
-  which logs a deprecation warning from three 0.183 on. The canvas is labelled as a picture
+  which logs a deprecation warning from three 0.183 on. Dependabot is told to leave three and
+  `@types/three` alone (`.github/dependabot.yml`); upgrade them together with react-three-fiber 10. The canvas is labelled as a picture
   and points to the 2D plan and the list as the accessible alternatives.
 - **Routing:** `/i/<id>` opens that item (QR stickers, D16); the URL follows the selection and
   back/forward work.
