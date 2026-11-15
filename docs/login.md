@@ -39,8 +39,8 @@ Nobody is shown as signed in and there is no "Log out".
 
 The proxy signs people in and passes `X-Forwarded-User` and `X-Forwarded-Groups`. Housebook
 trusts them only from the addresses in `HOUSEBOOK_TRUSTED_PROXIES`, so keep the container port
-on an internal network the proxy shares and don't publish it. See the README's "Proxy auth"
-section for the details (editor group, the calendar feed's bypass).
+on an internal network the proxy shares and don't publish it. See [Proxy auth](configuration.md#proxy-auth-oauth2-proxy--keycloak)
+in the configuration guide for the details (editor group, the calendar feed's bypass).
 
 ```yaml
 environment:

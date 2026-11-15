@@ -72,7 +72,8 @@ Housebook ignores the `.git` folder (and leaves it out of the zip).
 3. **Give it to the right user.** The container runs as UID/GID 1000 unless you changed it
    (`HB_UID`/`HB_GID`), and it must be able to write the folder:
    `sudo chown -R 1000:1000 /srv/housebook-restored`.
-4. **Point Housebook at it** (the `volumes:` line in compose) and start it again.
+4. **Point Housebook at it** (the `volumes:` line in compose) and start it again. There is no
+   cache to delete or rebuild: Housebook reads the folder into memory when it starts.
 5. **Check it:**
    - `curl -fsS http://127.0.0.1:8000/readyz` answers `{"status": "ready", ...}`;
    - the plan shows your floors and items, and a few items open with their attachments;

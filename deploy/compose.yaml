@@ -7,7 +7,8 @@
 #   docker compose up -d
 #
 # Then open http://127.0.0.1:8000 and draw your first room. Settings go in `.env` next to this
-# file (Compose reads it by itself); the full list is in the README's "Configuration" table.
+# file (Compose reads it by itself): the ones listed below. Every other setting is in
+# docs/configuration.md.
 #
 #   HB_BIND   where the app can be reached. The default, 127.0.0.1, is this computer only. For
 #             phones on your home network use this machine's LAN address (e.g. 192.168.1.20);

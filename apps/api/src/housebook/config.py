@@ -1,4 +1,4 @@
-"""Settings from environment variables (see README for the table)."""
+"""Settings from environment variables (see docs/configuration.md for the table)."""
 
 import ipaddress
 import os
