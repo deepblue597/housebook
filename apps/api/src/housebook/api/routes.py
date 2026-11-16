@@ -125,6 +125,7 @@ def get_snapshot(request: Request, ctx: Ctx) -> Response:
             problem_count=len(state.problems),
             textures=[texture_out(t) for t in state.textures],
             textures_version=textures_version(state),
+            paperless_url=ctx.paperless.public_url if ctx.paperless else None,
         ).model_dump(mode="json")
         snap["house"] = hs.house.dump() if hs.house else None
         return snap

@@ -32,6 +32,7 @@ class ItemFieldsOut(BaseModel):
     support: str | None = None
     critical: bool | None = None
     attachments: list[str] = Field(default_factory=list)
+    receipts: list[str] = Field(default_factory=list, description="Links to receipts, usually Paperless documents")
 
 
 class AttachmentOut(ApiModel):
@@ -102,6 +103,9 @@ class SnapshotOut(ApiModel):
     problem_count: int
     textures: list[TextureOut] = Field(description="Uploaded textures (D43)")
     textures_version: str = Field(description="Changes with `textures`; the SSE `resync` event carries the same value")
+    paperless_url: str | None = Field(
+        None, description="The Paperless address people open, when receipts in Paperless are set up (D52)"
+    )
 
 
 class ProblemsOut(ApiModel):

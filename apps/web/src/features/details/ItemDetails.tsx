@@ -13,6 +13,7 @@ import { useUi } from '../../store/ui';
 import { useData } from '../../store/data';
 import { ItemLayoutActions } from '../editor';
 import { Attachments } from './Attachments';
+import { Receipts } from './Receipts';
 import { DeleteItemDialog } from './DeleteItemDialog';
 import { useDrafts } from './drafts';
 import { LogEntryForm } from './LogEntryForm';
@@ -300,6 +301,8 @@ function ItemDetailsView({
       {editor && <LogEntryForm key={item.id} item={item} />}
 
       <Attachments item={item} editor={editor} />
+
+      <Receipts item={item} editor={editor} />
 
       <footer className="note-foot">
         <p className="path">

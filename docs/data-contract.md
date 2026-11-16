@@ -232,6 +232,7 @@ versions. A new file that fails to parse is only reported.
 | `manual`, `support` | URL | Scheme must be `http`, `https`, `mailto`, `tel` or `obsidian`; others are dropped (`javascript:` never becomes a link) |
 | `critical` | bool | `true/false/yes/no/on/off/1/0`. Overrides the catalogue default (emergency sheet) |
 | `attachments` | list of links | See §3.4 |
+| `receipts` | list of http(s) links | Receipts, usually Paperless-ngx documents; see §3.7. Any other scheme drops the field (`note_invalid_field`) |
 | `tags` / `tag` | list | See §3.3 |
 
 Empty values (`key:` with nothing) are "not set". For dates, intervals and booleans `~` and
@@ -332,6 +333,24 @@ Only the item endpoints (§8.2) write notes; they never touch `house.json` (D8).
   non-blank line of the first "Maintenance log" section (any heading level, case-insensitive, up
   to the next heading of the same or a higher level), or appends `## Maintenance log` at the end of
   the body. The text is one line (whitespace collapsed).
+
+### 3.7 Receipts in Paperless-ngx (D52)
+
+`receipts` lists links to receipts and invoices, as the address of each document's page in
+Paperless: `receipts: ["https://paperless.example/documents/1234/details"]`. They open in
+Obsidian like any link. With Paperless set up (`HOUSEBOOK_PAPERLESS_URL`, a token), a link is a
+**Paperless document** when it is one of the configured Paperless addresses (the public one, or
+the one Housebook calls), then `/documents/<id>` with `id` a positive integer, optionally followed
+by more path (`/details`) and a query or fragment, which are ignored. Scheme and host compare
+case-insensitively; the address's path, if any, must match exactly. Every other link is a plain
+link: kept, shown, never sent to Paperless. Linking from the app writes the
+`/documents/<id>/details` form on the public address.
+
+The token stays on the server. People see a Paperless document only through Housebook's routes
+for the item that links it (§8.4). A linked document that Paperless says doesn't exist (`404`:
+deleted, or not visible to the token's user) is reported as `paperless_missing`. Housebook asks
+Paperless about every linked document 10 s after it starts and hourly after that, and whenever an
+item's receipts are opened. While Paperless can't be reached, what is known stays as it was.
 
 ## 4. Status
 
@@ -463,6 +482,7 @@ is an explicit user action; nothing is repaired silently.
 | `unknown_type` | warning | type not in the catalogue |
 | `missing_note` | warning | placement without a note (ghost model in the UI) |
 | `attachment_missing`, `attachment_unsafe`, `attachment_name_collision` | warning | §3.4 |
+| `paperless_missing` | warning | a receipt links a Paperless document that Paperless says doesn't exist; `detail.url` (§3.7) |
 | `symlink_outside_root` | warning | ignored symlink |
 | `not_adopted`, `untagged_typed` | info | §3.3 |
 
@@ -638,6 +658,36 @@ written, `ETag`.
 - `GET /api/textures/{key}` serves only JPEG, PNG and WebP (by the first bytes; anything else
   is `404`), with `X-Content-Type-Options: nosniff`, the sandbox CSP and `Cache-Control: private,
   no-cache`. The `v` query parameter is ignored.
+
+### 8.4 Paperless (D52)
+
+| Method | Path | Who | Response |
+|---|---|---|---|
+| `GET` | `/api/paperless/search?q=` | editor | `{results: [{documentId, title, created, url, thumbUrl}]}`, at most 24 |
+| `GET` | `/api/paperless/documents/{id}/thumb` | editor | a search result's thumbnail |
+| `GET` | `/api/items/{id}/receipts` | any role | `{receipts: [{url, documentId, state, title, created, thumbUrl, previewUrl}]}` |
+| `GET` | `/api/items/{id}/receipts/{documentId}/thumb` | any role | the thumbnail of a document this item links |
+| `GET` | `/api/items/{id}/receipts/{documentId}/preview` | any role | the document to view: Paperless's archived PDF, or the original image |
+
+- **The snapshot** (`GET /api/snapshot`) has `paperlessUrl`: the address people open when
+  Paperless is set up, else null. The app shows "Link receipt" only when it is set.
+- **Search** is Paperless's full-text search (`query`), best matches first; with an empty `q`, the
+  newest documents. `url` is what a note stores (§3.7); linking is a `PATCH` of `receipts`
+  (§8.2), so it follows the usual `If-Match` rules. `created` is `YYYY-MM-DD` or null.
+- **An item's receipts**, in note order. `state`: `found` (with `title`, `created`, `thumbUrl`,
+  `previewUrl`), `missing` (Paperless answered `404`; also a `paperless_missing` problem),
+  `unreachable` (Paperless couldn't be asked; after the first failure the rest aren't tried) or
+  `link` (Paperless isn't set up, or the link isn't a Paperless document; `documentId` null).
+  Titles and dates are remembered for 10 minutes.
+- **Files** are served only for documents the item links (`404` otherwise, without asking
+  Paperless). Like attachments (§3.4), the type comes from the first bytes: PDF and known images
+  inline, anything else `application/octet-stream` as a download; always
+  `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`;
+  `Cache-Control: private, max-age=300`. At most 64 MiB.
+- **Errors:** `404` when Paperless isn't set up (except the receipts list), `502` when Paperless can't be reached, refuses the token or answers something unusable
+  (the message says which; it never contains the token).
+- Housebook calls only `HOUSEBOOK_PAPERLESS_URL` + `/api/…`, with `Authorization: Token …`, a 10 s
+  timeout, and without following redirects.
 
 ## 9. Events (`GET /api/events`)
 

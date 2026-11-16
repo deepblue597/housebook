@@ -1,0 +1,30 @@
+// UI text of receipts in Paperless-ngx (D52).
+
+export const RECEIPTS = {
+  heading: 'Receipts',
+  link: 'Link receipt',
+  linkHint: 'Receipts and invoices kept in Paperless. Use Link receipt to find one.',
+  view: 'View',
+  open: 'Open in Paperless',
+  openLink: 'Open',
+  unlink: 'Unlink',
+  keep: 'Keep',
+  unlinkTitle: 'Remove the link from this note (the document stays in Paperless)',
+  missing: 'Not in Paperless any more, or Housebook can’t see it.',
+  unreachable: 'Paperless can’t be reached right now.',
+  linked: 'Receipt linked.',
+  unlinked: 'Link removed.',
+  changed: 'The note changed in the meantime. Try again.',
+  failed: (detail: string) => `Couldn’t save: ${detail}`,
+  offline: 'the server couldn’t be reached.',
+  // the search dialog
+  searchTitle: 'Link a receipt from Paperless',
+  searchLabel: 'Search Paperless',
+  searchHint: 'Words from the title or the text of the document. Empty: the newest documents.',
+  searching: 'Searching…',
+  noResults: 'Nothing found.',
+  searchFailed: (detail: string) => `Couldn’t search Paperless: ${detail}`,
+  pick: 'Link',
+  alreadyLinked: 'Linked',
+  thumbAlt: (title: string) => `First page of ${title}`,
+} as const;

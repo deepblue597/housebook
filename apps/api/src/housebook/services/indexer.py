@@ -16,7 +16,7 @@ import threading
 import time
 from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from pydantic import ValidationError
 
@@ -29,6 +29,7 @@ from housebook.domain.item import ItemFields, error_codes, last_log_date, parse_
 from housebook.domain.paths import is_conflict_copy
 from housebook.domain.problems import HouseProblemReason as Why
 from housebook.domain.problems import Problem, ProblemKind, Severity
+from housebook.domain.receipts import document_id
 from housebook.domain.search import SearchDoc
 from housebook.domain.text import nfc
 from housebook.domain.textures import MANIFEST_REL, TEXTURES_DIR, ManifestError, OwnTexture, parse_manifest
@@ -113,6 +114,16 @@ class IndexState:
     _parse_cache: dict[str, tuple[str, Any]] = field(default_factory=dict, repr=False)
 
 
+class Receipts(Protocol):
+    """What the scan needs from Paperless (D52): its addresses, and the linked documents it last
+    said don't exist. The scan never calls Paperless itself."""
+
+    bases: tuple[str, ...]
+
+    @property
+    def missing(self) -> frozenset[int]: ...
+
+
 class Indexer:
     def __init__(
         self,
@@ -121,12 +132,14 @@ class Indexer:
         catalog: Catalog,
         finishes: Finishes | None = None,
         textures: TextureRepo | None = None,
+        receipts: Receipts | None = None,
     ) -> None:
         self.house_repo = house_repo
         self.notes = notes
         self.catalog = catalog
         self.finishes = finishes  # None: finish names aren't checked
         self.textures = textures  # None: no uploaded textures
+        self.receipts = receipts  # None: Paperless isn't set up
         self.state: IndexState | None = None
         self._lock = threading.Lock()
 
@@ -533,6 +546,18 @@ class _Scan:
                 path=item.rel,
                 item_id=item.id,
             )
+        if self.ix.receipts and (missing := self.ix.receipts.missing):
+            for link in item.fields.receipts:
+                if document_id(link, self.ix.receipts.bases) in missing:
+                    self.problem(
+                        ProblemKind.paperless_missing,
+                        Severity.warning,
+                        f"Receipt {link} isn't in Paperless any more (deleted, or Housebook's Paperless "
+                        "user can't see it)",
+                        path=item.rel,
+                        item_id=item.id,
+                        detail={"url": link},
+                    )
         return replace(
             item,
             attachments=self.attachments_of(item, files, sizes),

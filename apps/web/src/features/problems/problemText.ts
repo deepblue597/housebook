@@ -106,6 +106,10 @@ export const PROBLEM_TEXT: Record<ProblemKind, { title: string; help: string }> 
     title: 'Attachment name clashes',
     help: 'Two attachments of one note have the same name.',
   },
+  paperless_missing: {
+    title: 'Receipts missing from Paperless',
+    help: 'A note links a Paperless document that Paperless says doesn’t exist: it was deleted, or Housebook’s Paperless user can’t see it. Link the receipt again, or remove the link.',
+  },
 };
 
 const FALLBACK = { title: 'Other problems', help: '' };
