@@ -4,6 +4,9 @@
 [![Latest release](https://img.shields.io/github/v/release/deepblue597/housebook)](https://github.com/deepblue597/housebook/releases)
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/license-AGPL--3.0--or--later-blue)](LICENSE)
 
+**[Project page](https://deepblue597.github.io/housebook/)** · [Install](#install) ·
+[Releases](https://github.com/deepblue597/housebook/releases)
+
 Self-hosted household app: a plan of your home where clicking an appliance shows its manual,
 warranty, quick fixes and maintenance log. Item info is plain Markdown with YAML frontmatter
 (Obsidian-compatible, Obsidian optional); the layout is `house.json`. One Docker container,

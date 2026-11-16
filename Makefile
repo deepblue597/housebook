@@ -8,7 +8,7 @@ WEB := apps/web
 DEV_DATA := .dev-data
 
 .DEFAULT_GOAL := help
-.PHONY: help setup dev api web reset-data check check-api check-web test e2e fmt schema docker
+.PHONY: help setup dev api web reset-data check check-api check-web test e2e fmt schema docker site
 
 help: ## Show this list
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  make %-11s %s\n", $$1, $$2}'
@@ -58,6 +58,9 @@ fmt: ## Format and auto-fix both sides
 schema: ## Regenerate contract/house.schema.json and the frontend API client after model/API changes
 	cd $(API) && uv run housebook schema --out ../../contract/house.schema.json
 	cd $(WEB) && pnpm gen:api
+
+site: ## Build the project page into _site/ (preview: python3 -m http.server -d _site)
+	python3 -I scripts/site.py build _site
 
 docker: ## Build the Docker image as housebook:dev
 	docker build -t housebook:dev .

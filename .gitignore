@@ -3,6 +3,8 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 node_modules/
+# the project page, built (make site)
+/_site/
 apps/web/dist/
 # runtime state the app creates inside a data root
 .housebook/

@@ -1,0 +1,500 @@
+/* Housebook's project page. The app's tokens and fonts (apps/web/src/styles/app.css), self-hosted:
+   the page makes no requests to anyone else. */
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/ibm-plex-sans-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans';
+  font-weight: 600;
+  font-display: swap;
+  src: url('fonts/ibm-plex-sans-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/ibm-plex-mono-latin-400-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo Narrow';
+  font-weight: 600;
+  font-display: swap;
+  src: url('fonts/archivo-narrow-latin-600-normal.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Archivo Narrow';
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/archivo-narrow-latin-700-normal.woff2') format('woff2');
+}
+
+:root {
+  --bg: #e6ebe9;
+  --paper: #f9fbfa;
+  --ink: #1a262b;
+  --muted: #536366;
+  --line: #c7d1cf;
+  --grid: #d9e1df;
+  --accent: #2f5da8;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(47, 93, 168, 0.12);
+  --code-bg: #1a262b;
+  --code-ink: #e0e9e7;
+  --code-muted: #93a5a7;
+  --display: 'Archivo Narrow', 'Arial Narrow', sans-serif;
+  --body: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1417;
+    --paper: #151e22;
+    --ink: #e0e9e7;
+    --muted: #93a5a7;
+    --line: #2a383d;
+    --grid: #1e2a2f;
+    --accent: #88aaeb;
+    --accent-ink: #0e1417;
+    --accent-soft: rgba(136, 170, 235, 0.16);
+    --code-bg: #0a0f11;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 72px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--body);
+  -webkit-text-size-adjust: 100%;
+}
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--display);
+  line-height: 1.15;
+  margin: 0 0 0.5em;
+}
+h1 {
+  font-size: clamp(2.25rem, 5vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+h2 {
+  font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+  font-weight: 700;
+}
+h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--accent-soft);
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+@media (min-width: 720px) {
+  .wrap {
+    padding: 0 32px;
+  }
+}
+.skip {
+  position: absolute;
+  left: -9999px;
+}
+.skip:focus {
+  left: 16px;
+  top: 8px;
+  z-index: 10;
+  background: var(--paper);
+  padding: 8px 12px;
+  border-radius: var(--radius);
+}
+.eyebrow {
+  margin: 0 0 12px;
+  font: 600 0.8rem/1.4 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* header */
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 56px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font: 700 1.3rem var(--display);
+}
+.top nav {
+  display: flex;
+  gap: 4px;
+}
+.top nav a {
+  color: var(--ink);
+  text-decoration: none;
+  padding: 10px 10px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+.top nav a:hover {
+  background: var(--accent-soft);
+}
+
+/* buttons */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  font: 600 1rem var(--body);
+  text-decoration: none;
+}
+.btn:hover {
+  border-color: var(--accent);
+}
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn.primary:hover {
+  filter: brightness(1.08);
+}
+
+/* hero: a drafting sheet, like the app */
+.hero {
+  padding: 48px 0 56px;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 32px 32px;
+  border-bottom: 1px solid var(--line);
+}
+.hero-grid {
+  display: grid;
+  gap: 32px;
+  align-items: center;
+}
+@media (min-width: 960px) {
+  .hero {
+    padding: 72px 0 80px;
+  }
+  .hero-grid {
+    grid-template-columns: 5fr 7fr;
+    gap: 48px;
+  }
+}
+.lead {
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 34em;
+  margin: 0;
+}
+
+/* screenshots */
+.shot {
+  margin: 0;
+}
+.shot img {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: 0 12px 32px rgba(10, 16, 18, 0.12);
+}
+.shot figcaption {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* features */
+.features,
+.files,
+.install {
+  padding: 64px 0;
+}
+.feature-list {
+  list-style: none;
+  margin: 24px 0 48px;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 640px) {
+  .feature-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 960px) {
+  .feature-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.feature-list li {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.feature-list p {
+  margin: 0;
+  color: var(--muted);
+}
+.gallery {
+  display: grid;
+  gap: 24px;
+}
+.gallery .tall img {
+  max-width: 320px;
+  margin: 0 auto;
+}
+@media (min-width: 860px) {
+  .gallery {
+    grid-template-columns: 1fr 1fr minmax(0, 0.62fr);
+    align-items: start;
+  }
+  .gallery .wide {
+    grid-column: 1 / 3;
+  }
+  .gallery .tall {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+  .gallery .tall img {
+    max-width: none;
+  }
+  /* Same height side by side: the top of each, where the content is. */
+  .gallery .shot:not(.wide, .tall) img {
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    object-position: top;
+  }
+}
+
+/* plain files */
+.files {
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.files-grid {
+  display: grid;
+  gap: 32px;
+  align-items: center;
+}
+@media (min-width: 860px) {
+  .files-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+  }
+}
+.files p {
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+pre {
+  margin: 0;
+  overflow-x: auto;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  font: 400 0.9rem/1.55 var(--mono);
+}
+pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  overflow-wrap: normal;
+}
+.note .c {
+  color: var(--code-muted);
+}
+
+/* install */
+.need {
+  color: var(--muted);
+  max-width: 40em;
+}
+.steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 32px 0 40px;
+  padding: 0;
+  display: grid;
+  gap: 28px;
+}
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 52px;
+}
+.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: -2px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: 700 1.1rem var(--display);
+}
+.steps p {
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+.code {
+  position: relative;
+}
+.code pre {
+  padding-right: 88px;
+}
+.copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid #3a4a50;
+  border-radius: 8px;
+  background: #24343a;
+  color: var(--code-ink);
+  font: 600 0.85rem var(--body);
+  cursor: pointer;
+}
+.copy:hover {
+  background: #2f444b;
+}
+@media (pointer: coarse) {
+  .copy {
+    min-height: 44px;
+  }
+}
+.next-h {
+  margin-top: 8px;
+}
+.next {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 8px;
+  max-width: 48em;
+}
+
+/* footer */
+.foot {
+  border-top: 1px solid var(--line);
+  padding: 24px 0 40px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.foot-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 24px;
+}
+.foot p {
+  margin: 0;
+}
+
+/* Grid and list items may shrink below their content, so long commands scroll inside their box
+   instead of widening the page on a phone. */
+.hero-grid > *,
+.files-grid > *,
+.steps > li,
+.code {
+  min-width: 0;
+}
+
+/* Narrow screens: the Copy button goes under the commands instead of covering them. */
+@media (max-width: 640px) {
+  .code {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+  .code pre {
+    width: 100%;
+    padding-right: 18px;
+  }
+  .copy {
+    position: static;
+  }
+}
+pre {
+  border: 1px solid var(--line);
+}

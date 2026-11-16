@@ -71,6 +71,8 @@ contract/      the agreement between backend and frontend: house.json schema, ca
 apps/api/      FastAPI backend (see apps/api/README.md for its layers)
 apps/web/      React frontend (see apps/web/README.md for its layout)
 examples/      example data, used by the dev server and the tests
+site/          the project page on GitHub Pages (`make site` builds it into _site/; its install
+               steps must match deploy/compose.yaml, which CI checks)
 docs/          DESIGN.md (architecture and decisions), data-contract.md (file formats, API rules)
                configuration.md, api.md, login.md, backup.md, releasing.md: for people who
                run it

@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Housebook: your home's manual, on a floor plan</title>
+    <meta
+      name="description"
+      content="Self-hosted household app: a plan of your home where clicking an appliance shows its manual, warranty, quick fixes and maintenance log. Plain Markdown files, one Docker container."
+    />
+    <meta property="og:title" content="Housebook" />
+    <meta
+      property="og:description"
+      content="Your home's manual, on a floor plan. Self-hosted, plain files, one Docker container."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="screenshots/plan.webp" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href="fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="fonts/archivo-narrow-latin-700-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to the content</a>
+    <header class="top">
+      <div class="wrap top-row">
+        <a class="brand" href="./" aria-label="Housebook home">
+          <img src="favicon.svg" alt="" width="28" height="28" />
+          <span>Housebook</span>
+        </a>
+        <nav aria-label="Sections">
+          <a href="#features">Features</a>
+          <a href="#install">Install</a>
+          <a href="https://github.com/deepblue597/housebook">GitHub</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero">
+        <div class="wrap hero-grid">
+          <div class="hero-text">
+            <p class="eyebrow">Self-hosted · open source · AGPL-3.0</p>
+            <h1>Your home’s manual, on a floor plan.</h1>
+            <p class="lead">
+              Click the boiler and see its manual, warranty, the fix for error E15 and when it was
+              last serviced. Housebook keeps everything about your house and its appliances in one
+              place you own: plain files on your own server.
+            </p>
+            <div class="actions">
+              <a class="btn primary" href="#install">Install in 3 steps</a>
+              <a class="btn" href="https://github.com/deepblue597/housebook">View on GitHub</a>
+            </div>
+          </div>
+          <figure class="shot hero-shot">
+            <img
+              src="screenshots/plan.webp"
+              alt="The 2D plan with the dishwasher open: warranty status, quick help for error E15, maintenance log"
+              width="1280"
+              height="800"
+            />
+          </figure>
+        </div>
+      </section>
+
+      <section id="features" class="features" aria-labelledby="features-h">
+        <div class="wrap">
+          <h2 id="features-h">What it does</h2>
+          <ul class="feature-list">
+            <li>
+              <h3>A plan of your home</h3>
+              <p>
+                Draw the rooms, doors, windows and open-plan spaces of each floor and see them in 2D
+                or 3D, with floor finishes and wall paint or wallpaper.
+              </p>
+            </li>
+            <li>
+              <h3>Every appliance in one place</h3>
+              <p>
+                Manual, warranty, quick fixes for common errors, maintenance log, photos and
+                receipts, including receipts kept in Paperless-ngx.
+              </p>
+            </li>
+            <li>
+              <h3>What needs attention</h3>
+              <p>
+                Overdue checks, maintenance due soon and warranties about to end, also as a calendar
+                feed for Google, Apple, Outlook or Thunderbird.
+              </p>
+            </li>
+            <li>
+              <h3>Ready for emergencies</h3>
+              <p>
+                A printable sheet of where the water valve, fuse box and gas valve are and what to
+                do, QR stickers for each appliance, and readable offline.
+              </p>
+            </li>
+            <li>
+              <h3>Your files, not a database</h3>
+              <p>
+                Each item is a Markdown note and the layout is one <code>house.json</code>, in a
+                folder you can back up, sync or open in Obsidian.
+              </p>
+            </li>
+            <li>
+              <h3>Household-sized</h3>
+              <p>
+                One Docker container for amd64 and arm64 (Raspberry Pi 4/5). No login on a home
+                network, or sign in with Keycloak, Authentik or Authelia.
+              </p>
+            </li>
+          </ul>
+
+          <div class="gallery">
+            <figure class="shot wide">
+              <img
+                src="screenshots/3d-home-look.webp"
+                width="1280"
+                height="800"
+                alt="The 3D view with wood, tile and carpet floors and painted walls"
+                loading="lazy"
+              />
+              <figcaption>The 3D view, with floor finishes and painted walls</figcaption>
+            </figure>
+            <figure class="shot tall">
+              <img
+                src="screenshots/phone.webp"
+                width="780"
+                height="1688"
+                alt="On a phone: the plan with the item's details in a bottom sheet"
+                loading="lazy"
+              />
+              <figcaption>On a phone</figcaption>
+            </figure>
+            <figure class="shot">
+              <img
+                src="screenshots/attention-dark.webp"
+                width="1280"
+                height="800"
+                alt="The Attention view in dark mode: overdue checks and a warranty ending soon"
+                loading="lazy"
+              />
+              <figcaption>What needs attention (dark mode)</figcaption>
+            </figure>
+            <figure class="shot">
+              <img
+                src="screenshots/emergency-sheet.webp"
+                width="860"
+                height="1060"
+                alt="The printable emergency sheet: the floor plan with numbered markers for the fuse box, router and water valve"
+                loading="lazy"
+              />
+              <figcaption>The printable emergency sheet</figcaption>
+            </figure>
+          </div>
+        </div>
+      </section>
+
+      <section class="files" aria-labelledby="files-h">
+        <div class="wrap files-grid">
+          <div>
+            <h2 id="files-h">Plain files you can read without it</h2>
+            <p>
+              Every appliance is a Markdown note with a few fields at the top. Edit it in the app,
+              in Obsidian or in any text editor; Housebook notices the change at once. If you ever
+              stop using Housebook, your notes, manuals and receipts stay where they are.
+            </p>
+          </div>
+          <pre class="note" aria-label="Example note: House/Kitchen/Dishwasher.md"><code><span class="c">House/Kitchen/Dishwasher.md</span>
+---
+type: dishwasher
+brand: Bosch
+model: SMS4HVI33E
+purchased: 2024-05-10
+warranty_until: 2027-05-10
+attachments: ["[[Dishwasher/manual.pdf]]"]
+tags: [housebook]
+---
+
+## Quick help
+
+- **E15**: water in the base. Unplug,
+  tilt it back, dry it, check the hoses
+
+## Maintenance log
+
+- 2026-03-02 Cleaned the filter</code></pre>
+        </div>
+      </section>
+
+      <section id="install" class="install" aria-labelledby="install-h">
+        <div class="wrap">
+          <h2 id="install-h">Install in 3 steps</h2>
+          <p class="need">
+            You need Docker with Compose on a machine that stays on: a home server, a NAS or a
+            Raspberry Pi 4/5.
+          </p>
+          <ol class="steps">
+            <li>
+              <h3>Get the install file</h3>
+              <div class="code">
+                <pre><code class="install">mkdir housebook &amp;&amp; cd housebook
+curl -fsSLO https://raw.githubusercontent.com/deepblue597/housebook/main/deploy/compose.yaml</code></pre>
+                <button type="button" class="copy" aria-label="Copy the commands of step 1">Copy</button>
+              </div>
+            </li>
+            <li>
+              <h3>Make a folder for your house, and the settings</h3>
+              <div class="code">
+                <pre><code class="install">mkdir data
+printf 'HB_UID=%s\nHB_GID=%s\nTZ=Europe/Athens\n' "$(id -u)" "$(id -g)" &gt; .env</code></pre>
+                <button type="button" class="copy" aria-label="Copy the commands of step 2">Copy</button>
+              </div>
+              <p>
+                Change <code>Europe/Athens</code> to your time zone. Your house is stored as plain
+                files in <code>data/</code>: back it up.
+              </p>
+            </li>
+            <li>
+              <h3>Start it</h3>
+              <div class="code">
+                <pre><code class="install">docker compose up -d</code></pre>
+                <button type="button" class="copy" aria-label="Copy the commands of step 3">Copy</button>
+              </div>
+              <p>Open <code>http://127.0.0.1:8000</code> and draw your first room.</p>
+            </li>
+          </ol>
+
+          <h3 class="next-h">Next</h3>
+          <ul class="next">
+            <li>
+              <strong>Phones:</strong> set <code>HB_BIND</code> in <code>.env</code> to this
+              machine's address on your home network or tailnet. There is no login in this setup,
+              so never make it reachable from the internet;
+              <a href="https://github.com/deepblue597/housebook/blob/main/docs/login.md">add a login</a>
+              when you need one.
+            </li>
+            <li>
+              <strong>Backups:</strong>
+              <a href="https://github.com/deepblue597/housebook/blob/main/docs/backup.md">back up the data folder</a>,
+              or download a zip from the app's ⋯ menu.
+            </li>
+            <li>
+              <strong>Upgrading:</strong> <code>docker compose pull &amp;&amp; docker compose up -d</code>,
+              after a backup. What changed:
+              <a href="https://github.com/deepblue597/housebook/blob/main/CHANGELOG.md">the changelog</a>.
+            </li>
+            <li>
+              <strong>Everything else:</strong>
+              <a href="https://github.com/deepblue597/housebook/blob/main/docs/configuration.md">settings, reverse proxies, offline use and Paperless-ngx</a>.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer class="foot">
+      <div class="wrap foot-row">
+        <p>
+          Housebook is free software under the
+          <a href="https://github.com/deepblue597/housebook/blob/main/LICENSE">GNU AGPL-3.0</a>.
+        </p>
+        <p>
+          <a href="https://github.com/deepblue597/housebook/releases">Releases</a> ·
+          <a href="https://github.com/deepblue597/housebook/issues">Report a problem</a> ·
+          <a href="https://github.com/deepblue597/housebook/blob/main/SECURITY.md">Security</a>
+        </p>
+      </div>
+    </footer>
+
+    <script src="copy.js" defer></script>
+  </body>
+</html>
