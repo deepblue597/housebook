@@ -16,6 +16,11 @@ Before 1.0, a minor version (0.**x**.0) may change the data format; the app upgr
   (`LICENSE`). You may run, change and share it; if you let others use a changed version over
   a network, you must offer them its source code.
 
+### Fixed
+
+- A very long web address no longer keeps the server busy for a noticeable time per request,
+  which anyone who could reach Housebook could repeat, even without signing in.
+
 ## [0.1.0] - 2026-11-15
 
 The first release. Everything below is new.

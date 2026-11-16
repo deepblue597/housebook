@@ -10,6 +10,7 @@ without a login.
 """
 
 import re
+import string
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -22,8 +23,32 @@ from housebook.api.http import IMMUTABLE, NO_CACHE, matches_if_none_match
 from housebook.api.login import login_url
 from housebook.ports import UnsafePath
 
-# Vite emits assets/<name>-<hash>.<ext>; the hash is 8+ url-safe chars.
-_HASHED_RE = re.compile(r"(^|/)assets/.+[-.][A-Za-z0-9_-]{8,}\.[a-z0-9]+$")
+# Vite emits assets/<name>-<hash>.<ext>; the hash is 8+ url-safe chars. The path comes from the
+# request, before any login, so this is string scanning in linear time, not a regex like
+# `assets/.+[-.][A-Za-z0-9_-]{8,}\.[a-z0-9]+$`, which backtracks quadratically on long paths.
+_URL_SAFE = string.ascii_letters + string.digits + "_-"
+_EXT_RE = re.compile(r"[a-z0-9]+")
+_MIN_HASH = 8
+
+
+def is_hashed_asset(rel: str) -> bool:
+    """`rel` is under an `assets/` folder and named `<something>[-.]<hash>.<ext>`."""
+    *folders, name = rel.split("/")
+    if "assets" not in folders:
+        return False
+    stem, dot, ext = name.rpartition(".")
+    if not dot or not _EXT_RE.fullmatch(ext):
+        return False
+    # The hash is the url-safe run at the end of the stem, after a '.' before the run or a
+    # '-' inside it. Something must come between `assets/` and that separator.
+    head = stem.rstrip(_URL_SAFE)
+    run = stem[len(head) :]
+    more_folders = folders.index("assets") < len(folders) - 1
+    if head.endswith(".") and len(run) >= _MIN_HASH and (len(head) > 1 or more_folders):
+        return True
+    dash = run.find("-", 0 if head or more_folders else 1)
+    return dash != -1 and len(run) - dash - 1 >= _MIN_HASH
+
 
 # Types Python's built-in mimetypes table lacks; the slim image has no /etc/mime.types,
 # so these would otherwise be served as application/octet-stream (under nosniff).
@@ -31,7 +56,7 @@ _MEDIA_TYPES = {".glb": "model/gltf-binary", ".gltf": "model/gltf+json"}
 
 
 def cache_control_for(rel: str) -> str:
-    return IMMUTABLE if _HASHED_RE.search(rel) else NO_CACHE
+    return IMMUTABLE if is_hashed_asset(rel) else NO_CACHE
 
 
 def mount_spa(app: FastAPI, static_dir: Path | None) -> None:
@@ -54,7 +79,7 @@ def mount_spa(app: FastAPI, static_dir: Path | None) -> None:
                     return _file_response(file, cache_control_for(path), request)
             except UnsafePath:
                 pass
-            if _HASHED_RE.search(path):  # a missing hashed asset must not turn into HTML
+            if is_hashed_asset(path):  # a missing hashed asset must not turn into HTML
                 raise HTTPException(status.HTTP_404_NOT_FOUND, "Not found")
         ctx: AppContext = request.app.state.ctx
         if ctx.sessions is not None and ctx.sessions.read(request.cookies.get(SESSION_COOKIE)) is None:
