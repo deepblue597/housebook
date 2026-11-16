@@ -18,6 +18,7 @@ from housebook.lock import ProcessLock
 from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer, IndexState
 from housebook.services.oidc import Oidc
+from housebook.services.paperless import Paperless
 from housebook.services.sessions import Sessions, Signer
 from housebook.services.sync import Hub, Sync
 from housebook.services.writer import Writer
@@ -43,6 +44,7 @@ class AppContext:
     signer: Signer | None = None
     sessions: Sessions | None = None
     oidc: Oidc | None = None
+    paperless: Paperless | None = None  # receipts in Paperless-ngx (D52), when set up
     loop: asyncio.AbstractEventLoop | None = None  # set at startup; signal handlers post to it
     # (scan time, today) -> (body, etag); the snapshot is rebuilt only when either changes
     _snapshot: tuple[tuple[datetime, date], bytes, str] | None = field(default=None, repr=False)

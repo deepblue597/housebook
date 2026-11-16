@@ -1944,6 +1944,42 @@ code {
   overflow-wrap: anywhere;
 }
 
+/* Receipts in Paperless (D52): the attachment list's layout, plus the search dialog. */
+.att-status.err {
+  color: var(--bad);
+}
+.attachments small.warn {
+  color: var(--warn);
+  font-family: inherit;
+}
+.receipts .grow {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.dialog.receipt-search {
+  width: min(640px, calc(100vw - 32px));
+}
+.receipt-search .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.receipt-search .field input {
+  min-height: var(--target);
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px; /* no zoom on focus in iOS Safari */
+}
+.receipt-results {
+  margin-top: 8px;
+}
+
 /* ---- dialogs (PDF, image preview) ------------------------------------------------ */
 .dialog {
   width: min(900px, calc(100vw - 32px));

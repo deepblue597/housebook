@@ -17,6 +17,7 @@ from housebook.adapters.fs import FsAttachmentStore, FsHouseRepo, FsTextureRepo,
 from housebook.api.context import AppContext
 from housebook.api.login import login
 from housebook.api.middleware import Compression, HeadAsGet, WriteGuard
+from housebook.api.receipts import linked_documents, receipts
 from housebook.api.routes import api, calendar_feed, health
 from housebook.api.spa import mount_spa
 from housebook.config import Settings
@@ -26,11 +27,15 @@ from housebook.lock import LockHeld, ProcessLock, network_fs_type
 from housebook.services.calendar_links import CalendarLinks
 from housebook.services.indexer import Indexer
 from housebook.services.oidc import Oidc
+from housebook.services.paperless import Paperless, PaperlessError
 from housebook.services.sessions import Sessions, Signer, session_key
 from housebook.services.sync import Hub, Sync, watch
 from housebook.services.writer import WriteError, Writer
 
 log = logging.getLogger(__name__)
+
+PAPERLESS_CHECK_INTERVAL = 3600.0  # seconds between asking Paperless about every linked receipt
+PAPERLESS_FIRST_CHECK = 10.0  # seconds after startup: the app is up before Paperless is asked
 
 
 async def _rescan_loop(ctx: AppContext, interval: float) -> None:
@@ -41,6 +46,23 @@ async def _rescan_loop(ctx: AppContext, interval: float) -> None:
             await ctx.sync.rescan()
         except Exception:
             log.exception("rescan failed")
+
+
+async def _paperless_loop(ctx: AppContext, interval: float) -> None:
+    """Ask Paperless about every linked receipt, shortly after startup and then hourly, so deleted
+    ones show up as `paperless_missing` (D52). While Paperless is down nothing changes."""
+    assert ctx.paperless is not None
+    await asyncio.sleep(PAPERLESS_FIRST_CHECK)
+    while True:
+        try:
+            ids = linked_documents(ctx.state(), ctx.paperless)
+            if await asyncio.to_thread(ctx.paperless.check, ids):
+                await ctx.sync.rescan()
+        except PaperlessError as e:
+            log.warning("paperless check failed", extra={"error": str(e)})
+        except Exception:
+            log.exception("paperless check failed")
+        await asyncio.sleep(interval)
 
 
 async def _validation_error(request: Request, exc: Exception) -> Response:
@@ -90,6 +112,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         tasks.append(asyncio.create_task(watch(s.data_dir, ctx.sync, s.watch, s.poll_interval, stop)))
     if s.rescan_interval > 0:
         tasks.append(asyncio.create_task(_rescan_loop(ctx, s.rescan_interval)))
+    if ctx.paperless is not None:
+        tasks.append(asyncio.create_task(_paperless_loop(ctx, PAPERLESS_CHECK_INTERVAL)))
     try:
         yield
     finally:
@@ -109,7 +133,8 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
     data = settings.data_dir
     house_repo, notes = FsHouseRepo(data), MarkdownNoteRepo(data, settings.notes_dir)
     textures = FsTextureRepo(data)
-    indexer = Indexer(house_repo, notes, catalog, load_finishes(settings.finishes_path), textures)
+    paperless = Paperless(settings) if settings.paperless_url else None
+    indexer = Indexer(house_repo, notes, catalog, load_finishes(settings.finishes_path), textures, paperless)
     hub = Hub()
     now = clock or (lambda: datetime.now(UTC))
     ctx = AppContext(
@@ -122,6 +147,7 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
         sync=Sync(indexer, hub),
         writer=Writer(house_repo, notes, indexer, catalog, settings, now, textures),
         calendar_links=CalendarLinks(data),
+        paperless=paperless,
     )
     if clock:
         ctx.clock = clock
@@ -156,6 +182,7 @@ def create_app(settings: Settings, clock: Callable[[], datetime] | None = None) 
     app.include_router(login)  # the built-in login's own routes (D48), outside the api auth
     app.include_router(calendar_feed)  # its own code instead of a login (D40)
     app.include_router(api)
+    app.include_router(receipts)
     mount_spa(app, settings.static_dir)  # last: catch-all
     # Outermost last: HEAD is turned into GET before gzip decides on headers.
     app.add_middleware(WriteGuard, settings=settings, sessions=ctx.sessions)

@@ -16,6 +16,8 @@ src/housebook/
                         parse retry, echo suppression by hash); the watchfiles watcher
                oidc, sessions: the built-in login (D48): provider calls and ID token checks,
                         signed cookies and the session key
+               paperless: the Paperless-ngx client for linked receipts (D52): search, a
+                        document's title, thumbnail and preview, the missing-document check
   api/         FastAPI app, routes, auth (who is asking), login (/api/auth/*), SPA serving
   config.py    settings from HOUSEBOOK_* env vars
   lock.py      single-process flock on <data>/.housebook/lock; network-filesystem check

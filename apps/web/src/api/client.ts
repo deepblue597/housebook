@@ -6,6 +6,8 @@ import type {
   ItemCreate,
   ItemPatch,
   OwnTexture,
+  PaperlessDoc,
+  Receipt,
   Snapshot,
 } from './types';
 
@@ -336,3 +338,21 @@ export function unquoteEtag(etag: string | null | undefined): string | null {
 
 export const sameEtag = (a: string | null | undefined, b: string | null | undefined) =>
   unquoteEtag(a) === unquoteEtag(b);
+
+/** An item's receipts with their title and date from Paperless (data contract §8.4). */
+export async function fetchReceipts(id: string, signal?: AbortSignal): Promise<Receipt[]> {
+  const res = await request(`/api/items/${encodeURIComponent(id)}/receipts`, {
+    cache: 'no-store',
+    ...(signal ? { signal } : {}),
+  });
+  return ((await res.json()) as { receipts: Receipt[] }).receipts;
+}
+
+/** Search Paperless to link a receipt (editors); the newest documents for an empty query. */
+export async function searchPaperless(q: string, signal?: AbortSignal): Promise<PaperlessDoc[]> {
+  const res = await request(`/api/paperless/search?q=${encodeURIComponent(q)}`, {
+    cache: 'no-store',
+    ...(signal ? { signal } : {}),
+  });
+  return ((await res.json()) as { results: PaperlessDoc[] }).results;
+}

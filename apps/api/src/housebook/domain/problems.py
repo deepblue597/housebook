@@ -44,6 +44,8 @@ class ProblemKind(StrEnum):
     attachment_missing = "attachment_missing"
     attachment_unsafe = "attachment_unsafe"
     attachment_name_collision = "attachment_name_collision"
+    # Paperless (D52)
+    paperless_missing = "paperless_missing"
 
 
 class HouseProblemReason(StrEnum):
@@ -75,5 +77,5 @@ class Problem(BaseModel):
     detail: ProblemDetail | None = Field(
         default=None,
         description="Extra string fields per kind: `reason` on house_invalid / house_newer_version, "
-        "`key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy",
+        "`key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy, `url` on paperless_missing",
     )

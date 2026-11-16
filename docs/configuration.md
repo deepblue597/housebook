@@ -36,6 +36,9 @@ exactly one instance per data root (`replicas: 1`, `strategy: Recreate` on k3s).
 | `HOUSEBOOK_TRUSTED_PROXIES` | – | Comma-separated IPs/CIDRs of the auth proxy. Required in `proxy` mode |
 | `HOUSEBOOK_LOGOUT_URL` | `/oauth2/sign_out` | `proxy` mode: where "Log out" goes (the proxy's sign-out page) |
 | `HOUSEBOOK_PUBLIC_URL`, `HOUSEBOOK_OIDC_*`, `HOUSEBOOK_SESSION_*` | – | `oidc` mode: the app's own login, see [login.md](login.md#settings) |
+| `HOUSEBOOK_PAPERLESS_URL` | – | Paperless-ngx address Housebook calls, e.g. `http://paperless:8000` (a path is allowed). Turns on receipts, see [below](#receipts-in-paperless-ngx) |
+| `HOUSEBOOK_PAPERLESS_PUBLIC_URL` | `HOUSEBOOK_PAPERLESS_URL` | The Paperless address people open, when it differs (e.g. `https://paperless.example`). Links in notes use it |
+| `HOUSEBOOK_PAPERLESS_TOKEN` / `HOUSEBOOK_PAPERLESS_TOKEN_FILE` | – | Paperless API token, or a file holding it (Docker secrets). Required with `HOUSEBOOK_PAPERLESS_URL` |
 | `HOUSEBOOK_EDITOR_GROUP` | `housebook-editors` | Group (from `X-Forwarded-Groups`) that grants `editor`. A full path such as `/home/housebook-editors` matches exactly that group (**recommended**, stricter). A bare name matches that name at any depth (`/housebook-editors`, `/kids/housebook-editors`, …). Case-sensitive, like Keycloak group names |
 | `HOUSEBOOK_WATCH` | `inotify` | How file changes made outside the app (Obsidian, Syncthing, a file manager) are noticed. `inotify`: native events (falls back to `poll` if they can't be set up). `poll`: a full rescan every `HOUSEBOOK_POLL_INTERVAL`; use it on NFS, SMB, 9p and Docker Desktop shares, which don't deliver events for changes made by other machines (a warning is logged at startup when the data folder is on one). `off`: only the periodic rescan |
 | `HOUSEBOOK_POLL_INTERVAL` | `5` | Seconds between rescans with `HOUSEBOOK_WATCH=poll` (0.1–3600) |
@@ -46,6 +49,39 @@ exactly one instance per data root (`replicas: 1`, `strategy: Recreate` on k3s).
 | `HOUSEBOOK_LOG_LEVEL` | `INFO` | JSON logs to stdout |
 
 A variable set to an empty value counts as unset.
+
+## Receipts in Paperless-ngx
+
+With [Paperless-ngx](https://docs.paperless-ngx.com/) set up, an item can link the receipts and
+invoices you keep there: "Link receipt" in the item panel searches Paperless, and the item shows
+each receipt's title, date and preview. The note stores the document's Paperless address, so the
+link also opens from Obsidian.
+
+1. **Give Housebook its own Paperless user.** Housebook sees whatever that user can see, so don't
+   use an admin. In Paperless, create a user (Settings → Users & Groups) and give it permission to
+   view documents, then share the documents Housebook may link with it (for example everything
+   tagged `receipt`, using Paperless's permissions or a workflow that assigns them).
+2. **Make a token** for that user: sign in to Paperless as them, then My Profile → API Auth Token.
+3. **Tell Housebook** where Paperless is and the token. In `deploy/compose.yaml`, under
+   `environment:`:
+
+   ```yaml
+   HOUSEBOOK_PAPERLESS_URL: https://paperless.example
+   HOUSEBOOK_PAPERLESS_TOKEN: ${PAPERLESS_TOKEN}   # put PAPERLESS_TOKEN=… in .env
+   ```
+
+   If Housebook reaches Paperless on an internal address (the same Docker network), use that for
+   `HOUSEBOOK_PAPERLESS_URL` and the address people open for `HOUSEBOOK_PAPERLESS_PUBLIC_URL`:
+
+   ```yaml
+   HOUSEBOOK_PAPERLESS_URL: http://paperless:8000
+   HOUSEBOOK_PAPERLESS_PUBLIC_URL: https://paperless.example
+   ```
+
+The token stays on the server: browsers only ever see receipts through Housebook, and only the
+ones an item links. Everyone who can open an item sees its receipts, as with attachments; only
+editors can search Paperless and link new ones. When Paperless is down, items show the plain
+links; a receipt deleted in Paperless shows up in the problems panel.
 
 ## Proxy auth (oauth2-proxy + Keycloak)
 

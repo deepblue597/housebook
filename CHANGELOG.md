@@ -10,6 +10,15 @@ Before 1.0, a minor version (0.**x**.0) may change the data format; the app upgr
 
 ## [Unreleased]
 
+### Added
+
+- Receipts in Paperless-ngx: link the receipts and invoices you keep in Paperless to an item
+  ("Link receipt" in the item panel searches Paperless), and see each one's title, date and
+  preview there. The note stores the document's Paperless address, so the link opens from
+  Obsidian too. Set `HOUSEBOOK_PAPERLESS_URL` and a token to turn it on
+  (`docs/configuration.md`, "Receipts in Paperless-ngx"). A receipt deleted in Paperless shows up
+  in the problems panel.
+
 ### Changed
 
 - Housebook is free software under the GNU Affero General Public License, version 3 or later

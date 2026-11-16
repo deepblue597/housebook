@@ -113,12 +113,13 @@ Today: no login (`none`), or a login service in front of the app (`proxy`).
 
 Done: D48 (`docs/login.md`).
 
-## M11: Paperless receipts (~2–4 days)
+## M11: Paperless receipts (~2–4 days) — done
 
 Link receipts and invoices stored in Paperless-ngx to items.
 
 - **Settings:** `HOUSEBOOK_PAPERLESS_URL`, `HOUSEBOOK_PAPERLESS_TOKEN` (also readable from a
-  file, for Docker secrets). Only the backend uses the token.
+  file, for Docker secrets), and `HOUSEBOOK_PAPERLESS_PUBLIC_URL` when people open Paperless at
+  another address than Housebook calls. Only the backend uses the token.
 - **Link format:** the document's Paperless URL in the note, e.g.
   `receipts: ["https://paperless.home/documents/1234/details"]`. Readable and clickable in
   Obsidian too.
@@ -127,6 +128,8 @@ Link receipts and invoices stored in Paperless-ngx to items.
   door into all of Paperless).
 - **When Paperless is down** a plain link is shown; a deleted document is reported in the
   problems panel (`paperless_missing`).
+
+Done: D52 (`docs/configuration.md`, "Receipts in Paperless-ngx").
 
 ## M12: Emergencies and offline (~3–4 days) — done
 

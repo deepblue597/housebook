@@ -48,6 +48,11 @@ class Settings:
     oidc_groups_claim: str = "groups"
     session_days: float = 30.0
     session_secret: str | None = None  # None: a random key kept in .housebook/session-key
+    # Paperless-ngx receipts (D52): the address Housebook calls, the one people open (defaults to
+    # the first) and the API token. Both addresses without a trailing slash; a path is allowed.
+    paperless_url: str | None = None
+    paperless_public_url: str | None = None
+    paperless_token: str | None = None
     watch: Literal["inotify", "poll", "off"] = "inotify"
     poll_interval: float = 5.0  # seconds between polls with watch=poll
     rescan_interval: float = 600.0  # seconds; 0 disables
@@ -158,6 +163,20 @@ class Settings:
         if not 0.1 <= poll <= 3600:
             raise ConfigError(f"HOUSEBOOK_POLL_INTERVAL must be between 0.1 and 3600 seconds (got {poll:g})")
 
+        paperless_url = _base_url("PAPERLESS_URL", get("PAPERLESS_URL")) if get("PAPERLESS_URL") else None
+        paperless_public = get("PAPERLESS_PUBLIC_URL")
+        paperless_public_url = _base_url("PAPERLESS_PUBLIC_URL", paperless_public) if paperless_public else None
+        paperless_token = secret("PAPERLESS_TOKEN")
+        if paperless_url and not paperless_token:
+            raise ConfigError(
+                "HOUSEBOOK_PAPERLESS_URL needs HOUSEBOOK_PAPERLESS_TOKEN (or HOUSEBOOK_PAPERLESS_TOKEN_FILE); "
+                "see docs/configuration.md"
+            )
+        if (paperless_token or paperless_public_url) and not paperless_url:
+            raise ConfigError(
+                "HOUSEBOOK_PAPERLESS_TOKEN and HOUSEBOOK_PAPERLESS_PUBLIC_URL need HOUSEBOOK_PAPERLESS_URL"
+            )
+
         static = get("STATIC_DIR")
         contract = get("CONTRACT_DIR")
         return cls(
@@ -180,6 +199,9 @@ class Settings:
             oidc_groups_claim=get("OIDC_GROUPS_CLAIM", "groups"),
             session_days=session_days,
             session_secret=secret("SESSION_SECRET"),
+            paperless_url=paperless_url,
+            paperless_public_url=paperless_public_url or paperless_url,
+            paperless_token=paperless_token,
             watch=choice("WATCH", "inotify", ("inotify", "poll", "off")),
             poll_interval=poll,
             rescan_interval=max(rescan, 0.0),
@@ -200,3 +222,14 @@ def _origin(name: str, value: str) -> str:
             f"(got '{value}')"
         )
     return f"{parts.scheme}://{parts.netloc}"
+
+
+def _base_url(name: str, value: str) -> str:
+    """An http(s) address, possibly with a path (Paperless under /paperless), without a trailing
+    slash, query or fragment."""
+    parts = urlsplit(value.strip())
+    if parts.scheme not in ("https", "http") or not parts.netloc or parts.query or parts.fragment:
+        raise ConfigError(
+            f"HOUSEBOOK_{name} must be an http(s) address such as https://paperless.example (got '{value}')"
+        )
+    return f"{parts.scheme}://{parts.netloc}{parts.path}".rstrip("/")

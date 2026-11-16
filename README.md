@@ -39,7 +39,8 @@ Screenshots show the example house in `examples/house` (finishes added for the 3
 - **A plan of your home.** Draw the rooms, doors, windows and open-plan spaces of each floor and
   see them in 2D or 3D, with floor finishes and wall paint or wallpaper.
 - **Everything about each appliance in one place.** Click the boiler or the dishwasher for its
-  manual, warranty, quick fixes for common errors, maintenance log, photos and receipts.
+  manual, warranty, quick fixes for common errors, maintenance log, photos and receipts, including
+  receipts kept in [Paperless-ngx](https://docs.paperless-ngx.com/).
 - **What needs attention.** Overdue checks, maintenance due soon and warranties about to end, also
   as a calendar feed for Google, Apple, Outlook or Thunderbird.
 - **Ready for emergencies.** A printable sheet of where the water valve, fuse box and gas valve

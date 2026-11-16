@@ -1403,6 +1403,273 @@
           }
         }
       }
+    },
+    "/api/paperless/search": {
+      "get": {
+        "summary": "Search Paperless",
+        "description": "Search Paperless to link a receipt (editors). Full-text; the newest documents when `q` is empty.",
+        "operationId": "search_paperless_api_paperless_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200,
+              "default": "",
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaperlessSearchOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/paperless/documents/{doc_id}/thumb": {
+      "get": {
+        "summary": "Search Thumb",
+        "description": "A search result's thumbnail (editors).",
+        "operationId": "search_thumb_api_paperless_documents__doc_id__thumb_get",
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "image/webp": {}
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}/receipts": {
+      "get": {
+        "summary": "Get Receipts",
+        "description": "An item's receipts with their title and date from Paperless. When Paperless can't be\nreached the links come back as they are (`unreachable`), so they still open.",
+        "operationId": "get_receipts_api_items__item_id__receipts_get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptsOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/items/{item_id}/receipts/{doc_id}/{kind}": {
+      "get": {
+        "summary": "Get Receipt File",
+        "description": "A linked receipt's thumbnail or the document to view (the PDF Paperless archived, or the\noriginal image), only for documents this item links.",
+        "operationId": "get_receipt_file_api_items__item_id__receipts__doc_id___kind__get",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Doc Id"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "thumb",
+                "preview"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/pdf": {},
+              "image/webp": {}
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorOut"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -2127,6 +2394,14 @@
             },
             "type": "array",
             "title": "Attachments"
+          },
+          "receipts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Receipts",
+            "description": "Links to receipts, usually Paperless documents"
           }
         },
         "type": "object",
@@ -2573,6 +2848,64 @@
         ],
         "title": "Opening"
       },
+      "PaperlessDocOut": {
+        "properties": {
+          "documentId": {
+            "type": "integer",
+            "title": "Documentid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "YYYY-MM-DD"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "The document's page in Paperless: what a note stores in `receipts`"
+          },
+          "thumbUrl": {
+            "type": "string",
+            "title": "Thumburl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documentId",
+          "title",
+          "created",
+          "url",
+          "thumbUrl"
+        ],
+        "title": "PaperlessDocOut"
+      },
+      "PaperlessSearchOut": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/PaperlessDocOut"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "PaperlessSearchOut"
+      },
       "Placement": {
         "properties": {
           "itemId": {
@@ -2689,7 +3022,7 @@
                 "type": "null"
               }
             ],
-            "description": "Extra string fields per kind: `reason` on house_invalid / house_newer_version, `key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy"
+            "description": "Extra string fields per kind: `reason` on house_invalid / house_newer_version, `key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy, `url` on paperless_missing"
           }
         },
         "type": "object",
@@ -2741,7 +3074,8 @@
           "missing_note",
           "attachment_missing",
           "attachment_unsafe",
-          "attachment_name_collision"
+          "attachment_name_collision",
+          "paperless_missing"
         ],
         "title": "ProblemKind"
       },
@@ -2771,6 +3105,106 @@
           "scannedAt"
         ],
         "title": "ProblemsOut"
+      },
+      "ReceiptOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "The link as written in the note"
+          },
+          "documentId": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Documentid",
+            "description": "Null: not a document on the configured Paperless"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "found",
+              "missing",
+              "unreachable",
+              "link"
+            ],
+            "title": "State",
+            "description": "`found`: Paperless has it; `missing`: Paperless says it doesn't exist; `unreachable`: Paperless couldn't be asked; `link`: a plain link (no Paperless, or another address)"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "created": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created",
+            "description": "YYYY-MM-DD"
+          },
+          "thumbUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumburl"
+          },
+          "previewUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previewurl"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "documentId",
+          "state"
+        ],
+        "title": "ReceiptOut"
+      },
+      "ReceiptsOut": {
+        "properties": {
+          "receipts": {
+            "items": {
+              "$ref": "#/components/schemas/ReceiptOut"
+            },
+            "type": "array",
+            "title": "Receipts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "receipts"
+        ],
+        "title": "ReceiptsOut"
       },
       "Room": {
         "properties": {
@@ -2911,6 +3345,18 @@
             "type": "string",
             "title": "Texturesversion",
             "description": "Changes with `textures`; the SSE `resync` event carries the same value"
+          },
+          "paperlessUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paperlessurl",
+            "description": "The Paperless address people open, when receipts in Paperless are set up (D52)"
           }
         },
         "type": "object",

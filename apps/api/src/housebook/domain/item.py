@@ -87,6 +87,15 @@ def _string_list(v: Any) -> list[str]:
     raise ValueError("expected a list of strings")
 
 
+def _web_links(v: Any) -> list[str]:
+    """A list of http(s) links (receipts, D52). One bad entry drops the field, like a bad URL."""
+    links = _string_list(v)
+    for link in links:
+        if urlsplit(link).scheme.lower() not in ("http", "https") or not urlsplit(link).netloc:
+            raise ValueError("expected http(s) links, such as https://paperless.example/documents/12/details")
+    return links
+
+
 Text = Annotated[str | None, BeforeValidator(_text)]
 DateField = Annotated[date | None, BeforeValidator(_date)]
 
@@ -140,6 +149,7 @@ class ItemFields(BaseModel):
     support: Annotated[str | None, BeforeValidator(_url)] = None
     critical: Annotated[bool | None, BeforeValidator(_bool)] = None
     attachments: Annotated[list[str], BeforeValidator(_string_list)] = Field(default_factory=list)
+    receipts: Annotated[list[str], BeforeValidator(_web_links)] = Field(default_factory=list)
 
     @field_validator("check_every", mode="before")
     @classmethod

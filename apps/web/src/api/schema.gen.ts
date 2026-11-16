@@ -421,6 +421,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/paperless/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Paperless
+         * @description Search Paperless to link a receipt (editors). Full-text; the newest documents when `q` is empty.
+         */
+        get: operations["search_paperless_api_paperless_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/paperless/documents/{doc_id}/thumb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Thumb
+         * @description A search result's thumbnail (editors).
+         */
+        get: operations["search_thumb_api_paperless_documents__doc_id__thumb_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{item_id}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Receipts
+         * @description An item's receipts with their title and date from Paperless. When Paperless can't be
+         *     reached the links come back as they are (`unreachable`), so they still open.
+         */
+        get: operations["get_receipts_api_items__item_id__receipts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/items/{item_id}/receipts/{doc_id}/{kind}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Receipt File
+         * @description A linked receipt's thumbnail or the document to view (the PDF Paperless archived, or the
+         *     original image), only for documents this item links.
+         */
+        get: operations["get_receipt_file_api_items__item_id__receipts__doc_id___kind__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -723,6 +805,11 @@ export interface components {
             critical?: boolean | null;
             /** Attachments */
             attachments?: string[];
+            /**
+             * Receipts
+             * @description Links to receipts, usually Paperless documents
+             */
+            receipts?: string[];
         };
         /** ItemListOut */
         ItemListOut: {
@@ -914,6 +1001,30 @@ export interface components {
              */
             kind: "door" | "window" | "open";
         };
+        /** PaperlessDocOut */
+        PaperlessDocOut: {
+            /** Documentid */
+            documentId: number;
+            /** Title */
+            title: string;
+            /**
+             * Created
+             * @description YYYY-MM-DD
+             */
+            created: string | null;
+            /**
+             * Url
+             * @description The document's page in Paperless: what a note stores in `receipts`
+             */
+            url: string;
+            /** Thumburl */
+            thumbUrl: string;
+        };
+        /** PaperlessSearchOut */
+        PaperlessSearchOut: {
+            /** Results */
+            results: components["schemas"]["PaperlessDocOut"][];
+        };
         /** Placement */
         Placement: {
             /** Itemid */
@@ -956,7 +1067,7 @@ export interface components {
             path?: string | null;
             /** Itemid */
             itemId?: string | null;
-            /** @description Extra string fields per kind: `reason` on house_invalid / house_newer_version, `key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy */
+            /** @description Extra string fields per kind: `reason` on house_invalid / house_newer_version, `key` on note_invalid_field, `canonical` on duplicate_id / conflict_copy, `url` on paperless_missing */
             detail?: components["schemas"]["ProblemDetail"] | null;
         };
         /**
@@ -972,7 +1083,7 @@ export interface components {
          * ProblemKind
          * @enum {string}
          */
-        ProblemKind: "house_missing" | "house_invalid" | "house_newer_version" | "house_duplicate_id" | "house_bad_cell" | "house_unknown_room" | "house_unknown_floor" | "house_outside_grid" | "house_duplicate_placement" | "house_unknown_finish" | "textures_invalid" | "texture_missing" | "note_parse_error" | "read_error" | "note_invalid_field" | "note_invalid_id" | "duplicate_id" | "conflict_copy" | "not_adopted" | "untagged_typed" | "unknown_type" | "symlink_outside_root" | "missing_note" | "attachment_missing" | "attachment_unsafe" | "attachment_name_collision";
+        ProblemKind: "house_missing" | "house_invalid" | "house_newer_version" | "house_duplicate_id" | "house_bad_cell" | "house_unknown_room" | "house_unknown_floor" | "house_outside_grid" | "house_duplicate_placement" | "house_unknown_finish" | "textures_invalid" | "texture_missing" | "note_parse_error" | "read_error" | "note_invalid_field" | "note_invalid_id" | "duplicate_id" | "conflict_copy" | "not_adopted" | "untagged_typed" | "unknown_type" | "symlink_outside_root" | "missing_note" | "attachment_missing" | "attachment_unsafe" | "attachment_name_collision" | "paperless_missing";
         /** ProblemsOut */
         ProblemsOut: {
             /** Problems */
@@ -984,6 +1095,41 @@ export interface components {
              * Format: date-time
              */
             scannedAt: string;
+        };
+        /** ReceiptOut */
+        ReceiptOut: {
+            /**
+             * Url
+             * @description The link as written in the note
+             */
+            url: string;
+            /**
+             * Documentid
+             * @description Null: not a document on the configured Paperless
+             */
+            documentId: number | null;
+            /**
+             * State
+             * @description `found`: Paperless has it; `missing`: Paperless says it doesn't exist; `unreachable`: Paperless couldn't be asked; `link`: a plain link (no Paperless, or another address)
+             * @enum {string}
+             */
+            state: "found" | "missing" | "unreachable" | "link";
+            /** Title */
+            title?: string | null;
+            /**
+             * Created
+             * @description YYYY-MM-DD
+             */
+            created?: string | null;
+            /** Thumburl */
+            thumbUrl?: string | null;
+            /** Previewurl */
+            previewUrl?: string | null;
+        };
+        /** ReceiptsOut */
+        ReceiptsOut: {
+            /** Receipts */
+            receipts: components["schemas"]["ReceiptOut"][];
         };
         /** Room */
         Room: {
@@ -1045,6 +1191,11 @@ export interface components {
              * @description Changes with `textures`; the SSE `resync` event carries the same value
              */
             texturesVersion: string;
+            /**
+             * Paperlessurl
+             * @description The Paperless address people open, when receipts in Paperless are set up (D52)
+             */
+            paperlessUrl?: string | null;
         };
         /** Status */
         Status: {
@@ -2256,6 +2407,214 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    search_paperless_api_paperless_search_get: {
+        parameters: {
+            query?: {
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaperlessSearchOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    search_thumb_api_paperless_documents__doc_id__thumb_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": unknown;
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_receipts_api_items__item_id__receipts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReceiptsOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_receipt_file_api_items__item_id__receipts__doc_id___kind__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: string;
+                doc_id: number;
+                kind: "thumb" | "preview";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                    "image/webp": unknown;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
             };
         };
     };
